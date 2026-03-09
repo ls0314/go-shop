@@ -1,0 +1,16 @@
+# 服务器配置
+server:
+  port: 9001
+
+# 数据库配置
+database:
+  # MySQL 连接信息
+  host: localhost
+  port: 3306
+  user: root
+  password: 123456
+#  dbname: demo_shop
+  dbname: djdb
+  charset: utf8mb4
+  parseTime: true
+  loc: Local

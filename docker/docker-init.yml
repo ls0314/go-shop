@@ -1,0 +1,266 @@
+# 服务定义
+services:
+  # PostgreSQL 数据库服务
+  postgres:
+    # 使用的 Docker 镜像（官方源）
+    image: postgres:14-alpine
+    # 容器名称
+    container_name: postgres
+    # 端口映射 (主机:容器)
+    ports:
+      - 5432:5432
+    # 环境变量
+    environment:
+      # PostgreSQL 用户名
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      # PostgreSQL 密码
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # 数据库名称
+      POSTGRES_DB: demo_shop
+    # 数据卷挂载
+    volumes:
+      # 数据卷挂载
+      - postgres-data:/var/lib/postgresql/data
+    # 网络配置
+    networks:
+      - demo-shop-network
+    # 重启策略
+    restart: always
+    # 健康检查配置
+    healthcheck:
+      # 健康检查命令
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      # 检查间隔
+      interval: 30s
+      # 超时时间
+      timeout: 10s
+      # 重试次数
+      retries: 5
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          # CPU 限制
+          cpus: '1'
+          # 内存限制
+          memory: 1G
+        reservations:
+          # CPU 预留
+          cpus: '0.5'
+          # 内存预留
+          memory: 512M
+
+  # Redis 缓存服务
+  redis:
+    # 使用的 Docker 镜像（官方源）
+    image: redis:6-alpine
+    # 容器名称
+    container_name: redis
+    # 端口映射 (主机:容器)
+    ports:
+      - 6379:6379
+    # 数据卷挂载
+    volumes:
+      # 数据卷挂载
+      - redis-data:/data
+    # 启动命令
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-demoShop}
+    # 重启策略
+    restart: always
+    # 网络配置
+    networks:
+      - demo-shop-network
+    # 健康检查配置
+    healthcheck:
+      # 健康检查命令
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-your_redis_password}", "ping"]
+      # 检查间隔
+      interval: 30s
+      # 超时时间
+      timeout: 10s
+      # 重试次数
+      retries: 5
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          # CPU 限制
+          cpus: '0.5'
+          # 内存限制
+          memory: 512M
+        reservations:
+          # CPU 预留
+          cpus: '0.25'
+          # 内存预留
+          memory: 256M
+
+  # RabbitMQ 消息队列服务
+  rabbitmq:
+    # 使用的 Docker 镜像（官方源）
+    image: rabbitmq:3.13-management-alpine
+    # 容器名称
+    container_name: rabbitmq
+    # 端口映射 (主机:容器)
+    ports:
+      # AMQP 端口
+      - 5672:5672
+      # 管理界面端口
+      - 15672:15672
+    # 数据卷挂载
+    volumes:
+      # 数据卷挂载
+      - rabbitmq-data:/var/lib/rabbitmq
+    # 网络配置
+    networks:
+      - demo-shop-network
+    # 重启策略
+    restart: always
+    # 环境变量
+    environment:
+      # RabbitMQ 默认用户名
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-demoShop}
+      # RabbitMQ 默认密码
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-demoShop}
+      # RabbitMQ 默认虚拟主机
+      RABBITMQ_DEFAULT_VHOST: demoShop
+    # 健康检查配置
+    healthcheck:
+      # 健康检查命令
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      # 检查间隔
+      interval: 30s
+      # 超时时间
+      timeout: 10s
+      # 重试次数
+      retries: 5
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          # CPU 限制
+          cpus: '1'
+          # 内存限制
+          memory: 1G
+        reservations:
+          # CPU 预留
+          cpus: '0.5'
+          # 内存预留
+          memory: 512M
+
+  # Elasticsearch 搜索引擎服务
+  elasticsearch:
+    # 使用的 Docker 镜像（官方源）
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
+    # 容器名称
+    container_name: elasticsearch
+    # 端口映射 (主机:容器)
+    ports:
+      # HTTP API 端口
+      - 9200:9200
+      # 节点间通信端口
+      - 9300:9300
+    # 数据卷挂载
+    volumes:
+      # 数据卷挂载
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    # 网络配置
+    networks:
+      - demo-shop-network
+    # 重启策略
+    restart: always
+    # 环境变量
+    environment:
+      # 单节点模式
+      discovery.type: single-node
+      # 禁用安全功能
+      xpack.security.enabled: ${ES_SECURITY_ENABLED:-false}
+      # JVM 堆内存设置
+      ES_JAVA_OPTS: ${ES_JAVA_OPTS:--Xms1g -Xmx1g}
+    # 健康检查配置
+    healthcheck:
+      # 健康检查命令
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -v '\"status\":\"red\"'"]
+      # 检查间隔
+      interval: 30s
+      # 超时时间
+      timeout: 10s
+      # 重试次数
+      retries: 5
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          # CPU 限制
+          cpus: '2'
+          # 内存限制
+          memory: 4G
+        reservations:
+          # CPU 预留
+          cpus: '1'
+          # 内存预留
+          memory: 2G
+
+  # Kibana 可视化工具
+  kibana:
+    # 使用的 Docker 镜像（官方源）
+    image: docker.elastic.co/kibana/kibana:7.17.0
+    # 容器名称
+    container_name: kibana
+    # 端口映射 (主机:容器)
+    ports:
+      - 5601:5601
+    # 网络配置
+    networks:
+      - demo-shop-network
+    # 重启策略
+    restart: always
+    # 环境变量
+    environment:
+      # Elasticsearch 主机地址
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    # 依赖关系
+    depends_on:
+      # 依赖于 elasticsearch 服务，且需要其健康检查通过
+      elasticsearch:
+        condition: service_healthy
+    # 健康检查配置
+    healthcheck:
+      # 健康检查命令
+      test: ["CMD-SHELL", "curl -s http://localhost:5601/api/status | grep -v '\"status\":\"red\"'"]
+      # 检查间隔
+      interval: 30s
+      # 超时时间
+      timeout: 10s
+      # 重试次数
+      retries: 5
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          # CPU 限制
+          cpus: '1'
+          # 内存限制
+          memory: 2G
+        reservations:
+          # CPU 预留
+          cpus: '0.5'
+          # 内存预留
+          memory: 1G
+
+# 网络定义
+networks:
+  # 自定义网络
+  demo-shop-network:
+    # 网络驱动类型
+    driver: bridge
+
+# 数据卷定义
+volumes:
+  # PostgreSQL 数据卷
+  postgres-data:
+  # Redis 数据卷
+  redis-data:
+  # RabbitMQ 数据卷
+  rabbitmq-data:
+  # Elasticsearch 数据卷
+  elasticsearch-data:

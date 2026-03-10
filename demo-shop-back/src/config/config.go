@@ -20,14 +20,12 @@ type ServerConfig struct {
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Host      string `yaml:"host"`
-	Port      string `yaml:"port"`
-	User      string `yaml:"user"`
-	Password  string `yaml:"password"`
-	Dbname    string `yaml:"dbname"`
-	Charset   string `yaml:"charset"`
-	ParseTime bool   `yaml:"parseTime"`
-	Loc       string `yaml:"loc"`
+	Host     string `yaml:"host"`
+	Port     string `yaml:"port"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	Dbname   string `yaml:"dbname"`
+	Sslmode  string `yaml:"sslmode"`
 }
 
 // GlobalConfig 全局配置实例
@@ -57,6 +55,6 @@ func LoadConfig(configPath string) error {
 
 // GetDSN 获取数据库连接字符串
 func (db *DatabaseConfig) GetDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=%t&loc=%s",
-		db.User, db.Password, db.Host, db.Port, db.Dbname, db.Charset, db.ParseTime, db.Loc)
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		db.Host, db.Port, db.User, db.Password, db.Dbname, db.Sslmode)
 }

@@ -15,6 +15,14 @@ func main() {
 		log.Fatalf("加载配置文件失败: %v", err)
 	}
 	log.Println("配置文件加载成功")
+
+	// 执行数据库迁移
+	err = db.RunMigrations()
+	if err != nil {
+		log.Fatalf("数据库迁移失败: %v", err)
+	}
+	log.Println("数据库迁移成功")
+
 	// 初始化数据库连接
 	err = db.InitDB()
 	if err != nil {

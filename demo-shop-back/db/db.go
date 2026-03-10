@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -40,7 +40,7 @@ func InitDB() error {
 
 	// 打开数据库连接
 	var err error
-	DB, err = gorm.Open(mysql.Open(dsn), gormConfig)
+	DB, err = gorm.Open(postgres.Open(dsn), gormConfig)
 	if err != nil {
 		return fmt.Errorf("打开数据库连接失败: %v", err)
 	}

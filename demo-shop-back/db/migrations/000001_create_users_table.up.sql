@@ -1,7 +1,8 @@
 -- 创建用户认证表 (高频查询，需要分表)
 CREATE TABLE IF NOT EXISTS sys_user (
-    user_id BIGSERIAL PRIMARY KEY,
+    user_id uuid PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
     email VARCHAR(100) UNIQUE,
     phone VARCHAR(20) UNIQUE,
     status VARCHAR(20) DEFAULT 'active',
@@ -16,6 +17,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
 -- 添加列注释
 COMMENT ON COLUMN sys_user.user_id IS '用户ID';
 COMMENT ON COLUMN sys_user.username IS '用户名';
+COMMENT ON COLUMN sys_user.password_hash IS '用户密码';
 COMMENT ON COLUMN sys_user.email IS '邮箱';
 COMMENT ON COLUMN sys_user.phone IS '手机号';
 COMMENT ON COLUMN sys_user.status IS '状态';
@@ -34,7 +36,7 @@ CREATE INDEX IF NOT EXISTS idx_status_created ON sys_user(status, created_at);
 
 -- 创建用户信息表
 CREATE TABLE IF NOT EXISTS user_profile (
-    user_info_id BIGINT PRIMARY KEY,
+    user_info_id uuid PRIMARY KEY,
     nickname VARCHAR(50),
     real_name VARCHAR(50),
     avatar_url VARCHAR(500),
@@ -47,6 +49,7 @@ CREATE TABLE IF NOT EXISTS user_profile (
 -- 添加列注释
 COMMENT ON COLUMN user_profile.user_info_id IS '用户ID';
 COMMENT ON COLUMN user_profile.nickname IS '昵称';
+COMMENT ON COLUMN user_profile.real_name IS '真实姓名';
 COMMENT ON COLUMN user_profile.avatar_url IS '头像URL';
 COMMENT ON COLUMN user_profile.gender IS '性别';
 COMMENT ON COLUMN user_profile.birthdate IS '出生日期';

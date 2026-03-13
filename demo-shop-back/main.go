@@ -3,6 +3,7 @@ package main
 import (
 	"demo-shop-back/db"
 	"demo-shop-back/src/config"
+	"demo-shop-back/src/handler"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -42,11 +43,12 @@ func main() {
 
 	// Create a Gin router with default middleware (logger and recovery)
 	r := gin.Default()
+	api := r.Group("/api")
+	api.POST("/register", handler.RegisterHandler)
 	err = r.SetTrustedProxies([]string{"127.0.0.1"})
 	if err != nil {
 		return
 	}
-
 	// 配置CORS中间件
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -64,7 +66,7 @@ func main() {
 
 	serverPort := config.GlobalConfig.Server.Port
 	if serverPort == "" {
-		serverPort = "9000"
+		serverPort = "9001"
 	}
 
 	log.Printf("服务器启动在端口: %s", serverPort)

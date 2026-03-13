@@ -84,7 +84,7 @@ func createDatabaseIfNotExists(dsn string, dbName string) error {
 	defer db.Close()
 
 	// 检查数据库是否已存在
-	var exists bool
+	var exists int
 	row := db.QueryRow(fmt.Sprintf("SELECT 1 FROM pg_database WHERE datname='%s'", dbName))
 	err = row.Scan(&exists)
 	if err != nil && err != sql.ErrNoRows {
@@ -92,7 +92,7 @@ func createDatabaseIfNotExists(dsn string, dbName string) error {
 	}
 
 	// 如果数据库不存在，则创建
-	if !exists {
+	if err == sql.ErrNoRows {
 		_, err = db.Exec(fmt.Sprintf("CREATE DATABASE %s WITH ENCODING 'UTF8' LC_COLLATE='en_US.utf8' LC_CTYPE='en_US.utf8'", dbName))
 		if err != nil {
 			return err

@@ -63,7 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_created ON user_profile(created_at);
 -- 创建登录日志表
 CREATE TABLE IF NOT EXISTS user_login_log (
     id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    user_id uuid NOT NULL,
     login_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     login_ip VARCHAR(45),
     login_device VARCHAR(200),

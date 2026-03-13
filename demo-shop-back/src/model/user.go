@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// 用户注册信息
 type SysUser struct {
 	UserID         uuid.UUID  `gorm:"column:user_id;primaryKey"`
 	Username       string     `gorm:"column:username"`
@@ -25,6 +26,7 @@ func (SysUser) TableName() string {
 	return "sys_user"
 }
 
+// 用户信息
 type UserProfile struct {
 	UserInfoID uuid.UUID  `gorm:"column:user_info_id;primaryKey"`
 	Nickname   string     `gorm:"column:nickname"`
@@ -40,10 +42,23 @@ func (UserProfile) TableName() string {
 	return "user_profile"
 }
 
+// 注册请求结构
 type RegisterRequest struct {
 	Phone    string `json:"phone"`
 	Password string `json:"password"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Nickname string `json:"nickname"`
+}
+
+// 登录请求结构
+type LoginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// 签发Token结构
+type LoginResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }

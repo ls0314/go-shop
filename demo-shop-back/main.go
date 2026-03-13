@@ -45,6 +45,7 @@ func main() {
 	r := gin.Default()
 	api := r.Group("/api")
 	api.POST("/register", handler.RegisterHandler)
+	api.POST("/login", handler.LoginHandler)
 	err = r.SetTrustedProxies([]string{"127.0.0.1"})
 	if err != nil {
 		return

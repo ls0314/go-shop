@@ -3,6 +3,7 @@ package service
 import (
 	"demo-shop-back/db"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/utils"
 	"errors"
 	"log"
 	"regexp"
@@ -93,4 +94,54 @@ func Register(req model.RegisterRequest) error {
 	}
 
 	return tx.Commit().Error
+}
+
+func recordLoginLog(userID string, ip string, device string, status string, reason string) {
+
+	db.DB.Exec(`
+	INSERT INTO user_login_log
+	(user_id, login_ip, login_device, login_status, failure_reason)
+	VALUES (?, ?, ?, ?, ?)
+	`, userID, ip, device, status, reason)
+}
+
+func Login(req model.LoginRequest, ip string, device string) (*model.LoginResponse, error) {
+
+	var user struct {
+		UserID       string
+		Username     string
+		PasswordHash string
+	}
+
+	err := db.DB.Raw(`
+    SELECT user_id, username, password_hash 
+	FROM sys_user 
+	WHERE username = ?
+	`, req.Username).Scan(&user).Error
+
+	if err != nil || user.UserID == "" {
+		recordLoginLog("", ip, device, "fail", "user not found")
+		return nil, errors.New("用户名或密码错误")
+	}
+
+	accessToken, err := utils.GenerateToken(user.UserID, user.Username, 30*time.Minute)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := utils.GenerateToken(user.UserID, user.Username, 24*time.Minute)
+
+	db.DB.Exec(`
+	UPDATE sys_user
+	SET last_login_time = NOW(),
+	last_login_ip = ?
+	WHERE user_id = ?
+	`, ip, user.UserID)
+
+	recordLoginLog(user.UserID, ip, device, "success", "")
+
+	return &model.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }

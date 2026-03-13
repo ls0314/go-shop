@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/db"
 	"demo-shop-back/src/config"
 	"demo-shop-back/src/handler"
+	"demo-shop-back/src/middleware"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -46,6 +47,11 @@ func main() {
 	api := r.Group("/api")
 	api.POST("/register", handler.RegisterHandler)
 	api.POST("/login", handler.LoginHandler)
+
+	auth := api.Group("/user")
+	auth.Use(middleware.AuthMiddleware())
+	auth.GET("/info", handler.UserInfo)
+
 	err = r.SetTrustedProxies([]string{"127.0.0.1"})
 	if err != nil {
 		return

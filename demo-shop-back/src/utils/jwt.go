@@ -11,6 +11,8 @@ var jwtSecret = []byte("demo-shop-secret")
 type CustomClaims struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`
+	Phone    string `json:"phone"`
+	Email    string `json:"email"`
 	jwt.RegisteredClaims
 }
 

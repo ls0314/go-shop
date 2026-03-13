@@ -32,6 +32,21 @@ func RegisterHandler(c *gin.Context) {
 
 }
 
+func UserInfo(c *gin.Context) {
+
+	userID, _ := c.Get("user_id")
+	username, _ := c.Get("username")
+	phone, _ := c.Get("phone")
+	email, _ := c.Get("email")
+
+	c.JSON(200, gin.H{
+		"user_id":  userID,
+		"username": username,
+		"phone":    phone,
+		"email":    email,
+	})
+}
+
 func LoginHandler(c *gin.Context) {
 
 	var req model.LoginRequest

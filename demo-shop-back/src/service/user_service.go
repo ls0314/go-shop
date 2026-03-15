@@ -2,14 +2,10 @@ package service
 
 import (
 	"demo-shop-back/db"
+	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
-	"demo-shop-back/src/utils"
-	"errors"
-	"log"
 	"regexp"
 	"time"
-
-	"github.com/google/uuid"
 )
 import "golang.org/x/crypto/bcrypt"
 
@@ -32,13 +28,13 @@ func ValidatePhone(phone string) bool {
 }
 
 func Register(req model.RegisterRequest) error {
-	log.Printf("Register called with phone=%s, username=%s", req.Phone, req.Username)
+	//log.Printf("Register called with phone=%s, username=%s", req.Phone, req.Username)
 	if !ValidatePassword(req.Password) {
-		return errors.New("密码必须同时包含字母数字标点符号且>=8位")
+		return model.RegPasswordInvalid
 	}
 
 	if !ValidatePhone(req.Phone) {
-		return errors.New("手机号格式错误")
+		return model.PhoneMalformed
 	}
 
 	database := db.GetDB()
@@ -46,15 +42,21 @@ func Register(req model.RegisterRequest) error {
 	var exist model.SysUser
 
 	if err := database.Where("phone = ?", req.Phone).First(&exist).Error; err == nil {
-		return errors.New("手机号已注册")
+		return model.PhoneExist
+	}
+
+	if err := database.Where("username = ?", req.Username).First(&exist).Error; err == nil {
+		return model.UsernameExist
+	}
+
+	if err := database.Where("email = ?", req.Email).First(&exist).Error; err == nil {
+		return model.EmailExist
 	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
-
-	userID := uuid.New()
 
 	tx := db.DB.Begin()
 
@@ -63,12 +65,11 @@ func Register(req model.RegisterRequest) error {
 	}
 
 	now := time.Now()
+	RegSql := `INSERT INTO sys_user
+	(username,password_hash,email,phone,status,created_at,updated_at) 
+	VALUES (?,?,?,?,'active',?,?)` // 第一次创建时间就是第一次更新时间 更新时间初始化
 
-	if err := tx.Exec(
-		`INSERT INTO sys_user
-	(user_id,username,password_hash,email,phone,status,created_at,updated_at)
-	VALUES (?,?,?,?,?,'active',?,?)`,
-		userID,
+	if err := tx.Exec(RegSql,
 		req.Username,
 		string(passwordHash),
 		req.Email,
@@ -80,11 +81,12 @@ func Register(req model.RegisterRequest) error {
 		return err
 	}
 
+	UserInfoSql := `INSERT INTO user_profile
+	(nickname,created_at,updated_at)
+	VALUES (?,?,?)`
+
 	if err := tx.Exec(
-		`INSERT INTO user_profile
-	(user_info_id,nickname,created_at,updated_at)
-	VALUES (?,?,?,?)`,
-		userID,
+		UserInfoSql,
 		req.Nickname,
 		now,
 		now,
@@ -96,7 +98,7 @@ func Register(req model.RegisterRequest) error {
 	return tx.Commit().Error
 }
 
-func recordLoginLog(userID string, ip string, device string, status string, reason string) {
+func recordLoginLog(userID int64, ip string, device string, status string, reason string) {
 
 	db.DB.Exec(`
 	INSERT INTO user_login_log
@@ -107,36 +109,33 @@ func recordLoginLog(userID string, ip string, device string, status string, reas
 
 func Login(req model.LoginRequest, ip string, device string) (*model.LoginResponse, error) {
 
-	var user struct {
-		UserID       string
-		Username     string
-		PasswordHash string
+	var user model.UserLoginInfo
+
+	UserLoginSql := `SELECT user_id, username, password_hash 
+					FROM sys_user 
+					WHERE username = ?`
+
+	err := db.DB.Raw(UserLoginSql, req.Username).Scan(&user).Error
+
+	if err != nil || user.UserID == 0 {
+		recordLoginLog(0, ip, device, "fail", "user not found")
+		return nil, model.LoginPasswordInvalid
 	}
 
-	err := db.DB.Raw(`
-    SELECT user_id, username, password_hash 
-	FROM sys_user 
-	WHERE username = ?
-	`, req.Username).Scan(&user).Error
-
-	if err != nil || user.UserID == "" {
-		recordLoginLog("", ip, device, "fail", "user not found")
-		return nil, errors.New("用户名或密码错误")
-	}
-
-	accessToken, err := utils.GenerateToken(user.UserID, user.Username, 30*time.Minute)
+	jwtService := middleware.InitJWT("demo_shop")
+	accessToken, err := jwtService.GenerateToken(user.UserID, user.Username, 30*time.Minute)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := utils.GenerateToken(user.UserID, user.Username, 24*time.Minute)
+	refreshToken, err := jwtService.GenerateToken(user.UserID, user.Username, 24*time.Hour)
 
-	db.DB.Exec(`
-	UPDATE sys_user
-	SET last_login_time = NOW(),
-	last_login_ip = ?
-	WHERE user_id = ?
-	`, ip, user.UserID)
+	LoginInfoSql := `UPDATE sys_user
+					SET last_login_time = NOW(),
+					last_login_ip = ?
+					WHERE user_id = ?`
+
+	db.DB.Exec(LoginInfoSql, ip, user.UserID)
 
 	recordLoginLog(user.UserID, ip, device, "success", "")
 

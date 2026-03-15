@@ -2,14 +2,25 @@ package middleware
 
 import (
 	"demo-shop-back/src/utils"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
 
-func AuthMiddleware() gin.HandlerFunc {
+var jwtService *utils.JWTService
+
+func InitJWT(secreKey string) *utils.JWTService {
+	jwtService = utils.NewJWTService(secreKey)
+	return jwtService
+}
+
+func AuthMiddleware(jwtService *utils.JWTService) gin.HandlerFunc {
+
+	if jwtService == nil {
+		panic("jwt service is nil")
+	}
 
 	return func(c *gin.Context) {
 
@@ -22,24 +33,35 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		tokenStr = strings.TrimPrefix(tokenStr, "Bearer ")
-
-		token, err := jwt.ParseWithClaims(tokenStr, &utils.CustomClaims{},
-			func(token *jwt.Token) (interface{}, error) {
-				return []byte("demo-shop-secret"), nil
-			})
-
-		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "token无效"})
+		if tokenStr == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"massage": "格式错误"})
 			c.Abort()
 			return
 		}
 
-		claims := token.Claims.(*utils.CustomClaims)
+		claims, err := jwtService.ParseToken(tokenStr)
+
+		if err != nil {
+			var message string
+			switch {
+			case errors.Is(err, utils.TokenExpired):
+				message = "token已过期，请重新登录"
+			case errors.Is(err, utils.TokenNotValidYet):
+				message = "token尚未生效"
+			case errors.Is(err, utils.TokenMalformed):
+				message = "token格式错误"
+			case errors.Is(err, utils.TokenInvalid):
+				fallthrough
+			default:
+				message = "无效的token"
+			}
+			c.JSON(http.StatusUnauthorized, gin.H{"message": message})
+			c.Abort()
+			return
+		}
 
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
-		c.Set("phone", claims.Phone)
-		c.Set("email", claims.Email)
 
 		c.Next()
 	}

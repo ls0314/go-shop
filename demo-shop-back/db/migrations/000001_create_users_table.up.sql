@@ -1,13 +1,11 @@
 -- 创建用户认证表 (高频查询，需要分表)
 CREATE TABLE IF NOT EXISTS sys_user (
-    user_id uuid PRIMARY KEY,
+    user_id BIGSERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     email VARCHAR(100) UNIQUE,
     phone VARCHAR(20) UNIQUE,
     status VARCHAR(20) DEFAULT 'active',
-    last_login_time TIMESTAMP NULL,
-    last_login_ip VARCHAR(45),
     failed_attempts INT DEFAULT 0,
     lock_until TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -21,8 +19,6 @@ COMMENT ON COLUMN sys_user.password_hash IS '用户密码';
 COMMENT ON COLUMN sys_user.email IS '邮箱';
 COMMENT ON COLUMN sys_user.phone IS '手机号';
 COMMENT ON COLUMN sys_user.status IS '状态';
-COMMENT ON COLUMN sys_user.last_login_time IS '最后登录时间';
-COMMENT ON COLUMN sys_user.last_login_ip IS '最后登录IP';
 COMMENT ON COLUMN sys_user.failed_attempts IS '连续失败次数';
 COMMENT ON COLUMN sys_user.lock_until IS '锁定截止时间';
 COMMENT ON COLUMN sys_user.created_at IS '创建时间';
@@ -36,7 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_status_created ON sys_user(status, created_at);
 
 -- 创建用户信息表
 CREATE TABLE IF NOT EXISTS user_profile (
-    user_info_id uuid PRIMARY KEY,
+    user_info_id BIGSERIAL PRIMARY KEY,
     nickname VARCHAR(50),
     real_name VARCHAR(50),
     avatar_url VARCHAR(500),
@@ -63,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_created ON user_profile(created_at);
 -- 创建登录日志表
 CREATE TABLE IF NOT EXISTS user_login_log (
     id BIGSERIAL PRIMARY KEY,
-    user_id uuid NOT NULL,
+    user_id BIGINT NOT NULL,
     login_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     login_ip VARCHAR(45),
     login_device VARCHAR(200),

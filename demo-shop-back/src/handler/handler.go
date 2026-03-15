@@ -3,7 +3,6 @@ package handler
 import (
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/service"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +13,6 @@ func RegisterHandler(c *gin.Context) {
 	var req model.RegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Printf("ShouldBindJSON 错误: %v", err) // 👈 打印具体错误！
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "请求参数错误"})
 		return
@@ -23,7 +21,7 @@ func RegisterHandler(c *gin.Context) {
 	err := service.Register(req)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(http.StatusUnauthorized, gin.H{
 			"message": err.Error(),
 		})
 		return
@@ -32,18 +30,14 @@ func RegisterHandler(c *gin.Context) {
 
 }
 
-func UserInfo(c *gin.Context) {
+func GetUserInfo(c *gin.Context) {
 
 	userID, _ := c.Get("user_id")
 	username, _ := c.Get("username")
-	phone, _ := c.Get("phone")
-	email, _ := c.Get("email")
 
-	c.JSON(200, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"user_id":  userID,
 		"username": username,
-		"phone":    phone,
-		"email":    email,
 	})
 }
 
@@ -52,7 +46,6 @@ func LoginHandler(c *gin.Context) {
 	var req model.LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Printf("ShouldBindJSON 错误: %v", err) // 👈 打印具体错误！
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "请求参数错误"})
 		return

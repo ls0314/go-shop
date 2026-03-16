@@ -3,6 +3,7 @@ package main
 import (
 	"demo-shop-back/db"
 	"demo-shop-back/src/config"
+	"demo-shop-back/src/routes"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -21,14 +22,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("数据库迁移失败: %v", err)
 	}
-	log.Println("数据库迁移成功")
-
-	// 初始化数据库连接
-	err = db.InitDB()
-	if err != nil {
-		log.Fatalf("初始化数据库连接失败: %v", err)
-	}
-	log.Println("数据库连接初始化成功")
+	//log.Println("数据库迁移成功")
+	//
+	//// 初始化数据库连接
+	//err = db.InitDB()
+	//if err != nil {
+	//	log.Fatalf("初始化数据库连接失败: %v", err)
+	//}
+	//log.Println("数据库连接初始化成功")
 
 	// 程序结束时关闭数据库连接
 	defer func() {
@@ -41,14 +42,14 @@ func main() {
 	}()
 
 	// Create a Gin router with default middleware (logger and recovery)
-	r := gin.Default()
-	err = r.SetTrustedProxies([]string{"127.0.0.1"})
+	router := routes.InitRoutes()
+
+	err = router.SetTrustedProxies([]string{"127.0.0.1"})
 	if err != nil {
 		return
 	}
-
 	// 配置CORS中间件
-	r.Use(func(c *gin.Context) {
+	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
@@ -58,7 +59,6 @@ func main() {
 			c.AbortWithStatus(204)
 			return
 		}
-
 		c.Next()
 	})
 
@@ -68,7 +68,7 @@ func main() {
 	}
 
 	log.Printf("服务器启动在端口: %s", serverPort)
-	err = r.Run(":" + serverPort)
+	err = router.Run(":" + serverPort)
 	if err != nil {
 		log.Fatalf("服务器启动失败: %v", err)
 		return

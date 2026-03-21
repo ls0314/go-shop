@@ -12,5 +12,10 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts", // 确保这一行存在，能匹配到 .d.ts 文件
+    "src/**/*.tsx",
+    "src/**/*.vue"
+  ]
 }

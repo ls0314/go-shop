@@ -10,6 +10,18 @@ const routes = [
     path: '/about',
     name: 'About',
     component: () => import('../views/About.vue')
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/Register.vue'),
+    meta: { hideNav: true }
+  },
+  {
+      path: '/login',
+      name: 'Login',
+      component: () => import('../views/Login.vue'),
+      meta: { hideNav: true }
   }
 ]
 
@@ -19,3 +31,5 @@ const router = createRouter({
 })
 
 export default router
+
+

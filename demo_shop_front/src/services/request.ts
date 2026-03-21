@@ -1,0 +1,26 @@
+import axios from 'axios'
+
+const request = axios.create({
+    baseURL: 'http://localhost:9001', // 你的后端地址（就是你 Go 项目跑的地址）
+    timeout: 5000,
+    headers: {
+        'Content-Type': 'application/json'
+    }
+})
+
+request.interceptors.request.use(
+    config => {
+        return config
+    },
+    error => Promise.reject(error)
+)
+
+request.interceptors.response.use(
+    response => response.data,
+    error => {
+        console.error('请求错误:', error)
+        return Promise.reject(error)
+    }
+)
+
+export default request

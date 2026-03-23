@@ -3,7 +3,6 @@
     <!-- 顶部导航栏 -->
     <div class="top-nav">
       <div class="logo-area">
-<!--        <div class="mi-logo">mi</div>-->
         <span class="logo-text">demo_shop</span>
       </div>
       <div class="nav-links">
@@ -75,9 +74,14 @@
 <script setup>
 import { ref } from 'vue'
 import { loginApi } from '../services/user'
+import { useUserStore } from '../store/user'
+import { useRouter } from 'vue-router'
 
 const username = ref('')
 const password = ref('')
+
+const userStore = useUserStore()
+const router = useRouter()
 
 const handleLogin = async () => {
   if (!username.value || !password.value) {
@@ -89,17 +93,15 @@ const handleLogin = async () => {
       username: username.value,
       password: password.value
     }).then(res => {
-      // console.log('后端返回:', res)
+      userStore.setTokens(
+          res.data.access_token,
+          res.data.refresh_token
+      )
+      // console.log(res.data.access_token)
+      // console.log(res.data.refresh_token)
+      alert(res.message)
 
-      const {access_token, refresh_token} = res.data
-
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('refresh_token', refresh_token)
-      // console.log(access_token)
-
-      alert('登录成功')
-
-      window.location.href = '/home'
+      router.push('/home')
     }).catch(err => {
       console.log('请求失败', err)
       if (err.response && err.response.data) {

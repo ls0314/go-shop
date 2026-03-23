@@ -1,9 +1,8 @@
 <template>
   <div class="register-wrapper">
-    <!-- 顶部导航栏模拟 -->
+    <!-- 顶部导航栏 -->
     <div class="top-nav">
       <div class="logo-area">
-<!--        <div class="mi-logo">mi</div>-->
         <span class="logo-text">demo_shop</span>
       </div>
       <div class="nav-links">
@@ -15,7 +14,7 @@
     </div>
 
     <div class="main-content">
-      <!-- 左侧装饰区域 (模拟插画背景) -->
+      <!-- 左侧装饰区域 -->
       <div class="left-banner">
         <div class="banner-decoration">
           <div class="circle c1"></div>
@@ -30,15 +29,14 @@
       <div class="right-form-container">
         <div class="form-card">
           <div class="form-tabs">
-            <a href="/Login" class="tab-item ">登录</a>
-            <a href="/Register" class="tab-item active">注册</a>
+            <a href="/login" class="tab-item ">登录</a>
+            <a href="/register" class="tab-item active">注册</a>
           </div>
 
           <form @submit.prevent="handleRegister" class="xiaomi-form">
 
             <!-- 用户名 -->
             <div class="input-group horizontal">
-              <!--              <label class="input-label" for="username">用户名</label>-->
               <input
                   type="text"
                   id="username"
@@ -51,9 +49,7 @@
 
             <!-- 手机号 -->
             <div class="input-group">
-              <!--              <label class="input-label">手机号</label>-->
               <div class="phone-input-wrapper">
-                <!--                <div class="country-code">+86</div>-->
                 <input
                     type="text"
                     id="phone"
@@ -67,7 +63,6 @@
 
             <!-- 邮箱 -->
             <div class="input-group">
-              <!--              <label class="input-label">邮箱地址</label>-->
               <input
                   type="email"
                   id="email"
@@ -79,7 +74,6 @@
 
             <!-- 密码 -->
             <div class="input-group">
-              <!--              <label class="input-label">密码</label>-->
               <input
                   type="password"
                   id="password"
@@ -89,12 +83,10 @@
                   maxlength="20"
                   placeholder="请设置密码"
               />
-              <!--              <div class="input-tip">请包含字符数字标点符号且长度大于8</div>-->
             </div>
 
             <!-- 确认密码 -->
             <div class="input-group">
-              <!--              <label class="input-label">确认密码</label>-->
               <input
                   type="password"
                   id="confirmPassword"
@@ -106,19 +98,13 @@
               />
             </div>
 
-            <!-- 协议勾选 (模拟) -->
-            <!--            <div class="agreement-group">-->
-            <!--              <input type="checkbox" id="agree" required />-->
-            <!--              <label for="agree">已阅读并同意 <a href="#">小米账号使用协议</a> 和 <a href="#">隐私政策</a></label>-->
-            <!--            </div>-->
-
             <button type="submit" class="submit-btn">
               立即注册
             </button>
 
             <div class="form-footer">
               <span>已有账号？</span>
-              <a href="/Login">立即登录</a>
+              <a href="/login">立即登录</a>
             </div>
           </form>
         </div>
@@ -131,6 +117,7 @@
 import { ref } from 'vue'
 import axios from 'axios'
 import { registerApi } from '../services/user'
+import router from "../router/index.js";
 
 const username = ref('')
 const phone = ref('')
@@ -156,8 +143,10 @@ const handleRegister = async () => {
     password: password.value,
     nickname: generateNickname()
   }).then(res => {
-    console.log(res.data.message)
-    alert(res.data.message)
+    console.log(res.message)
+    alert(res.message)
+    console.log('准备跳转')
+    router.push('/Home')
   }).catch(err => {
     console.log('请求失败', err)
     if (err.response && err.response.data) {

@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const request = axios.create({
-    baseURL: 'http://localhost:9001', // 你的后端地址（就是你 Go 项目跑的地址）
+    baseURL: 'http://localhost:9001',
     timeout: 5000,
     headers: {
         'Content-Type': 'application/json'

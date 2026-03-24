@@ -26,32 +26,6 @@ func NewJWTService(signingKey string) *JWTService {
 	}
 }
 
-//func GenerateAccessToken(userID int64, username string) (string, error) {
-//	claims := CustomClaims{
-//		UserID:   userID,
-//		Username: username,
-//		RegisteredClaims: jwt.RegisteredClaims{
-//			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * time.Minute)),
-//		},
-//	}
-//
-//	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-//	return token.SignedString(accessSecret)
-//}
-//
-//func GenerateRefreshToken(userID int64, username string) (string, error) {
-//	claims := CustomClaims{
-//		UserID:   userID,
-//		Username: username,
-//		RegisteredClaims: jwt.RegisteredClaims{
-//			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
-//		},
-//	}
-//
-//	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-//	return token.SignedString(refreshSecret)
-//}
-
 func (j *JWTService) GenerateAccessToken(userID int64, username string) (string, error) {
 	claims := CustomClaims{
 		UserID:    userID,

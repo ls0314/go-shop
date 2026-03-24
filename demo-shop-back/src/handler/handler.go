@@ -121,7 +121,6 @@ func RefreshHandler(c *gin.Context) {
 		return
 	}
 
-	// 5. 返回新令牌
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "刷新成功",

@@ -32,7 +32,6 @@ func InitRoutes() *gin.Engine {
 		public.POST("/refresh", handler.RefreshHandler) // 刷新接口公开
 	}
 
-	// 私有接口：需要登录
 	private := r.Group("/api/v1/user")
 	private.Use(middleware.AuthMiddleware())
 	{

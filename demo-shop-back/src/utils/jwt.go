@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"demo-shop-back/src/model"
 	"errors"
 	"time"
 
@@ -8,33 +9,70 @@ import (
 )
 
 type CustomClaims struct {
-	UserID   int64  `json:"user_id"`
-	Username string `json:"username"`
+	UserID    int64  `json:"user_id"`
+	Username  string `json:"username"`
+	TokenType string `json:"tokenType"`
 	jwt.RegisteredClaims
 }
 type JWTService struct {
 	SigningKey []byte
 }
 
-var (
-	TokenExpired     = errors.New("token已过期")
-	TokenNotValidYet = errors.New("token无")
-	TokenMalformed   = errors.New("token格式错误")
-	TokenInvalid     = errors.New("token错误")
-)
+const Secret = "demo-shop"
 
 func NewJWTService(signingKey string) *JWTService {
-	return &JWTService{}
+	return &JWTService{
+		SigningKey: []byte(signingKey),
+	}
 }
 
-func (j *JWTService) GenerateToken(userID int64, username string, duration time.Duration) (string, error) {
+//func GenerateAccessToken(userID int64, username string) (string, error) {
+//	claims := CustomClaims{
+//		UserID:   userID,
+//		Username: username,
+//		RegisteredClaims: jwt.RegisteredClaims{
+//			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * time.Minute)),
+//		},
+//	}
+//
+//	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+//	return token.SignedString(accessSecret)
+//}
+//
+//func GenerateRefreshToken(userID int64, username string) (string, error) {
+//	claims := CustomClaims{
+//		UserID:   userID,
+//		Username: username,
+//		RegisteredClaims: jwt.RegisteredClaims{
+//			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+//		},
+//	}
+//
+//	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+//	return token.SignedString(refreshSecret)
+//}
 
+func (j *JWTService) GenerateAccessToken(userID int64, username string) (string, error) {
 	claims := CustomClaims{
-		UserID:   userID,
-		Username: username,
+		UserID:    userID,
+		Username:  username,
+		TokenType: "access",
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * time.Minute)),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(j.SigningKey)
+}
+
+func (j *JWTService) GenerateRefreshToken(userID int64, username string) (string, error) {
+	claims := CustomClaims{
+		UserID:    userID,
+		Username:  username,
+		TokenType: "refresh",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 		},
 	}
 
@@ -52,15 +90,15 @@ func (j *JWTService) ParseToken(tokenString string) (*CustomClaims, error) {
 
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
-			return nil, TokenExpired
+			return nil, model.TokenExpired
 		}
 		if errors.Is(err, jwt.ErrTokenNotValidYet) {
-			return nil, TokenNotValidYet
+			return nil, model.TokenNotValidYet
 		}
 		if errors.Is(err, jwt.ErrTokenMalformed) {
-			return nil, TokenMalformed
+			return nil, model.TokenMalformed
 		}
-		return nil, TokenInvalid
+		return nil, model.TokenInvalid
 	}
 
 	if token != nil {
@@ -69,5 +107,5 @@ func (j *JWTService) ParseToken(tokenString string) (*CustomClaims, error) {
 		}
 	}
 
-	return nil, TokenInvalid
+	return nil, model.TokenInvalid
 }

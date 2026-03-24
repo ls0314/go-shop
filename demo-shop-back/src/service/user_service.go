@@ -122,13 +122,21 @@ func Login(req model.LoginRequest, ip string, device string) (*model.LoginRespon
 		return nil, model.LoginPasswordInvalid
 	}
 
-	jwtService := middleware.InitJWT("demo_shop")
-	accessToken, err := jwtService.GenerateToken(user.UserID, user.Username, 30*time.Minute)
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+	if err != nil {
+		return nil, model.LoginPasswordInvalid
+	}
+
+	jwtService := middleware.GetJWTService()
+	accessToken, err := jwtService.GenerateAccessToken(user.UserID, user.Username)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := jwtService.GenerateToken(user.UserID, user.Username, 24*time.Hour)
+	refreshToken, err := jwtService.GenerateRefreshToken(user.UserID, user.Username)
+	if err != nil {
+		return nil, err
+	}
 
 	LoginInfoSql := `UPDATE sys_user
 					SET last_login_time = NOW(),

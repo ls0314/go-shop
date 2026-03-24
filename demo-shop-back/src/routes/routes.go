@@ -11,15 +11,32 @@ import (
 func InitRoutes() *gin.Engine {
 	r := gin.Default()
 
-	v1 := r.Group("api/v1")
-	{
-		user := v1.Group("user")
-		{
-			user.POST("/register", handler.RegisterHandler)
-			user.POST("/login", handler.LoginHandler)
-			user.Use(middleware.AuthMiddleware(middleware.InitJWT("demo_shop")))
-			user.GET("/info", handler.GetUserInfo)
+	// 配置CORS中间件
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Max-Age", "86400")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
 		}
+		c.Next()
+	})
+
+	public := r.Group("/api/v1/user")
+	{
+		public.POST("/register", handler.RegisterHandler)
+		public.POST("/login", handler.LoginHandler)
+		public.POST("/refresh", handler.RefreshHandler) // 刷新接口公开
+	}
+
+	// 私有接口：需要登录
+	private := r.Group("/api/v1/user")
+	private.Use(middleware.AuthMiddleware())
+	{
+		private.GET("/info", handler.GetUserInfo)
 	}
 
 	r.GET("/", func(c *gin.Context) {

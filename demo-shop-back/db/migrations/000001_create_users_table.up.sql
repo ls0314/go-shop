@@ -25,10 +25,7 @@ COMMENT ON COLUMN sys_user.created_at IS '创建时间';
 COMMENT ON COLUMN sys_user.updated_at IS '更新时间';
 
 -- 创建索引
-CREATE INDEX IF NOT EXISTS idx_username ON sys_user(username);
-CREATE INDEX IF NOT EXISTS idx_email ON sys_user(email);
-CREATE INDEX IF NOT EXISTS idx_phone ON sys_user(phone);
-CREATE INDEX IF NOT EXISTS idx_status_created ON sys_user(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_user_status_created ON sys_user(status, created_at);
 
 -- 创建用户信息表
 CREATE TABLE IF NOT EXISTS user_profile (

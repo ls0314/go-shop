@@ -14,18 +14,22 @@ func NewPermissionService(permRepo *repository.PermissionRepo) *PermissionServic
 }
 
 func (s *PermissionService) CreatePermission(perm *model.SysPermission) error {
-	existing, _ := s.PermRepo.GetByCode(perm.PermissionCode)
+	existing, _ := s.PermRepo.GetPermByCode(perm.PermissionCode)
 	if existing != nil {
 		return model.PermissionExist
 	}
 
 	//perm.IsSystem = false
 
-	return s.PermRepo.Create(perm)
+	return s.PermRepo.CreatePerm(perm)
 }
 
 func (s *PermissionService) GetPermission(id int64) (*model.SysPermission, error) {
-	return s.PermRepo.GetByID(id)
+	perm, err := s.PermRepo.GetPermByID(id)
+	if err != nil {
+		return nil, model.MenuNotExist
+	}
+	return perm, nil
 
 }
 
@@ -36,11 +40,11 @@ func (s *PermissionService) GetPermissionList(page, pageSize int, permType strin
 	if pageSize <= 0 || pageSize > 100 {
 		pageSize = 10
 	}
-	return s.PermRepo.List(page, pageSize, permType)
+	return s.PermRepo.GetPermList(page, pageSize, permType)
 }
 
 func (s *PermissionService) UpdataPermission(perm *model.SysPermission) error {
-	olderPerm, err := s.PermRepo.GetByID(perm.PermissionID)
+	olderPerm, err := s.PermRepo.GetPermByID(perm.PermissionID)
 	if err != nil {
 		return model.PermissionNotExist
 	}
@@ -54,7 +58,7 @@ func (s *PermissionService) UpdataPermission(perm *model.SysPermission) error {
 	}
 
 	if perm.PermissionCode != olderPerm.PermissionCode {
-		existing, _ := s.PermRepo.GetByCode(perm.PermissionCode)
+		existing, _ := s.PermRepo.GetPermByCode(perm.PermissionCode)
 		if existing != nil {
 			return model.PermissionExist
 		}
@@ -63,11 +67,11 @@ func (s *PermissionService) UpdataPermission(perm *model.SysPermission) error {
 	perm.IsSystem = olderPerm.IsSystem
 	perm.CreatedAt = olderPerm.CreatedAt
 
-	return s.PermRepo.Updata(perm)
+	return s.PermRepo.UpdataPerm(perm)
 }
 
 func (s *PermissionService) DeletePermission(id int64) error {
-	existing, _ := s.PermRepo.GetByID(id)
+	existing, _ := s.PermRepo.GetPermByID(id)
 	if existing == nil {
 		return model.PermissionNotExist
 	}
@@ -75,12 +79,12 @@ func (s *PermissionService) DeletePermission(id int64) error {
 	if existing.IsSystem {
 		return model.PermissionIsSystem
 	}
-	hasRel, err := s.PermRepo.CheckRoleRel(id)
+	hasRel, err := s.PermRepo.CheckRoleRelPerm(id)
 	if err != nil {
 		return err
 	}
 	if hasRel {
 		return model.PermissionHasRel
 	}
-	return s.PermRepo.Delete(id)
+	return s.PermRepo.DeletePerm(id)
 }

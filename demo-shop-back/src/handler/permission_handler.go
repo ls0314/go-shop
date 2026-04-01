@@ -25,7 +25,7 @@ func (p *PermissionHandler) CreatePermission(c *gin.Context) {
 		return
 	}
 	if err := p.PermService.CreatePermission(&perm); err != nil {
-		utils.Error(c, 500, model.StatusInternalServerError+err.Error())
+		utils.Error(c, 500, err.Error())
 		return
 	}
 	utils.Success(c, perm)
@@ -41,7 +41,7 @@ func (p *PermissionHandler) GetPermission(c *gin.Context) {
 	}
 	perm, err := p.PermService.GetPermission(id)
 	if err != nil {
-		utils.Fail(c, 400, model.StatusNotExistRequest+err.Error())
+		utils.Fail(c, 400, err.Error())
 		return
 	}
 
@@ -87,7 +87,7 @@ func (p *PermissionHandler) UpdataPermission(c *gin.Context) {
 
 	perm.PermissionID = id
 	if err := p.PermService.UpdataPermission(&perm); err != nil {
-		utils.Error(c, 500, model.StatusInternalServerError+err.Error())
+		utils.Error(c, 500, err.Error())
 		return
 	}
 
@@ -104,7 +104,7 @@ func (p *PermissionHandler) DeletePermission(c *gin.Context) {
 	}
 
 	if err := p.PermService.DeletePermission(id); err != nil {
-		utils.Error(c, 500, model.StatusInternalServerError+err.Error())
+		utils.Error(c, 500, err.Error())
 		return
 	}
 

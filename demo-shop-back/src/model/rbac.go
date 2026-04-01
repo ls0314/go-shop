@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 // SysPermission 对应数据库表 sys_permission
 type SysPermission struct {
@@ -17,4 +19,23 @@ type SysPermission struct {
 
 func (SysPermission) TableName() string {
 	return "sys_permission"
+}
+
+type SysMenu struct {
+	MenuId        int64                  `gorm:"primaryKey;column:menu_id" json:"menu_id"`
+	ParentId      int64                  `gorm:"column:parent_id" json:"parent_id"`
+	MenuName      string                 `gorm:"column:menu_name" json:"menu_name"`
+	MenuType      string                 `gorm:"column:menu_type" json:"menu_type"`
+	Icon          string                 `gorm:"column:icon" json:"icon"`
+	RoutePath     string                 `gorm:"column:route_path" json:"route_path"`
+	ComponentPath string                 `gorm:"column:component" json:"component"`
+	IsVisible     int                    `gorm:"column:is_visible" json:"is_visible"`
+	IsCache       int                    `gorm:"column:is_cache" json:"is_cache"`
+	SortOrder     int64                  `gorm:"column:sort_order" json:"sort_order"`
+	MetaInfo      map[string]interface{} `gorm:"column:meta_info" json:"meta_info"`
+	CreatedAt     time.Time              `gorm:"column:created_at" json:"created_at"`
+}
+
+func (SysMenu) TableName() string {
+	return "sys_menu"
 }

@@ -15,13 +15,13 @@ func NewPermissionRepo() *PermissionRepo {
 	return &PermissionRepo{DB: db.DB}
 }
 
-// Create 创建权限
-func (r *PermissionRepo) Create(perm *model.SysPermission) error {
+// CreatePerm 创建权限
+func (r *PermissionRepo) CreatePerm(perm *model.SysPermission) error {
 	return r.DB.Create(perm).Error
 }
 
-// GetByID 按权限ID查
-func (r *PermissionRepo) GetByID(id int64) (*model.SysPermission, error) {
+// GetPermByID 按权限ID查
+func (r *PermissionRepo) GetPermByID(id int64) (*model.SysPermission, error) {
 	var perm model.SysPermission
 	err := r.DB.First(&perm, id).Error
 	if err != nil {
@@ -30,8 +30,8 @@ func (r *PermissionRepo) GetByID(id int64) (*model.SysPermission, error) {
 	return &perm, nil
 }
 
-// GetByCode 按权限代码查
-func (r *PermissionRepo) GetByCode(name string) (*model.SysPermission, error) {
+// GetPermByCode 按权限代码查
+func (r *PermissionRepo) GetPermByCode(name string) (*model.SysPermission, error) {
 	var perm model.SysPermission
 	err := r.DB.Where("permission_code = ?", name).First(&perm).Error
 	if err != nil {
@@ -40,8 +40,8 @@ func (r *PermissionRepo) GetByCode(name string) (*model.SysPermission, error) {
 	return &perm, nil
 }
 
-// List 分页查询
-func (r *PermissionRepo) List(page, pageSize int, permType string) ([]model.SysPermission, int64, error) {
+// GetPermList 分页查询
+func (r *PermissionRepo) GetPermList(page, pageSize int, permType string) ([]model.SysPermission, int64, error) {
 	var perms []model.SysPermission
 	var total int64
 
@@ -64,18 +64,18 @@ func (r *PermissionRepo) List(page, pageSize int, permType string) ([]model.SysP
 	return perms, total, nil
 }
 
-// Updata 更新权限
-func (r *PermissionRepo) Updata(perm *model.SysPermission) error {
+// UpdataPerm 更新权限
+func (r *PermissionRepo) UpdataPerm(perm *model.SysPermission) error {
 	return r.DB.Save(perm).Error
 }
 
-// Delete 删除权限
-func (r *PermissionRepo) Delete(id int64) error {
+// DeletePerm 删除权限
+func (r *PermissionRepo) DeletePerm(id int64) error {
 	return r.DB.Delete(&model.SysPermission{}, id).Error
 }
 
-// CheckRoleRel 删除前检查是否有角色关联该权限
-func (r *PermissionRepo) CheckRoleRel(permID int64) (bool, error) {
+// CheckRoleRelPerm 删除前检查是否有角色关联该权限
+func (r *PermissionRepo) CheckRoleRelPerm(permID int64) (bool, error) {
 	var count int64
 	err := r.DB.Table("sys_role_permission").Where("permission_id = ?", permID).Count(&count).Error
 	if err != nil {

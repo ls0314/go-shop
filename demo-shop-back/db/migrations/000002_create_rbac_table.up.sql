@@ -55,6 +55,9 @@ COMMENT ON COLUMN sys_menu.sort_order IS '排序';
 COMMENT ON COLUMN sys_menu.meta_info IS '元信息';
 COMMENT ON COLUMN sys_menu.created_at IS '创建时间';
 
+-- 同一父节点下菜单名不同
+ALTER TABLE sys_menu ADD CONSTRAINT uk_menu_parent_name UNIQUE (parent_id, menu_name);
+
 -- 创建角色表
 CREATE TABLE IF NOT EXISTS sys_role (
     role_id BIGSERIAL PRIMARY KEY,

@@ -15,6 +15,11 @@ func InitRoutes() *gin.Engine {
 	// ========== 注册权限路由 ==========
 	RegisterPermissionRoutes(r)
 
+	// ========== 菜单模块初始化 ==========
+	InitMenuModule()
+	// ========== 注册菜单路由 ==========
+	RegisterMenuRoutes(r)
+
 	// 配置CORS中间件
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")

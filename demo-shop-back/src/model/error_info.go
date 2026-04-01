@@ -19,6 +19,9 @@ var (
 	PermissionNotExist   = errors.New("权限不存在")
 	PermissionIsSystem   = errors.New("系统权限禁止修改")
 	PermissionHasRel     = errors.New("权限存在角色关联")
+	MenuExist            = errors.New("此级目录内菜单已存在")
+	MenuNotExist         = errors.New("菜单不存在")
+	MenuHasRel           = errors.New("菜单存在角色关联")
 )
 var (
 	StatusIdNotExist          = "ID不存在"

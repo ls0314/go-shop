@@ -3,10 +3,10 @@ package main
 import (
 	"demo-shop-back/db"
 	"demo-shop-back/src/config"
+	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/routes"
+	"demo-shop-back/src/utils"
 	"log"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -40,7 +40,7 @@ func main() {
 			log.Println("数据库连接已关闭")
 		}
 	}()
-
+	middleware.InitJWT(utils.Secret)
 	// Create a Gin router with default middleware (logger and recovery)
 	router := routes.InitRoutes()
 
@@ -48,19 +48,6 @@ func main() {
 	if err != nil {
 		return
 	}
-	// 配置CORS中间件
-	router.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Max-Age", "86400")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
 
 	serverPort := config.GlobalConfig.Server.Port
 	if serverPort == "" {

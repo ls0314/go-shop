@@ -9,4 +9,8 @@ var (
 	PhoneExist           = errors.New("手机号已注册")
 	UsernameExist        = errors.New("用户名已存在")
 	EmailExist           = errors.New("邮箱已注册")
+	TokenExpired         = errors.New("token已过期")
+	TokenNotValidYet     = errors.New("token尚未生效")
+	TokenMalformed       = errors.New("token格式错误")
+	TokenInvalid         = errors.New("token错误")
 )

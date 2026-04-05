@@ -67,6 +67,14 @@ func (ctrl *MenuHandler) GetMenuList(c *gin.Context) {
 	})
 }
 
+func (m *MenuHandler) GetMenuTree(c *gin.Context) {
+	menuTree, err := m.MenuService.GetMenuTree()
+	if err != nil {
+		utils.Error(c, 500, err.Error())
+	}
+	utils.Success(c, menuTree)
+}
+
 func (m *MenuHandler) UpdataMenu(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)

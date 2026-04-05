@@ -24,7 +24,7 @@ func RegisterMenuRoutes(r *gin.Engine) {
 		permGroup.POST("", menuCtrl.CreateMenu)
 		permGroup.GET("", menuCtrl.GetMenuList)
 		permGroup.GET("/:id", menuCtrl.GetMenu)
-		//permGroup.PUT("/:id", menuCtrl.UpdataMenu) // 角色菜单树 角色表暂未构建
+		//permGroup.GET("/tree/:id", menuCtrl.UpdataMenu) // 角色菜单树 角色表暂未构建
 		permGroup.PUT("/:id", menuCtrl.UpdataMenu)
 		permGroup.DELETE("/:id", menuCtrl.DeleteMenu)
 	}

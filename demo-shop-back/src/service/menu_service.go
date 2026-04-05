@@ -40,6 +40,14 @@ func (m *MenuService) GetMenuList(page, pageSize int, permType string) ([]model.
 	return m.MenuRepo.GetMenuList(page, pageSize, permType)
 }
 
+func (m *MenuService) GetMenuTree() (*[]model.SysMenu, error) {
+	menutree, err := m.MenuRepo.GetMenuTree()
+	if err != nil {
+		return nil, model.MenuNotExist
+	}
+	return &menutree, nil
+}
+
 func (m *MenuService) UpdateMenu(menu *model.SysMenu) error {
 
 	olderMenu, err := m.MenuRepo.GetMenuById(menu.ParentId)

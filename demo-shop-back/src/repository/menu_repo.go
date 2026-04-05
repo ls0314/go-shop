@@ -37,13 +37,13 @@ func (m *MenuRepo) GetMenuByUk(parentid int64, menuname string) (*model.SysMenu,
 	return &menu, nil
 }
 
-func (m *MenuRepo) GetMenuList(page, pageSize int, permType string) ([]model.SysMenu, int64, error) {
+func (m *MenuRepo) GetMenuList(page, pageSize int, menuType string) ([]model.SysMenu, int64, error) {
 	var menuList []model.SysMenu
 	var total int64
 
 	query := m.DB.Model(&model.SysMenu{})
-	if permType != "" {
-		query = query.Where("menu_type=?", permType)
+	if menuType != "" {
+		query = query.Where("menu_type=?", menuType)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -57,7 +57,34 @@ func (m *MenuRepo) GetMenuList(page, pageSize int, permType string) ([]model.Sys
 	return menuList, total, nil
 }
 
-//func (m *MenuRepo) GetMenuTree(ids []int64) ([]model.SysMenu, error) {}
+func (m *MenuRepo) GetMenuTree() ([]model.SysMenu, error) { // 可以优化 完成RBAC后思考代码优化过程
+	var menuList []model.SysMenu
+
+	err := m.DB.Order("sort_order asc").Find(&menuList).Error
+	if err != nil {
+		return nil, err
+	}
+
+	menuMap := make(map[int64]model.SysMenu)
+	for _, it := range menuList {
+		menuMap[it.MenuId] = it
+	}
+
+	var treeList []model.SysMenu
+	for i := range menuList {
+		item := &menuList[i]
+
+		parent, hasParent := menuMap[item.ParentId]
+		if !hasParent {
+			treeList = append(treeList, *item)
+			continue
+		}
+
+		parent.Children = append(parent.Children, *item)
+		menuMap[parent.MenuId] = parent
+	}
+	return treeList, nil
+}
 
 func (m *MenuRepo) UpdateMenu(menu *model.SysMenu) error {
 	return m.DB.Save(menu).Error

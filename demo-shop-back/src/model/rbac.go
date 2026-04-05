@@ -34,8 +34,27 @@ type SysMenu struct {
 	SortOrder     int64                  `gorm:"column:sort_order" json:"sort_order"`
 	MetaInfo      map[string]interface{} `gorm:"column:meta_info" json:"meta_info"`
 	CreatedAt     time.Time              `gorm:"column:created_at" json:"created_at"`
+	Children      []SysMenu              `gorm:"-" json:"children" `
 }
 
 func (SysMenu) TableName() string {
 	return "sys_menu"
+}
+
+type SysRole struct {
+	RoleId      int64     `gorm:"primaryKey;column:role_id" json:"role_id"`
+	RoleName    string    `gorm:"column:role_name" json:"role_name"`
+	RoleType    string    `gorm:"column:role_type" json:"role_type"`
+	Description string    `gorm:"column:description" json:"description"`
+	IsSystem    bool      `gorm:"column:is_system" json:"is_system"`
+	IsDefault   bool      `gorm:"column:is_default" json:"is_default"`
+	DataScope   string    `gorm:"column:data_scope" json:"data_scope"`
+	CreatedAt   time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt   time.Time `gorm:"column:updated_at" json:"updated_at"`
+	CreatedBy   string    `gorm:"column:created_by" json:"created_by"`
+	UpdatedBy   string    `gorm:"column:updated_by" json:"updated_by"`
+}
+
+func (SysRole) TableName() string {
+	return "sys_role"
 }

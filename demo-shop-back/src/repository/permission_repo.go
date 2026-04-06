@@ -7,20 +7,31 @@ import (
 	"gorm.io/gorm"
 )
 
+// PermissionRepo 权限表数据层实例
 type PermissionRepo struct {
-	DB *gorm.DB
+	DB *gorm.DB // 全局数据库
 }
 
+// NewPermissionRepo 创建权限表数据层实例
+// 接收值：全局数据库操作 无接收值
+// 返回值：*PermissionRepo - 权限表数据层实例指针
 func NewPermissionRepo() *PermissionRepo {
 	return &PermissionRepo{DB: db.DB}
 }
 
 // CreatePerm 创建权限
+// 接收值：perm - 权限对象指针
+// 返回值：error - 错误信息
 func (r *PermissionRepo) CreatePerm(perm *model.SysPermission) error {
 	return r.DB.Create(perm).Error
 }
 
-// GetPermByID 按权限ID查
+// GetPermByID 查询权限信息(按权限ID查)
+// 接收值：id - 所查询权限唯一标识
+// 返回值：
+//
+//	*model.SysPermission - 所查询权限对象指针
+//	error - 错误信息
 func (r *PermissionRepo) GetPermByID(id int64) (*model.SysPermission, error) {
 	var perm model.SysPermission
 	err := r.DB.First(&perm, id).Error
@@ -30,21 +41,37 @@ func (r *PermissionRepo) GetPermByID(id int64) (*model.SysPermission, error) {
 	return &perm, nil
 }
 
-// GetPermByCode 按权限代码查
-func (r *PermissionRepo) GetPermByCode(name string) (*model.SysPermission, error) {
+// GetPermByCode 查询权限信息(按权限代码查)
+// 接收值：code - 所查询权限代码
+// 返回值：
+//
+//	*model.SysPermission - 所查询权限信息
+//	error - 错误信息
+func (r *PermissionRepo) GetPermByCode(code string) (*model.SysPermission, error) {
 	var perm model.SysPermission
-	err := r.DB.Where("permission_code = ?", name).First(&perm).Error
+	err := r.DB.Where("permission_code = ?", code).First(&perm).Error
 	if err != nil {
 		return nil, err
 	}
 	return &perm, nil
 }
 
-// GetPermList 分页查询
+// GetPermList 分页查询权限信息（可根据类型查询）
+// 接收值：
+//
+//	page - 页数
+//	pageSize - 页大小
+//	menuType - 权限类型
+//
+// 返回值:
+//
+//	[]model.SysMenu - 分页菜单信息
+//	int64 - 权限总数
+//	error - 错误信息
 func (r *PermissionRepo) GetPermList(page, pageSize int, permType string) ([]model.SysPermission, int64, error) {
 	var perms []model.SysPermission
 	var total int64
-
+	// 按类型查询权限信息
 	query := r.DB.Model(&model.SysPermission{})
 	if permType != "" {
 		query = query.Where("permission_type = ?", permType)
@@ -60,21 +87,35 @@ func (r *PermissionRepo) GetPermList(page, pageSize int, permType string) ([]mod
 	if err := query.Order("created_at DESC").Limit(pageSize).Offset(offset).Find(&perms).Error; err != nil {
 		return nil, 0, err
 	}
-
+	// 返回分页权限信息, 权限总数, 错误信息
 	return perms, total, nil
 }
 
-// UpdataPerm 更新权限
-func (r *PermissionRepo) UpdataPerm(perm *model.SysPermission) error {
+// UpdatePerm 更新权限信息
+// 接收值：perm - 权限对象指针
+// 返回值：error - 错误信息
+func (r *PermissionRepo) UpdatePerm(perm *model.SysPermission) error {
 	return r.DB.Save(perm).Error
 }
 
 // DeletePerm 删除权限
+// 接收值：id - 待删除权限唯一标识
+// 返回值：error - 错误信息
 func (r *PermissionRepo) DeletePerm(id int64) error {
 	return r.DB.Delete(&model.SysPermission{}, id).Error
 }
 
-// CheckRoleRelPerm 删除前检查是否有角色关联该权限
+// CheckRoleRelPerm 检查是否有角色关联该权限
+// 接收值：
+//
+//	permID - 所查询权限唯一标识
+//
+// 返回值：
+//
+//	bool - 该权限是否有关联角色
+//	error - 错误信息
+//
+// TODO： 检查查是否有角色关联该权限
 func (r *PermissionRepo) CheckRoleRelPerm(permID int64) (bool, error) {
 	var count int64
 	err := r.DB.Table("sys_role_permission").Where("permission_id = ?", permID).Count(&count).Error

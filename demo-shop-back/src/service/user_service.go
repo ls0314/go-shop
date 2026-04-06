@@ -28,7 +28,7 @@ func ValidatePhone(phone string) bool {
 }
 
 func Register(req model.RegisterRequest) error {
-	//log.Printf("Register called with phone=%s, username=%s", req.Phone, req.Username)
+
 	if !ValidatePassword(req.Password) {
 		return model.RegPasswordInvalid
 	}

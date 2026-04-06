@@ -18,6 +18,7 @@ func InitPermissionModule() {
 	permCtrl = handler.NewPermissionHandler(permService)
 }
 
+// RegisterPermissionRoutes 初始化权限路由
 func RegisterPermissionRoutes(r *gin.Engine) {
 	permGroup := r.Group("/api/v1/permissions")
 	permGroup.Use(middleware.AuthMiddleware())
@@ -25,7 +26,7 @@ func RegisterPermissionRoutes(r *gin.Engine) {
 		permGroup.POST("", permCtrl.CreatePermission)
 		permGroup.GET("", permCtrl.GetPermissionList)
 		permGroup.GET("/:id", permCtrl.GetPermission)
-		permGroup.PUT("/:id", permCtrl.UpdataPermission)
+		permGroup.PUT("/:id", permCtrl.UpdatePermission)
 		permGroup.DELETE("/:id", permCtrl.DeletePermission)
 	}
 }

@@ -47,6 +47,7 @@ func (m *MenuHandler) GetMenu(c *gin.Context) {
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		utils.Fail(c, 400, model.StatusIdNotExist+err.Error())
+		return
 	}
 	// 调用服务层查找权限信息
 	menu, err := m.MenuService.GetMenu(id)

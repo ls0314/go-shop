@@ -60,7 +60,7 @@ func (s *PermissionService) GetPermission(id int64) (*model.SysPermission, error
 //
 // 返回值:
 //
-//	[]model.SysMenu - 分页权限信息列表
+//	[]model.SysPermission - 分页权限信息列表
 //	int64 - 权限总数
 //	error - 错误信息
 func (s *PermissionService) GetPermissionList(page, pageSize int, permType string) ([]model.SysPermission, int64, error) {
@@ -111,10 +111,11 @@ func (s *PermissionService) UpdatePermission(permID int64, updatePerm map[string
 
 	// 保证更新的权限名未被使用
 	if newPerm.PermissionCode != olderPerm.PermissionCode {
-		existing, _ := s.PermRepo.GetPermByCode(newPerm.PermissionCode)
-		if existing != nil {
-			return model.PermissionExist
-		}
+		//existing, _ := s.PermRepo.GetPermByCode(newPerm.PermissionCode)
+		//if existing != nil {
+		//	return model.PermissionExist
+		//}
+		return model.PermissionCodeNotAlter
 	}
 	// 调用数据层更新权限部分信息
 	return s.PermRepo.UpdatePerm(&newPerm)

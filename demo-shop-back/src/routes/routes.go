@@ -14,11 +14,14 @@ func InitRoutes() *gin.Engine {
 	InitPermissionModule()
 	// ========== 注册权限路由 ==========
 	RegisterPermissionRoutes(r)
-
 	// ========== 菜单模块初始化 ==========
 	InitMenuModule()
 	// ========== 注册菜单路由 ==========
 	RegisterMenuRoutes(r)
+	// ========== 角色模块初始化 ==========
+	InitRoleModule()
+	// ========== 注册角色路由 ==========
+	RegisterRoleRoutes(r)
 
 	// 配置CORS中间件
 	r.Use(func(c *gin.Context) {

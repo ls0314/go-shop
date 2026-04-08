@@ -61,7 +61,7 @@ ALTER TABLE sys_menu ADD CONSTRAINT uk_menu_parent_name UNIQUE (parent_id, menu_
 -- 创建角色表
 CREATE TABLE IF NOT EXISTS sys_role (
     role_id BIGSERIAL PRIMARY KEY,
-    role_name VARCHAR(100) NOT NULL,
+    role_name VARCHAR(100) NOT NULL UNIQUE,
     role_type VARCHAR(20) NOT NULL,
     description TEXT,
     is_system BOOLEAN DEFAULT FALSE,

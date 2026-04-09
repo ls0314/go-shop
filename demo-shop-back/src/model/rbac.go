@@ -62,3 +62,18 @@ type SysRole struct {
 func (SysRole) TableName() string {
 	return "sys_role"
 }
+
+type SysDept struct {
+	DeptId    int64     `gorm:"primaryKey;column:dept_id" json:"dept_id"`
+	DeptName  string    `gorm:"column:dept_name" json:"dept_name"`
+	ParentId  int64     `gorm:"column:parent_id" json:"parent_id"`
+	DeptType  string    `gorm:"column:dept_type" json:"dept_type"`
+	LeaderId  int64     `gorm:"column:leader_id" json:"leader_id"`
+	SortOrder int64     `gorm:"column:sort_order" json:"sort_order"`
+	Status    string    `gorm:"column:status" json:"status"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
+func (SysDept) TableName() string {
+	return "sys_department"
+}

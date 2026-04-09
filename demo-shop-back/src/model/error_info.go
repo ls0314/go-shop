@@ -23,10 +23,14 @@ var (
 	MenuExist              = errors.New("此级目录内菜单已存在")
 	MenuNotExist           = errors.New("菜单不存在")
 	MenuHasRel             = errors.New("菜单存在角色关联")
-	RoleExist              = errors.New("此级目录内角色已存在")
+	RoleExist              = errors.New("此级目录内该角色已存在")
 	RoleNotExist           = errors.New("角色不存在")
 	RoleHasRel             = errors.New("角色存在用户关联")
 	RoleIsSystem           = errors.New("系统角色禁止修改")
+	DeptExist              = errors.New("此级目录内该部门已存在")
+	DeptNotExist           = errors.New("部门不存在")
+	DeptHasRel             = errors.New("部门存在用户关联")
+	DeptIsSystem           = errors.New("系统部门禁止修改")
 )
 var (
 	StatusIdNotExist          = "ID不存在"

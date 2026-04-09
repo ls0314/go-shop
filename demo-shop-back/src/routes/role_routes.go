@@ -30,19 +30,19 @@ func InitRoleModule() {
 // 功能：注册角色相关API路由，统一前缀 /api/v1/role，并添加登录认证中间件
 func RegisterRoleRoutes(r *gin.Engine) {
 	// 创建角色接口路由分组，统一前缀 /api/v1/role
-	permGroup := r.Group("/api/v1/role")
+	roleGroup := r.Group("/api/v1/role")
 	// 添加全局认证中间件（必须登录才能访问角色接口）
-	permGroup.Use(middleware.AuthMiddleware())
+	roleGroup.Use(middleware.AuthMiddleware())
 	{
 		// 创建角色接口
-		permGroup.POST("", roleCtrl.CreateRole)
+		roleGroup.POST("", roleCtrl.CreateRole)
 		// 分页获取角色列表接口
-		permGroup.GET("", roleCtrl.GetRoleList)
+		roleGroup.GET("", roleCtrl.GetRoleList)
 		// 根据ID获取单个角色接口
-		permGroup.GET("/:id", roleCtrl.GetRole)
+		roleGroup.GET("/:id", roleCtrl.GetRole)
 		// 根据ID更新角色接口
-		permGroup.PUT("/:id", roleCtrl.UpdateRole)
+		roleGroup.PUT("/:id", roleCtrl.UpdateRole)
 		// 根据ID删除角色接口
-		permGroup.DELETE("/:id", roleCtrl.DeleteRole)
+		roleGroup.DELETE("/:id", roleCtrl.DeleteRole)
 	}
 }

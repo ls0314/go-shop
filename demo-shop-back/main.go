@@ -41,7 +41,6 @@ func main() {
 		}
 	}()
 	middleware.InitJWT(utils.Secret)
-	// Create a Gin router with default middleware (logger and recovery)
 	router := routes.InitRoutes()
 
 	err = router.SetTrustedProxies([]string{"127.0.0.1"})

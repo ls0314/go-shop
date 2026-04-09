@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// 用户注册信息
+// SysUser 用户注册结构体, 对应数据表sys_user
 type SysUser struct {
 	UserID         int64      `gorm:"column:user_id;primaryKey"`
 	Username       string     `gorm:"column:username"`
@@ -12,8 +12,8 @@ type SysUser struct {
 	Email          string     `gorm:"column:email"`
 	Phone          string     `gorm:"column:phone"`
 	Status         string     `gorm:"column:status"`
-	FailedAttempts int        `gorm:"column:failed_attempts`
-	LockUntil      *time.Time `gorm:"column:lock_until`
+	FailedAttempts int        `gorm:"column:failed_attempts"`
+	LockUntil      *time.Time `gorm:"column:lock_until"`
 	CreatedAt      time.Time  `gorm:"column:created_at"`
 	UpdatedAt      time.Time  `gorm:"column:updated_at"`
 }
@@ -22,7 +22,7 @@ func (SysUser) TableName() string {
 	return "sys_user"
 }
 
-// 用户信息
+// UserProfile 用户信息结构体, 对应数据表user_profile
 type UserProfile struct {
 	UserInfoID int64      `gorm:"column:user_info_id;primaryKey"`
 	Nickname   string     `gorm:"column:nickname"`
@@ -38,7 +38,7 @@ func (UserProfile) TableName() string {
 	return "user_profile"
 }
 
-// 注册请求结构
+// RegisterRequest 注册请求结构
 type RegisterRequest struct {
 	Phone    string `json:"phone"`
 	Password string `json:"password"`
@@ -47,13 +47,13 @@ type RegisterRequest struct {
 	Nickname string `json:"nickname"`
 }
 
-// 登录请求结构
+// LoginRequest 登录请求结构
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
-// 签发Token结构
+// LoginResponse 签发Token结构
 type LoginResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`

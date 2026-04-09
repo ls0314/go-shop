@@ -10,6 +10,15 @@ import (
 
 func InitRoutes() *gin.Engine {
 	r := gin.Default()
+	// ========== 权限模块初始化 ==========
+	InitPermissionModule()
+	// ========== 注册权限路由 ==========
+	RegisterPermissionRoutes(r)
+
+	// ========== 菜单模块初始化 ==========
+	InitMenuModule()
+	// ========== 注册菜单路由 ==========
+	RegisterMenuRoutes(r)
 
 	// 配置CORS中间件
 	r.Use(func(c *gin.Context) {
@@ -29,7 +38,7 @@ func InitRoutes() *gin.Engine {
 	{
 		public.POST("/register", handler.RegisterHandler)
 		public.POST("/login", handler.LoginHandler)
-		public.POST("/refresh", handler.RefreshHandler) // 刷新接口公开
+		public.POST("/refresh", handler.RefreshHandler)
 	}
 
 	private := r.Group("/api/v1/user")

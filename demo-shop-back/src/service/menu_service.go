@@ -117,8 +117,8 @@ func (m *MenuService) UpdateMenu(menuID int64, updateMenu map[string]interface{}
 
 	//联合唯一索引校验（同父节点下菜单名不能重复）
 	if newMenu.MenuName != olderMenu.MenuName {
-		_, err = m.MenuRepo.GetMenuByUk(newMenu.ParentId, newMenu.MenuName)
-		if err != nil {
+		existing, _ := m.MenuRepo.GetMenuByUk(newMenu.ParentId, newMenu.MenuName)
+		if existing != nil {
 			return model.MenuExist
 		}
 	}

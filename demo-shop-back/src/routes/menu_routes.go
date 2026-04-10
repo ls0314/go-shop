@@ -20,15 +20,15 @@ func InitMenuModule() {
 
 // RegisterMenuRoutes 初始化菜单路由
 func RegisterMenuRoutes(r *gin.Engine) {
-	permGroup := r.Group("/api/v1/menu")
-	permGroup.Use(middleware.AuthMiddleware())
+	menuGroup := r.Group("/api/v1/menu")
+	menuGroup.Use(middleware.AuthMiddleware())
 	{
-		permGroup.POST("", menuCtrl.CreateMenu)
-		permGroup.GET("", menuCtrl.GetMenuList)
-		permGroup.GET("/:id", menuCtrl.GetMenu)
+		menuGroup.POST("", menuCtrl.CreateMenu)
+		menuGroup.GET("", menuCtrl.GetMenuList)
+		menuGroup.GET("/:id", menuCtrl.GetMenu)
 		// TODO： 构建角色菜单接口映射
 		//permGroup.GET("/tree/:id", menuCtrl.UpdataMenu) // 角色菜单树 角色表暂未构建
-		permGroup.PUT("/:id", menuCtrl.UpdateMenu)
-		permGroup.DELETE("/:id", menuCtrl.DeleteMenu)
+		menuGroup.PUT("/:id", menuCtrl.UpdateMenu)
+		menuGroup.DELETE("/:id", menuCtrl.DeleteMenu)
 	}
 }

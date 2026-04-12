@@ -77,3 +77,16 @@ type SysDept struct {
 func (SysDept) TableName() string {
 	return "sys_department"
 }
+
+type SysScope struct {
+	ScopeId        int64     `gorm:"primaryKey;column:scope_id" json:"scope_id"`
+	RoleId         int64     `gorm:"column:role_id" json:"role_id"`
+	ResourceType   string    `gorm:"column:resource_type" json:"resource_type"`
+	FieldName      string    `gorm:"column:field_name" json:"field_name"`
+	ConditionType  string    `gorm:"column:condition_type" json:"condition_type"`
+	ConditionValue string    `gorm:"column:condition_value" json:"condition_value"`
+	Description    string    `gorm:"column:description" json:"description"`
+	CreatedAt      time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
+func (SysScope) TableName() string { return "sys_data_scope" }

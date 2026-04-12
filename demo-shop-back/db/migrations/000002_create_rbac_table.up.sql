@@ -175,7 +175,10 @@ CREATE TABLE IF NOT EXISTS sys_data_scope (
     condition_type VARCHAR(50),
     condition_value TEXT,
     description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- 联合唯一约束：同一个角色 + 同一个资源类型 + 同一个字段 → 只能一条规则
+    CONSTRAINT uk_data_scope_role_resource_field UNIQUE (role_id, resource_type, field_name)
 );
 
 -- 添加列注释

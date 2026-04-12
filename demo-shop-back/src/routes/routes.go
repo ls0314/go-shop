@@ -22,10 +22,14 @@ func InitRoutes() *gin.Engine {
 	InitRoleModule()
 	// ========== 注册角色路由 ==========
 	RegisterRoleRoutes(r)
-	// ========== 角色模块初始化 ==========
+	// ========== 部门模块初始化 ==========
 	InitDeptModule()
-	// ========== 注册角色路由 ==========
+	// ========== 注册部门路由 ==========
 	RegisterDeptRoutes(r)
+	// ========== 数据权限模块初始化 ==========
+	InitScopeModule()
+	// ========== 注册数据权限路由 ==========
+	RegisterScopeRoutes(r)
 
 	// 配置CORS中间件
 	r.Use(func(c *gin.Context) {

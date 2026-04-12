@@ -31,6 +31,10 @@ var (
 	DeptNotExist           = errors.New("部门不存在")
 	DeptHasRel             = errors.New("部门存在用户关联")
 	DeptIsSystem           = errors.New("系统部门禁止修改")
+	ScopeExist             = errors.New("数据权限标识已存在")
+	ScopeNotExist          = errors.New("数据权限不存在")
+	ScopeNotRole           = errors.New("数据权限所关联的角色不存在")
+	ScopeIsRole            = errors.New("禁止修改关联角色")
 )
 var (
 	StatusIdNotExist          = "ID不存在"

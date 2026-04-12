@@ -90,7 +90,7 @@ func (d *DepartmentRepo) GetDeptList(page, pageSize int, deptType string) ([]mod
 	}
 	// 分页查询部门数据
 	offset := (page - 1) * pageSize
-	if err := deptDb.Limit(int(pageSize)).Offset(int(offset)).Find(&deptList).Error; err != nil {
+	if err := deptDb.Limit(pageSize).Offset(offset).Find(&deptList).Error; err != nil {
 		return nil, 0, err
 	}
 	// 返回分页部门信息、部门总数、错误信息

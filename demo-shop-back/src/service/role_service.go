@@ -14,7 +14,7 @@ type RoleService struct {
 
 // NewRoleService 新建服务层角色对象实例
 // 接收值：roleRepo - 数据层角色对象指针
-// 返回值：RoleService - 服务层角色对象
+// 返回值：*RoleService - 服务层角色对象指针
 func NewRoleService(roleRepo *repository.RoleRepo) *RoleService {
 	return &RoleService{roleRepo}
 }
@@ -60,7 +60,7 @@ func (r *RoleService) GetRoleById(id int64) (*model.SysRole, error) {
 //
 // 返回值：
 //
-//	*model.SysRole - 被查询角色对象
+//	*model.SysRole - 被查询角色对象指针
 //	error - 错误信息
 func (r *RoleService) GetRoleByName(name string) (*model.SysRole, error) {
 	role, err := r.RoleRepo.GetRoleByName(name)
@@ -73,7 +73,7 @@ func (r *RoleService) GetRoleByName(name string) (*model.SysRole, error) {
 // GetRoleList 分页查询角色信息（可根据角色类型查询）
 // 接收值：
 //
-//	page - 页数,
+//	page - 页数
 //	pageSize - 页大小
 //	roleType - 角色类型
 //
@@ -97,8 +97,8 @@ func (r *RoleService) GetRoleList(page, pageSize int, roleType string) ([]model.
 // UpdateRole 更新角色信息
 // 接收值：
 //
-//	permID - 更新角色唯一标识
-//	updatePerm - 待更新角色部分信息
+//	id - 更新角色唯一标识
+//	updateRole - 待更新角色部分信息
 //
 // 返回值：
 //
@@ -115,7 +115,7 @@ func (r *RoleService) UpdateRole(id int64, updateRole map[string]interface{}) er
 	}
 	// 用原角色信息初始化更新角色信息
 	newRole := *oldRole
-	// 配置mapstructure，用updatePerm覆盖更新角色信息（只覆盖传入字段）
+	// 配置mapstructure，用updateRole覆盖更新角色信息（只覆盖传入字段）
 	config := &mapstructure.DecoderConfig{
 		TagName: "json",
 		Result:  &newRole,
@@ -131,7 +131,7 @@ func (r *RoleService) UpdateRole(id int64, updateRole map[string]interface{}) er
 	if newRole.RoleName != oldRole.RoleName {
 		existing, _ := r.RoleRepo.GetRoleByName(newRole.RoleName)
 		if existing != nil {
-			return model.PermissionExist
+			return model.RoleExist
 		}
 	}
 	// 调用数据层更新角色部分信息
@@ -147,18 +147,23 @@ func (r *RoleService) DeleteRole(id int64) error {
 	if existing == nil {
 		return model.RoleNotExist
 	}
-	// 判断待删除权限是否是系统权限
+	// 判断待删除角色是否是系统角色
 	if existing.IsSystem {
 		return model.RoleIsSystem
 	}
-	//// 检查角色使用存在用户关联
-	//hasRel, err := r.RoleRepo.CheckRoleRelUser(id)
-	//if err != nil {
-	//	return err
-	//}
-	//if hasRel {
-	//	return model.PermissionHasRel
-	//}
+	// 检查角色是否存在用户关联
+	if userHasRel, err := r.RoleRepo.CheckRoleRelUser(id); err != nil || userHasRel {
+		return model.UserHasRel
+	}
+	// 检查角色是否存在菜单关联
+	if menuHasRel, err := r.RoleRepo.CheckRoleRelMenu(id); err != nil || menuHasRel {
+		return model.MenuHasRel
+	}
+	// 检查角色是否存在权限关联
+	if permHasRel, err := r.RoleRepo.CheckRoleRelPerm(id); err != nil || permHasRel {
+		return model.PermissionHasRel
+	}
+
 	// 调用数据层删除角色
 	return r.RoleRepo.DeleteRole(id)
 }

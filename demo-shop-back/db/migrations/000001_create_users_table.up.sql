@@ -30,6 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_user_status_created ON sys_user(status, created_a
 -- 创建用户信息表
 CREATE TABLE IF NOT EXISTS user_profile (
     user_info_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT UNIQUE NOT NULL,
     nickname VARCHAR(50),
     real_name VARCHAR(50),
     avatar_url VARCHAR(500),
@@ -40,7 +41,8 @@ CREATE TABLE IF NOT EXISTS user_profile (
 );
 
 -- 添加列注释
-COMMENT ON COLUMN user_profile.user_info_id IS '用户ID';
+COMMENT ON COLUMN user_profile.user_info_id IS '用户信息唯一标识符';
+COMMENT ON COLUMN user_profile.user_id IS '用户ID';
 COMMENT ON COLUMN user_profile.nickname IS '昵称';
 COMMENT ON COLUMN user_profile.real_name IS '真实姓名';
 COMMENT ON COLUMN user_profile.avatar_url IS '头像URL';

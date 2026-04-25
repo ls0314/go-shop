@@ -15,10 +15,12 @@ type DeptHandler struct {
 }
 
 // NewDeptHandler 新建handler层部门对象实例
-// 接收值：deptService - 服务层部门对象指针
+// 接收值：无接收值
 // 返回值：*DeptHandler - handler层部门对象指针
-func NewDeptHandler(deptService *service.DeptService) *DeptHandler {
-	return &DeptHandler{DeptService: deptService}
+func NewDeptHandler() *DeptHandler {
+	return &DeptHandler{
+		DeptService: service.NewDeptService(),
+	}
 }
 
 // CreateDept 创建部门接口
@@ -65,7 +67,7 @@ func (d *DeptHandler) GetDept(c *gin.Context) {
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		// ID格式转换失败，返回参数错误响应
-		utils.Fail(c, 400, model.StatusIdNotExist+err.Error())
+		utils.Fail(c, 400, model.StatusIdNotExist)
 		return
 	}
 	// 调用服务层，根据部门ID查询部门信息
@@ -77,6 +79,33 @@ func (d *DeptHandler) GetDept(c *gin.Context) {
 	}
 	// 查询成功，返回部门信息
 	utils.Success(c, dept)
+}
+
+// GetDeptTreeByUserId 根据用户Id获取其对应的用户部门树
+// 路由映射：GET /api/v1/dept/:userId/tree
+// 功能：从URL路径中获取用户ID，查询并返回对应部门树详情
+// 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
+// 响应：
+//
+//	400：URL参数ID格式错误/不存在
+//	500：服务层查询部门树失败
+//	200：查询成功，返回部门树详细信息
+func (d *DeptHandler) GetDeptTreeByUserId(c *gin.Context) {
+	// 从URL路径中获取用户ID
+	userIdStr := c.Param("userId")
+	userId, err := strconv.ParseInt(userIdStr, 10, 64)
+	if err != nil {
+		utils.Fail(c, 400, model.StatusIdNotExist)
+		return
+	}
+	// 调用服务层查询对应部门树详情
+	deptTree, err := d.DeptService.GetDeptTreeByRoleId(userId)
+	if err != nil {
+		utils.Error(c, 500, err.Error())
+		return
+	}
+	// 返回部门树
+	utils.Success(c, deptTree)
 }
 
 // GetDeptList 分页获取部门列表接口

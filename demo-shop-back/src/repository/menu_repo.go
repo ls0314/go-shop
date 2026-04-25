@@ -60,6 +60,24 @@ func (m *MenuRepo) GetMenuByUk(parentId int64, menuName string) (*model.SysMenu,
 	return &menu, nil
 }
 
+// GetMaxSortId 获取当前父节点下最大排序号
+// 接收值 : parentId - 所查询的父节点Id
+// 返回值 :
+//
+//	int64 - 查询到的该父节点下的最大排序号
+//	error - 错误信息
+func (m *MenuRepo) GetMaxSortId(parentId int64) (int64, error) {
+	var sortId int64
+	err := m.DB.Model(&model.SysMenu{}).
+		Where("parent_id = ?", parentId).
+		Select("COALESCE(MAX(sort_order), 0)").
+		Find(&sortId).Error
+	if err != nil {
+		return 0, err
+	}
+	return sortId, nil
+}
+
 // GetMenuList 分页查询菜单信息（可根据类型查询）
 // 接收值：
 //
@@ -93,38 +111,18 @@ func (m *MenuRepo) GetMenuList(page, pageSize int, menuType string) ([]model.Sys
 	return menuList, total, nil
 }
 
-// GetMenuTree 获取角色菜单树
-// 接收值：菜单结构体列表
-// 返回值：菜单角色树
-// TODO： 根据角色ID构建菜单角色树
-//func (m *MenuRepo) GetMenuTree() ([]model.SysMenu, error) {
-//	var menuList []model.SysMenu
-//
-//	err := m.DB.Order("sort_order asc").Find(&menuList).Error
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	menuMap := make(map[int64]model.SysMenu)
-//	for _, it := range menuList {
-//		menuMap[it.MenuId] = it
-//	}
-//
-//	var treeList []model.SysMenu
-//	for i := range menuList {
-//		item := &menuList[i]
-//
-//		parent, hasParent := menuMap[item.ParentId]
-//		if !hasParent {
-//			treeList = append(treeList, *item)
-//			continue
-//		}
-//
-//		parent.Children = append(parent.Children, *item)
-//		menuMap[parent.MenuId] = parent
-//	}
-//	return treeList, nil
-//}
+// ListMenuByIds 根据菜单ID列表批量查询菜单，并按 sort_order 排序
+// 接收值：menuIds - 菜单ID列表
+// 返回值：[]*model.SysMenu - 菜单列表，error - 错误信息
+func (m *MenuRepo) ListMenuByIds(menuIds []int64) ([]*model.SysMenu, error) {
+	var menuList []*model.SysMenu
+	err := m.DB.
+		Where("menu_id IN ?", menuIds).
+		Order("sort_order asc").
+		Find(&menuList).Error
+
+	return menuList, err
+}
 
 // UpdateMenu 更新菜单信息
 // 接收值：menu - 菜单对象指针
@@ -149,8 +147,6 @@ func (m *MenuRepo) DeleteMenu(id int64) error {
 //
 //	bool - 该菜单是否有关联角色
 //	error - 错误信息
-//
-// TODO： 检查查是否有角色关联该菜单
 func (m *MenuRepo) CheckRoleRelMenu(menuID int64) (bool, error) {
 	var count int64
 	err := m.DB.Table("sys_role_menu").Where("menu_id=?", menuID).Count(&count).Error

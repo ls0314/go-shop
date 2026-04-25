@@ -105,6 +105,27 @@ ALTER TABLE sys_role_permission ADD CONSTRAINT uk_role_permission UNIQUE (role_i
 ALTER TABLE sys_role_permission ADD CONSTRAINT fk_role_permission_role FOREIGN KEY (role_id) REFERENCES sys_role(role_id);
 ALTER TABLE sys_role_permission ADD CONSTRAINT fk_role_permission_permission FOREIGN KEY (permission_id) REFERENCES sys_permission(permission_id);
 
+-- 创建角色菜单关联表
+CREATE TABLE IF NOT EXISTS sys_role_menu (
+     id BIGSERIAL PRIMARY KEY,
+     role_id BIGINT NOT NULL,
+     menu_id BIGINT NOT NULL,
+     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 添加列注释
+COMMENT ON COLUMN sys_role_menu.id IS '角色菜单关联表唯一标识';
+COMMENT ON COLUMN sys_role_menu.role_id IS '角色ID';
+COMMENT ON COLUMN sys_role_menu.menu_id IS '菜单ID';
+COMMENT ON COLUMN sys_role_menu.created_at IS '创建时间';
+
+-- 唯一约束：一个角色不能重复绑定同一个菜单
+ALTER TABLE sys_role_menu ADD CONSTRAINT uk_role_menu UNIQUE (role_id, menu_id);
+
+-- 外键约束
+ALTER TABLE sys_role_menu ADD CONSTRAINT fk_role_menu_role FOREIGN KEY (role_id) REFERENCES sys_role (role_id);
+ALTER TABLE sys_role_menu ADD CONSTRAINT fk_role_menu_menu FOREIGN KEY (menu_id) REFERENCES sys_menu (menu_id);
+
 -- 创建用户角色关联表
 CREATE TABLE IF NOT EXISTS sys_user_role (
     id BIGSERIAL PRIMARY KEY,
@@ -150,21 +171,21 @@ COMMENT ON COLUMN sys_department.created_at IS '创建时间';
 CREATE TABLE IF NOT EXISTS sys_user_dept (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    role_id BIGINT NOT NULL,
-    is_primary BOOLEAN DEFAULT true,
+    dept_id BIGINT NOT NULL,
+    is_primary BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 添加列注释
 COMMENT ON COLUMN sys_user_dept.id IS '用户部门表唯一标识';
 COMMENT ON COLUMN sys_user_dept.user_id IS '用户表ID(外键)';
-COMMENT ON COLUMN sys_user_dept.role_id IS '部门表ID(外键)';
+COMMENT ON COLUMN sys_user_dept.dept_id IS '部门表ID(外键)';
 COMMENT ON COLUMN sys_user_dept.is_primary IS '是否主部门';
 COMMENT ON COLUMN sys_user_dept.created_at IS '创建时间';
 
 -- 外键约束
 ALTER TABLE sys_user_dept ADD CONSTRAINT fk_user_dept_user FOREIGN KEY (user_id) REFERENCES sys_user(user_id);
-ALTER TABLE sys_user_dept ADD CONSTRAINT fk_user_dept_dept FOREIGN KEY (role_id) REFERENCES sys_department(dept_id);
+ALTER TABLE sys_user_dept ADD CONSTRAINT fk_user_dept_dept FOREIGN KEY (dept_id) REFERENCES sys_department(dept_id);
 
 -- 创建数据权限规则表
 CREATE TABLE IF NOT EXISTS sys_data_scope (
@@ -193,6 +214,24 @@ COMMENT ON COLUMN sys_data_scope.created_at IS '创建时间';
 
 -- 外键约束
 ALTER TABLE sys_data_scope ADD CONSTRAINT fk_data_scope_role FOREIGN KEY (role_id) REFERENCES sys_role(role_id);
+
+-- 创建菜单权限关联表
+CREATE TABLE IF NOT EXISTS sys_menu_permission (
+    id BIGSERIAL PRIMARY KEY,
+    menu_id BIGINT NOT NULL,
+    permission_id BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 添加列注释
+COMMENT ON COLUMN sys_menu_permission.id IS '菜单权限关联表唯一标识';
+COMMENT ON COLUMN sys_menu_permission.menu_id IS '菜单表ID(外键)';
+COMMENT ON COLUMN sys_menu_permission.permission_id IS '权限表ID(外键)';
+COMMENT ON COLUMN sys_menu_permission.created_at IS '创建时间';
+
+-- 外键约束
+ALTER TABLE sys_menu_permission ADD CONSTRAINT fk_menu_permission_menu FOREIGN KEY (menu_id) REFERENCES sys_menu(menu_id);
+ALTER TABLE sys_menu_permission ADD CONSTRAINT fk_menu_permission_permission FOREIGN KEY (permission_id) REFERENCES sys_permission(permission_id);
 
 -- 创建操作日志表
 CREATE TABLE IF NOT EXISTS sys_operation_log (

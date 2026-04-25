@@ -10,7 +10,9 @@ var (
 	PhoneMalformed         = errors.New("手机号格式错误")
 	PhoneExist             = errors.New("手机号已注册")
 	UsernameExist          = errors.New("用户名已存在")
+	UserNotExist           = errors.New("用户不存在")
 	EmailExist             = errors.New("邮箱已注册")
+	UserIdIsSystem         = errors.New("用户ID禁止修改")
 	TokenExpired           = errors.New("token已过期")
 	TokenNotValidYet       = errors.New("token尚未生效")
 	TokenMalformed         = errors.New("token格式错误")
@@ -35,6 +37,9 @@ var (
 	ScopeNotExist          = errors.New("数据权限不存在")
 	ScopeNotRole           = errors.New("数据权限所关联的角色不存在")
 	ScopeIsRole            = errors.New("禁止修改关联角色")
+	RelExist               = errors.New("此关联已存在")
+	RelNotExist            = errors.New("此关联不存在")
+	UserHasRel             = errors.New("存在关联用户")
 )
 var (
 	StatusIdNotExist          = "ID不存在"

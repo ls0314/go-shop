@@ -3,8 +3,6 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
-	"demo-shop-back/src/repository"
-	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,12 +15,8 @@ var deptCtrl *handler.DeptHandler
 // 功能：完成部门模块 仓库层 → 服务层 → 控制层 的依赖注入与实例化
 // 执行顺序：创建数据访问层实例 → 创建业务逻辑层实例 → 创建控制器实例
 func InitDeptModule() {
-	// 初始化部门数据仓库层
-	deptRepo := repository.NewDeptRepo()
-	// 初始化部门服务层
-	deptService := service.NewDeptService(deptRepo)
 	// 初始化部门控制器，赋值给全局控制器变量
-	deptCtrl = handler.NewDeptHandler(deptService)
+	deptCtrl = handler.NewDeptHandler()
 }
 
 // RegisterDeptRoutes 注册部门模块路由
@@ -40,6 +34,8 @@ func RegisterDeptRoutes(r *gin.Engine) {
 		deptGroup.GET("", deptCtrl.GetDeptList)
 		// 根据ID获取单个部门接口
 		deptGroup.GET("/:id", deptCtrl.GetDept)
+		// 根据用户Id构建该用户的部门树
+		deptGroup.GET("/tree/:userId", deptCtrl.GetDeptTreeByUserId)
 		// 根据ID更新部门接口
 		deptGroup.PUT("/:id", deptCtrl.UpdateDept)
 		// 根据ID删除部门接口

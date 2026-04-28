@@ -15,8 +15,10 @@ var deptCtrl *handler.DeptHandler
 // 功能：完成部门模块 仓库层 → 服务层 → 控制层 的依赖注入与实例化
 // 执行顺序：创建数据访问层实例 → 创建业务逻辑层实例 → 创建控制器实例
 func InitDeptModule() {
+
 	// 初始化部门控制器，赋值给全局控制器变量
 	deptCtrl = handler.NewDeptHandler()
+
 }
 
 // RegisterDeptRoutes 注册部门模块路由

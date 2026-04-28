@@ -117,13 +117,6 @@ func (u *UserService) UpdateUser(userId int64, user map[string]interface{}) erro
 		return model.PhoneMalformed
 	}
 
-	// 密码加密处理
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newUser.PasswordHash), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-	newUser.PasswordHash = string(passwordHash)
-
 	// 校验用户名是否重复
 	if userNameExist, err := u.UserRepo.GetUserByName(newUser.Username); err != nil || userNameExist != nil {
 		return model.UsernameExist
@@ -136,6 +129,14 @@ func (u *UserService) UpdateUser(userId int64, user map[string]interface{}) erro
 	if userEmailExist, err := u.UserRepo.GetUserByEmail(newUser.Email); err != nil || userEmailExist != nil {
 		return model.EmailExist
 	}
+
+	// 密码加密处理
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newUser.PasswordHash), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	newUser.PasswordHash = string(passwordHash)
+
 	// 调用数据层更新用户信息
 	return u.UserRepo.UpdateUser(&newUser)
 }
@@ -221,8 +222,8 @@ func (u *UserService) Register(user *model.SysUser) error {
 	}
 	// 初始化用户默认档案
 	profile := &model.UserProfile{
-		UserId:   user.UserID, // 绑定用户ID
-		Nickname: "默认用户名",     // 默认初始化
+		UserId:   user.UserID,  // 绑定用户ID
+		Nickname: "默认用户名", // 默认初始化
 	}
 
 	// 创建用户档案

@@ -89,5 +89,23 @@ func (rm *RoleMenuService) DeleteRoleMenuByRoleId(roleId int64) error {
 	if roleExist, err := rm.RoleRepo.GetRoleById(roleId); err != nil || roleExist == nil {
 		return model.RoleNotExist
 	}
-	return rm.RoleMenuRepo.DeleteRoleMenuByRoleId(roleId)
+	// 开启事务
+	tx := rm.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	roleMenuTxRepo := rm.RoleMenuRepo.WithTx(tx)
+	// 调用数据层删除角色菜单关联
+	if err := roleMenuTxRepo.DeleteRoleMenuByRoleId(roleId); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
 }

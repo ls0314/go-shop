@@ -91,5 +91,23 @@ func (rp *RolePermService) DeleteRolePermRel(roleId int64) error {
 	if permExist, err := rp.RoleRepo.GetRoleById(roleId); err != nil || permExist == nil {
 		return model.RoleNotExist
 	}
-	return rp.RolePermRepo.DeleteRolePerm(roleId)
+	// 开启事务
+	tx := rp.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	rolePermTxRepo := rp.RolePermRepo.WithTx(tx)
+	// 调用数据层删除角色权限关联
+	if err := rolePermTxRepo.DeleteRolePerm(roleId); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
 }

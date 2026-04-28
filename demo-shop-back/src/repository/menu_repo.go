@@ -19,6 +19,13 @@ func NewMenuRepo() *MenuRepo {
 	return &MenuRepo{DB: db.DB}
 }
 
+// WithTx 切换数据库事务实例
+// 接收值：tx - 数据库事务实例
+// 返回值：*MenuRepo - 绑定事务的菜单表数据层指针
+func (m *MenuRepo) WithTx(tx *gorm.DB) *MenuRepo {
+	return &MenuRepo{DB: tx}
+}
+
 // CreateMenu 创建菜单
 // 接收值：menu - 菜单对象指针
 // 返回值：error - 错误信息

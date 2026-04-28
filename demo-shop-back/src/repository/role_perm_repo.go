@@ -44,18 +44,6 @@ func (rp *RolePermRepo) CreateRolePerm(roleId int64, permIds []int64) error {
 	return rp.DB.Create(&rolePermList).Error
 }
 
-// GetRolePermUk 根据角色ID+权限ID查询关联关系（唯一索引）
-// 接收值：roleId - 角色ID，permID - 权限ID
-// 返回值：*model.SysRolePermission - 角色-权限关联对象，error - 错误信息
-//func (rp *RolePermRepo) GetRolePermUk(roleId, permID int64) (*model.SysRolePermission, error) {
-//	var rolePerm model.SysRolePermission
-//	err := rp.DB.Where("role_id = ? AND permission_id = ?", roleId, permID).First(&rolePerm).Error
-//	if err != nil {
-//		return nil, err
-//	}
-//	return &rolePerm, nil
-//}
-
 // GetRolePermList 根据角色ID查询关联的权限ID列表
 // 接收值：roleId - 角色ID
 // 返回值：[]int64 - 权限ID列表，error - 错误信息

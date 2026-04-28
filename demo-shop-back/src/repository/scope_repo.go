@@ -18,6 +18,13 @@ func NewScopeRepo() *ScopeRope {
 	return &ScopeRope{DB: db.DB}
 }
 
+// WithTx 切换数据库事务实例
+// 接收值：tx - 数据库事务实例
+// 返回值：*ScopeRope - 绑定事务的数据权限表数据层指针
+func (s *ScopeRope) WithTx(tx *gorm.DB) *ScopeRope {
+	return &ScopeRope{DB: tx}
+}
+
 // CreateScope 创建数据权限
 // 接收值：scope - 数据权限结构体指针
 // 返回值：error - 错误信息

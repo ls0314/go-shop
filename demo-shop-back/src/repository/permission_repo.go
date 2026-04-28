@@ -19,6 +19,13 @@ func NewPermissionRepo() *PermissionRepo {
 	return &PermissionRepo{DB: db.DB}
 }
 
+// WithTx 切换数据库事务实例
+// 接收值：tx - 数据库事务实例
+// 返回值：*MenuRepo - 绑定事务的权限表数据层指针
+func (r *PermissionRepo) WithTx(tx *gorm.DB) *PermissionRepo {
+	return &PermissionRepo{DB: tx}
+}
+
 // CreatePerm 创建权限
 // 接收值：perm - 权限对象指针
 // 返回值：error - 错误信息

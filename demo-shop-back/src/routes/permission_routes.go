@@ -3,7 +3,6 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
-	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -13,8 +12,7 @@ var permCtrl *handler.PermissionHandler
 
 // InitPermissionModule 权限模块初始化（在InitRoutes中调用）
 func InitPermissionModule() {
-	permRepo := repository.NewPermissionRepo()
-	permService := service.NewPermissionService(permRepo)
+	permService := service.NewPermissionService()
 	permCtrl = handler.NewPermissionHandler(permService)
 }
 

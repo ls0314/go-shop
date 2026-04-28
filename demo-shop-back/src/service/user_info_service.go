@@ -1,15 +1,18 @@
 package service
 
 import (
+	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
 	"github.com/mitchellh/mapstructure"
+	"gorm.io/gorm"
 )
 
 // UserInfoService 用户信息服务层实例
 type UserInfoService struct {
 	UserInfoRepo *repository.UserProfileRepo // 用户信息表数据层实例
+	db           *gorm.DB
 }
 
 // NewUserInfoService 创建用户信息服务层实例
@@ -18,6 +21,7 @@ type UserInfoService struct {
 func NewUserInfoService() *UserInfoService {
 	return &UserInfoService{
 		UserInfoRepo: repository.NewUserProfileRepo(),
+		db:           db.DB,
 	}
 }
 
@@ -29,8 +33,25 @@ func (uif *UserInfoService) CreateUserInfo(userInfo *model.UserProfile) error {
 	if userInfoExist, err := uif.UserInfoRepo.GetUserProfileByUserId(userInfo.UserId); err != nil || userInfoExist != nil {
 		return model.UsernameExist
 	}
+	// 开启事务
+	tx := uif.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	userInfoTxRepo := uif.UserInfoRepo.WithTx(tx)
 	// 调用数据层创建用户信息
-	return uif.UserInfoRepo.CreateUserProfile(userInfo)
+	if err := userInfoTxRepo.CreateUserProfile(userInfo); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
 }
 
 // GetUserInfoByUserId 根据用户ID查询用户信息
@@ -77,8 +98,25 @@ func (uif *UserInfoService) UpdateUserProfile(userInfoId int64, updateUserInfo m
 	if oldUserInfo.UserId != newUserInfo.UserId {
 		return model.UserIdIsSystem
 	}
+	// 开启事务
+	tx := uif.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	userInfoTxRepo := uif.UserInfoRepo.WithTx(tx)
 	// 调用数据层更新用户信息
-	return uif.UserInfoRepo.UpdateUserProfile(&newUserInfo)
+	if err := userInfoTxRepo.UpdateUserProfile(&newUserInfo); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
 }
 
 // DeleteUserInfo 根据用户ID删除用户信息
@@ -90,6 +128,24 @@ func (uif *UserInfoService) DeleteUserInfo(userId int64) error {
 	if err != nil || exist == nil {
 		return model.UserNotExist
 	}
+	// 开启事务
+	tx := uif.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	userInfoTxRepo := uif.UserInfoRepo.WithTx(tx)
 	// 调用数据层删除用户信息
-	return uif.UserInfoRepo.DeleteUserProfile(userId)
+	if err := userInfoTxRepo.DeleteUserProfile(userId); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
+
 }

@@ -1,22 +1,28 @@
 package service
 
 import (
+	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
 	"github.com/mitchellh/mapstructure"
+	"gorm.io/gorm"
 )
 
 // RoleService 角色对象服务层实例
 type RoleService struct {
 	RoleRepo *repository.RoleRepo // 数据层角色对象指针
+	db       *gorm.DB
 }
 
 // NewRoleService 新建服务层角色对象实例
 // 接收值：roleRepo - 数据层角色对象指针
 // 返回值：*RoleService - 服务层角色对象指针
-func NewRoleService(roleRepo *repository.RoleRepo) *RoleService {
-	return &RoleService{roleRepo}
+func NewRoleService() *RoleService {
+	return &RoleService{
+		RoleRepo: repository.NewRoleRepo(),
+		db:       db.DB,
+	}
 }
 
 // CreateRole 创建角色
@@ -28,12 +34,25 @@ func (r *RoleService) CreateRole(role *model.SysRole) error {
 	if existing != nil {
 		return model.RoleExist
 	}
-	// 调用数据层创建角色对象
-	err := r.RoleRepo.CreateRole(role)
-	if err != nil {
+	// 开启事务
+	tx := r.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	roleTxRepo := r.RoleRepo.WithTx(tx)
+	// 调用数据层删除角色
+	if err := roleTxRepo.CreateRole(role); err != nil {
+		tx.Rollback()
 		return err
 	}
-	return nil
+	// 提交事务
+	return tx.Commit().Error
 }
 
 // GetRoleById 查询角色信息(按ID查询)
@@ -134,8 +153,26 @@ func (r *RoleService) UpdateRole(id int64, updateRole map[string]interface{}) er
 			return model.RoleExist
 		}
 	}
-	// 调用数据层更新角色部分信息
-	return r.RoleRepo.UpdateRole(&newRole)
+
+	// 开启事务
+	tx := r.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	roleTxRepo := r.RoleRepo.WithTx(tx)
+	// 调用数据层更新角色
+	if err := roleTxRepo.UpdateRole(&newRole); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
 }
 
 // DeleteRole 删除角色
@@ -163,7 +200,24 @@ func (r *RoleService) DeleteRole(id int64) error {
 	if permHasRel, err := r.RoleRepo.CheckRoleRelPerm(id); err != nil || permHasRel {
 		return model.PermissionHasRel
 	}
-
+	// 开启事务
+	tx := r.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	roleTxRepo := r.RoleRepo.WithTx(tx)
 	// 调用数据层删除角色
-	return r.RoleRepo.DeleteRole(id)
+	if err := roleTxRepo.DeleteRole(id); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
+
 }

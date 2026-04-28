@@ -1,16 +1,19 @@
 package service
 
 import (
+	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
 	"github.com/mitchellh/mapstructure"
+	"gorm.io/gorm"
 )
 
 // DeptService 部门表服务层实例
 type DeptService struct {
 	DepartmentRepo *repository.DepartmentRepo
 	UserDeptRepo   *repository.UserDeptRepo
+	db             *gorm.DB
 }
 
 // NewDeptService 创建部门表服务层实例
@@ -20,6 +23,7 @@ func NewDeptService() *DeptService {
 	return &DeptService{
 		DepartmentRepo: repository.NewDeptRepo(),
 		UserDeptRepo:   repository.NewUserDeptRepo(),
+		db:             db.DB,
 	}
 }
 
@@ -42,8 +46,25 @@ func (d *DeptService) CreateDept(dept *model.SysDept) error {
 		}
 		dept.SortOrder = sortId
 	}
+	// 开启事务
+	tx := d.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	deptTxRepo := d.DepartmentRepo.WithTx(tx)
 	// 调用数据层创建部门
-	return d.DepartmentRepo.CreateDept(dept)
+	if err := deptTxRepo.CreateDept(dept); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
 }
 
 // GetDeptTreeByRoleId 根据用户ID获取部门树
@@ -169,8 +190,26 @@ func (d *DeptService) UpdateDept(deptId int64, updateDept map[string]interface{}
 		newDept.SortOrder = sortId
 	}
 
-	// 调用数据层更新
-	return d.DepartmentRepo.UpdateDept(&newDept)
+	// 开启事务
+	tx := d.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	deptTxRepo := d.DepartmentRepo.WithTx(tx)
+	// 调用数据层更新部门
+	if err := deptTxRepo.UpdateDept(&newDept); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
+
 }
 
 // DeleteDept 删除部门
@@ -191,7 +230,23 @@ func (d *DeptService) DeleteDept(id int64) error {
 	if hasRel {
 		return model.DeptHasRel
 	}
-
-	// 执行删除
-	return d.DepartmentRepo.DeleteDept(id)
+	// 开启事务
+	tx := d.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	deptTxRepo := d.DepartmentRepo.WithTx(tx)
+	// 调用数据层删除部门
+	if err := deptTxRepo.DeleteDept(id); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
 }

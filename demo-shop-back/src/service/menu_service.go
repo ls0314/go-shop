@@ -1,16 +1,19 @@
 package service
 
 import (
+	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
 	"github.com/mitchellh/mapstructure"
+	"gorm.io/gorm"
 )
 
 // MenuService 菜单表服务层实例
 type MenuService struct {
 	MenuRepo     *repository.MenuRepo     // 菜单表数据层实例
 	RoleMenuRepo *repository.RoleMenuRepo // 角色-菜单关联表数据层实例
+	db           *gorm.DB
 }
 
 // NewMenuService 创建菜单表服务层实例
@@ -20,6 +23,7 @@ func NewMenuService() *MenuService {
 	return &MenuService{
 		MenuRepo:     repository.NewMenuRepo(),
 		RoleMenuRepo: repository.NewRoleMenuRepo(),
+		db:           db.DB,
 	}
 }
 
@@ -41,8 +45,26 @@ func (m *MenuService) CreateMenu(menu *model.SysMenu) error {
 		}
 		menu.SortOrder = sortId
 	}
-	//  调用数据层创建菜单
-	return m.MenuRepo.CreateMenu(menu)
+	// 开启事务
+	tx := m.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	menuTxRepo := m.MenuRepo.WithTx(tx)
+	// 调用数据层创建菜单
+	if err := menuTxRepo.CreateMenu(menu); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
+
 }
 
 // GetMenu 查询菜单信息（根据菜单ID）
@@ -174,8 +196,26 @@ func (m *MenuService) UpdateMenu(menuID int64, updateMenu map[string]interface{}
 		newMenu.SortOrder = sortId
 	}
 
-	// 调用数据层更新菜单部分信息
-	return m.MenuRepo.UpdateMenu(&newMenu)
+	// 开启事务
+	tx := m.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	menuTxRepo := m.MenuRepo.WithTx(tx)
+	// 调用数据层更新菜单
+	if err := menuTxRepo.UpdateMenu(&newMenu); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
+
 }
 
 // DeleteMenu 删除菜单
@@ -195,6 +235,24 @@ func (m *MenuService) DeleteMenu(id int64) error {
 	if hasRel {
 		return model.MenuHasRel
 	}
+	// 开启事务
+	tx := m.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	menuTxRepo := m.MenuRepo.WithTx(tx)
 	// 调用数据层删除菜单
-	return m.MenuRepo.DeleteMenu(id)
+	if err := menuTxRepo.DeleteMenu(id); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
+
 }

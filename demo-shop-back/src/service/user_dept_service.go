@@ -98,5 +98,23 @@ func (ud *UserDeptService) DeleteUserDeptById(userId int64) error {
 	if userExist, err := ud.UserRepo.GetUserById(userId); err != nil || userExist == nil {
 		return model.UserNotExist
 	}
-	return ud.UserDeptRepo.DeleteUserDeptByUserId(userId)
+	// 开启事务
+	tx := ud.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	userDeptTxRepo := ud.UserDeptRepo.WithTx(tx)
+	// 调用数据层删除用户部门关联
+	if err := userDeptTxRepo.DeleteUserDeptByUserId(userId); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
 }

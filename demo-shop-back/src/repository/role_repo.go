@@ -19,6 +19,13 @@ func NewRoleRepo() *RoleRepo {
 	return &RoleRepo{DB: db.DB}
 }
 
+// WithTx 切换数据库事务实例
+// 接收值：tx - 数据库事务实例
+// 返回值：*RoleRepo - 绑定事务的角色表数据层指针
+func (r *RoleRepo) WithTx(tx *gorm.DB) *RoleRepo {
+	return &RoleRepo{DB: tx}
+}
+
 // CreateRole 创建角色数据层对象实例
 // 接收值：role - 角色对象指针
 // 返回值：error - 错误信息

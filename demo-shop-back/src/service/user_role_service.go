@@ -105,6 +105,23 @@ func (ur *UserRoleService) DeleteUserRole(userId int64) error {
 	if exist, err := ur.UserRepo.GetUserById(userId); err != nil || exist == nil {
 		return model.RelNotExist
 	}
-	// 删除用户角色关联
-	return ur.UserRoleRepo.DeleteUserRoleByUserId(userId)
+	// 开启事务
+	tx := ur.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	userRoleTxRepo := ur.UserRoleRepo.WithTx(tx)
+	// 调用数据层删除用户角色关联
+	if err := userRoleTxRepo.DeleteUserRoleByUserId(userId); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
 }

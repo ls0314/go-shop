@@ -101,5 +101,24 @@ func (mp *MenuPermissionService) DeleteMenuPermission(menuId int64) error {
 	if exist, err := mp.MenuRepo.GetMenuById(menuId); err != nil || exist == nil {
 		return model.RelNotExist
 	}
-	return mp.MenuPermissionRepo.DeleteMenuPermissionByMenuId(menuId)
+	// 开启事务
+	tx := mp.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	menuPermTxRepo := mp.MenuPermissionRepo.WithTx(tx)
+	// 调用数据层删除菜单权限关联
+	if err := menuPermTxRepo.DeleteMenuPermissionByMenuId(menuId); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
+
 }

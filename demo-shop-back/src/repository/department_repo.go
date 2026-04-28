@@ -19,6 +19,13 @@ func NewDeptRepo() *DepartmentRepo {
 	return &DepartmentRepo{DB: db.DB}
 }
 
+// WithTx 切换数据库事务实例
+// 接收值：tx - 数据库事务实例
+// 返回值：*DepartmentRepo - 绑定事务的部门表数据层指针
+func (d *DepartmentRepo) WithTx(tx *gorm.DB) *DepartmentRepo {
+	return &DepartmentRepo{DB: tx}
+}
+
 // CreateDept 新增部门信息
 // 接收值： dept - 部门实体对象
 // 返回值: error - 错误信息

@@ -222,8 +222,8 @@ func (u *UserService) Register(user *model.SysUser) error {
 	}
 	// 初始化用户默认档案
 	profile := &model.UserProfile{
-		UserId:   user.UserID,  // 绑定用户ID
-		Nickname: "默认用户名", // 默认初始化
+		UserId:   user.UserID, // 绑定用户ID
+		Nickname: "默认用户名",     // 默认初始化
 	}
 
 	// 创建用户档案

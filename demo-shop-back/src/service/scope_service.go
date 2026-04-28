@@ -1,16 +1,19 @@
 package service
 
 import (
+	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
 	"github.com/mitchellh/mapstructure"
+	"gorm.io/gorm"
 )
 
 // ScopeService 数据权限范围服务层实例
 type ScopeService struct {
 	ScopeRope *repository.ScopeRope // 数据权限范围数据层实例
 	RoleRepo  *repository.RoleRepo  // 角色数据层实例
+	db        *gorm.DB
 }
 
 // NewScopeService 创建数据权限范围服务层实例
@@ -20,10 +23,11 @@ type ScopeService struct {
 //	roleRepo - 角色数据层实例
 //
 // 返回值：*ScopeService - 数据权限范围服务层实例指针
-func NewScopeService(scopeRope *repository.ScopeRope, roleRepo *repository.RoleRepo) *ScopeService {
+func NewScopeService() *ScopeService {
 	return &ScopeService{
-		ScopeRope: scopeRope,
-		RoleRepo:  roleRepo,
+		ScopeRope: repository.NewScopeRepo(),
+		RoleRepo:  repository.NewRoleRepo(),
+		db:        db.DB,
 	}
 }
 
@@ -51,8 +55,25 @@ func (s *ScopeService) CreateScope(scope *model.SysScope) error {
 	if existing != nil {
 		return model.ScopeExist
 	}
-	// 调用数据层创建数据权限范围
-	return s.ScopeRope.CreateScope(scope)
+	// 开启事务
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	scopeTxRepo := s.ScopeRope.WithTx(tx)
+	// 调用数据层创建数据权限
+	if err := scopeTxRepo.CreateScope(scope); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
 }
 
 // GetScopeById 根据ID查询数据权限范围信息
@@ -144,8 +165,26 @@ func (s *ScopeService) UpdateScope(id int64, scope map[string]interface{}) error
 	if oldScope.RoleId != newScope.RoleId {
 		return model.ScopeIsRole
 	}
-	// 调用数据层更新数据权限范围信息
-	return s.ScopeRope.UpdateScope(&newScope)
+
+	// 开启事务
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	scopeTxRepo := s.ScopeRope.WithTx(tx)
+	// 调用数据层更新数据权限
+	if err := scopeTxRepo.UpdateScope(&newScope); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
 }
 
 // DeleteScope 删除数据权限范围
@@ -160,6 +199,24 @@ func (s *ScopeService) DeleteScope(id int64) error {
 	if existing == nil {
 		return model.ScopeNotExist
 	}
-	// 调用数据层删除数据权限范围
-	return s.ScopeRope.DeleteScope(id)
+	// 开启事务
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	// 创建事务实例
+	scopeTxRepo := s.ScopeRope.WithTx(tx)
+	// 调用数据层创删除数据权限
+	if err := scopeTxRepo.DeleteScope(id); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// 提交事务
+	return tx.Commit().Error
+
 }

@@ -19,8 +19,16 @@ func NewRoleRepo() *RoleRepo {
 	return &RoleRepo{DB: db.DB}
 }
 
+// WithTx 切换数据库事务实例
+// 接收值：tx - 数据库事务实例
+// 返回值：*RoleRepo - 绑定事务的角色表数据层指针
+func (r *RoleRepo) WithTx(tx *gorm.DB) *RoleRepo {
+	return &RoleRepo{DB: tx}
+}
+
 // CreateRole 创建角色数据层对象实例
 // 接收值：role - 角色对象指针
+// 返回值：error - 错误信息
 func (r *RoleRepo) CreateRole(role *model.SysRole) error {
 	return r.DB.Create(role).Error
 }
@@ -116,11 +124,45 @@ func (r *RoleRepo) DeleteRole(id int64) error {
 //
 //	bool - 被检查角色是否存在关联用户
 //	error - 错误信息
-//
-// TODO: 在删除前保证无用户与此角色相关联，在完善用户角色表后实现
 func (r *RoleRepo) CheckRoleRelUser(roleID int64) (bool, error) {
 	var count int64
 	err := r.DB.Table("sys_user_role").Where("role_id=?", roleID).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// CheckRoleRelMenu 检查是否存在菜单与此角色关联
+// 接收值：
+//
+//	roleID - 待检查角色唯一标识
+//
+// 返回值：
+//
+//	bool - 被检查角色是否存在关联菜单
+//	error - 错误信息
+func (r *RoleRepo) CheckRoleRelMenu(roleID int64) (bool, error) {
+	var count int64
+	err := r.DB.Table("sys_role_menu").Where("role_id=?", roleID).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// CheckRoleRelPerm 检查是否存在权限与此角色关联
+// 接收值：
+//
+//	roleID - 待检查角色唯一标识
+//
+// 返回值：
+//
+//	bool - 被检查角色是否存在关联权限
+//	error - 错误信息
+func (r *RoleRepo) CheckRoleRelPerm(roleID int64) (bool, error) {
+	var count int64
+	err := r.DB.Table("sys_role_permission").Where("role_id=?", roleID).Count(&count).Error
 	if err != nil {
 		return false, err
 	}

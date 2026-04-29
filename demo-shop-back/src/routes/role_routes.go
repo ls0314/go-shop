@@ -3,7 +3,6 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
-	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -17,10 +16,8 @@ var roleCtrl *handler.RoleHandler
 // 功能：完成角色模块 仓库层 → 服务层 → 控制层 的依赖注入与实例化
 // 执行顺序：创建数据访问层实例 → 创建业务逻辑层实例 → 创建控制器实例
 func InitRoleModule() {
-	// 初始化角色数据仓库层
-	roleRepo := repository.NewRoleRepo()
 	// 初始化角色服务层
-	roleService := service.NewRoleService(roleRepo)
+	roleService := service.NewRoleService()
 	// 初始化角色控制器，赋值给全局控制器变量
 	roleCtrl = handler.NewRoleHandler(roleService)
 }

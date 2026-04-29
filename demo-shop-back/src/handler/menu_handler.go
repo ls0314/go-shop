@@ -15,14 +15,23 @@ type MenuHandler struct {
 }
 
 // NewMenuHandler 新建菜单表中的HTTP handler实例
-// 接收值：menuService - 菜单服务层对象指针
+// 接收值：无接收值，全局实例化
 // 返回值：*MenuHandler - 菜单handler指针
-func NewMenuHandler(menuService *service.MenuService) *MenuHandler {
-	return &MenuHandler{MenuService: menuService}
+func NewMenuHandler() *MenuHandler {
+	return &MenuHandler{
+		MenuService: service.NewMenuService(),
+	}
 }
 
 // CreateMenu 创建菜单接口
-// 接收值：c - 前端传入JSON参数
+// 路由映射：POST /api/v1/menu
+// 功能：接收前端传递的菜单信息，校验参数后调用服务层创建菜单并入库
+// 参数：c *gin.Context Gin上下文，用于接收请求参数、返回响应
+// 响应：
+//
+//	400：请求参数绑定失败，返回参数错误信息
+//	500：服务层创建菜单失败，返回服务器异常信息
+//	200：创建成功，返回创建完成的菜单完整信息
 func (m *MenuHandler) CreateMenu(c *gin.Context) {
 	// 实例化后绑定参数
 	var menu model.SysMenu
@@ -40,7 +49,14 @@ func (m *MenuHandler) CreateMenu(c *gin.Context) {
 }
 
 // GetMenu 查询菜单信息接口（根据ID查询）
-// 接收值：c - 前端传入JSON参数
+// 路由映射：GET /api/v1/menu/:id
+// 功能：从URL路径中获取菜单ID，查询并返回对应菜单详情
+// 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
+// 响应：
+//
+//	400：URL参数ID格式错误/不存在
+//	500：服务层查询菜单失败
+//	200：查询成功，返回菜单详细信息
 func (m *MenuHandler) GetMenu(c *gin.Context) {
 	// 通过传入URL地址获取INT格式的ID
 	idStr := c.Param("id")
@@ -59,11 +75,44 @@ func (m *MenuHandler) GetMenu(c *gin.Context) {
 	utils.Success(c, menu)
 }
 
+// GetMenuTreeByRoleId 根据角色ID获取对应的菜单树
+// 路由映射：GET /api/v1/menu/:roleId/tree
+// 功能：从URL路径中获取角色ID，查询并返回对应菜单树详情
+// 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
+// 响应：
+//
+//	400：URL参数ID格式错误/不存在
+//	500：服务层查询菜单树失败
+//	200：查询成功，返回菜单树详细信息
+func (m *MenuHandler) GetMenuTreeByRoleId(c *gin.Context) {
+	roleIdStr := c.Param("roleId")
+	roleId, err := strconv.ParseInt(roleIdStr, 10, 64)
+	if err != nil {
+		utils.Fail(c, 400, model.StatusIdNotExist+err.Error())
+		return
+	}
+	menuTree, err := m.MenuService.GetMenuTreeByRoleId(roleId)
+	if err != nil {
+		utils.Error(c, 500, err.Error())
+		return
+	}
+	utils.Success(c, menuTree)
+}
+
 // GetMenuList 分页查询菜单信息接口
-// 接收值：前端传入JSON参数
-// @page     查询页数
-// @pageSize 查询页面大小
-// @menuType 查询菜单类型
+// 路由映射：GET /api/v1/menu
+// 功能：支持分页、按菜单类型筛选查询菜单列表，返回分页数据和总条数
+// 参数：c *gin.Context Gin上下文，用于获取分页参数、筛选条件、返回响应
+// 请求参数：
+//
+//	page     - 页码，默认值 1
+//	pageSize - 每页条数，默认值 10
+//	menuType - 菜单类型（可选筛选条件）
+//
+// 响应：
+//
+//	500：服务层查询菜单列表失败
+//	200：查询成功，返回菜单列表、总条数、当前页码、每页条数
 func (m *MenuHandler) GetMenuList(c *gin.Context) {
 	// 获取分页参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -85,20 +134,20 @@ func (m *MenuHandler) GetMenuList(c *gin.Context) {
 	})
 }
 
-// GetMenuTree 角色菜单树接口
-// 接收值：前端传入JSON参数
-// TODO： 构建角色菜单树
-//func (m *MenuHandler) GetMenuTree(c *gin.Context) {
-//	// 调用service层构建角色菜单树
-//	menuTree, err := m.MenuService.GetMenuTree()
-//	if err != nil {
-//		utils.Error(c, 500, err.Error())
-//	}
-//	utils.Success(c, menuTree)
-//}
-
 // UpdateMenu 更新菜单接口
-// 接收值：c - 前端传入JSON参数
+// 路由映射：PUT /api/v1/menu/:id
+// 功能：从URL获取菜单ID，接收前端传入的更新字段，执行菜单信息更新，返回更新后的菜单详情
+// 参数：c *gin.Context Gin上下文，用于获取URL参数、接收请求体、返回响应
+// 请求参数：
+//
+//	id         - URL路径参数，菜单ID
+//	updateMenu - 请求体JSON，需要更新的菜单字段（map格式）
+//
+// 响应：
+//
+//	400：ID格式错误 / 请求参数绑定失败
+//	500：更新菜单信息失败 / 查询更新后菜单信息失败
+//	200：更新成功，返回更新后的完整菜单信息
 func (m *MenuHandler) UpdateMenu(c *gin.Context) {
 	// 通过URL地址获取所更新菜单ID的INT格式（json传进格式一般为float64，故此处从URL取id）
 	idStr := c.Param("id")
@@ -128,7 +177,14 @@ func (m *MenuHandler) UpdateMenu(c *gin.Context) {
 }
 
 // DeleteMenu 删除菜单接口（根据ID删除）
-// 接收值：c - 前端传入JSON参数
+// 路由映射：DELETE /api/v1/menu/:id
+// 功能：从URL路径获取菜单ID，调用服务层执行删除操作，返回删除结果
+// 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
+// 响应：
+//
+//	400：ID格式错误/不存在
+//	500：服务层删除菜单失败
+//	200：删除成功，返回空数据
 func (m *MenuHandler) DeleteMenu(c *gin.Context) {
 	// 通过URL地址获取所删除菜单ID的INT格式
 	idStr := c.Param("id")

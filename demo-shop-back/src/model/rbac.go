@@ -37,7 +37,7 @@ type SysMenu struct {
 	SortOrder     int64             `gorm:"column:sort_order" json:"sort_order"`
 	MetaInfo      datatypes.JSONMap `gorm:"column:meta_info;type:jsonb" json:"meta_info"`
 	CreatedAt     time.Time         `gorm:"column:created_at" json:"created_at"`
-	Children      []SysMenu         `gorm:"-" json:"children" `
+	Children      []*SysMenu        `gorm:"-" json:"children" `
 }
 
 func (SysMenu) TableName() string {
@@ -64,16 +64,76 @@ func (SysRole) TableName() string {
 }
 
 type SysDept struct {
-	DeptId    int64     `gorm:"primaryKey;column:dept_id" json:"dept_id"`
-	DeptName  string    `gorm:"column:dept_name" json:"dept_name"`
-	ParentId  int64     `gorm:"column:parent_id" json:"parent_id"`
-	DeptType  string    `gorm:"column:dept_type" json:"dept_type"`
-	LeaderId  int64     `gorm:"column:leader_id" json:"leader_id"`
-	SortOrder int64     `gorm:"column:sort_order" json:"sort_order"`
-	Status    string    `gorm:"column:status" json:"status"`
-	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
+	DeptId    int64      `gorm:"primaryKey;column:dept_id" json:"dept_id"`
+	DeptName  string     `gorm:"column:dept_name" json:"dept_name"`
+	ParentId  int64      `gorm:"column:parent_id" json:"parent_id"`
+	DeptType  string     `gorm:"column:dept_type" json:"dept_type"`
+	LeaderId  int64      `gorm:"column:leader_id" json:"leader_id"`
+	SortOrder int64      `gorm:"column:sort_order" json:"sort_order"`
+	Status    string     `gorm:"column:status" json:"status"`
+	CreatedAt time.Time  `gorm:"column:created_at" json:"created_at"`
+	Children  []*SysDept `gorm:"-" json:"children" `
 }
 
 func (SysDept) TableName() string {
 	return "sys_department"
 }
+
+type SysScope struct {
+	ScopeId        int64     `gorm:"primaryKey;column:scope_id" json:"scope_id"`
+	RoleId         int64     `gorm:"column:role_id" json:"role_id"`
+	ResourceType   string    `gorm:"column:resource_type" json:"resource_type"`
+	FieldName      string    `gorm:"column:field_name" json:"field_name"`
+	ConditionType  string    `gorm:"column:condition_type" json:"condition_type"`
+	ConditionValue string    `gorm:"column:condition_value" json:"condition_value"`
+	Description    string    `gorm:"column:description" json:"description"`
+	CreatedAt      time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
+func (SysScope) TableName() string { return "sys_data_scope" }
+
+type SysRolePermission struct {
+	Id       int64     `gorm:"primaryKey;column:id" json:"id"`
+	RoleId   int64     `gorm:"column:role_id" json:"role_id"`
+	PermId   int64     `gorm:"column:permission_id" json:"permission_id"`
+	CreateAt time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
+func (SysRolePermission) TableName() string { return "sys_role_permission" }
+
+type SysUserRole struct {
+	Id       int64     `gorm:"primaryKey;column:id" json:"id"`
+	RoleId   int64     `gorm:"column:role_id" json:"role_id"`
+	UserId   int64     `gorm:"column:user_id" json:"user_id"`
+	CreateAt time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
+func (SysUserRole) TableName() string { return "sys_user_role" }
+
+type SysUserDept struct {
+	Id        int64     `gorm:"primaryKey;column:id" json:"id"`
+	DeptId    int64     `gorm:"column:dept_id" json:"dept_id"`
+	UserId    int64     `gorm:"column:user_id" json:"user_id"`
+	IsPrimary bool      `gorm:"column:is_primary" json:"is_primary"`
+	CreateAt  time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
+func (SysUserDept) TableName() string { return "sys_user_dept" }
+
+type SysRoleMenu struct {
+	Id       int64     `gorm:"primaryKey;column:id" json:"id"`
+	RoleId   int64     `gorm:"column:role_id" json:"role_id"`
+	MenuId   int64     `gorm:"column:menu_id" json:"menu_id"`
+	CreateAt time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
+func (SysRoleMenu) TableName() string { return "sys_role_menu" }
+
+type SysMenuPermission struct {
+	Id           int64     `gorm:"primaryKey;column:id" json:"id"`
+	MenuId       int64     `gorm:"column:menu_id" json:"menu_id"`
+	PermissionId int64     `gorm:"column:perm_id" json:"perm_id"`
+	CreateAt     time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
+func (SysMenuPermission) TableName() string { return "sys_menu_permission" }

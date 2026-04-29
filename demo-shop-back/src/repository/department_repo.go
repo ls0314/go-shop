@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// DepartmentRepo 部门数据访问层实例
 type DepartmentRepo struct {
 	DB *gorm.DB
 }
@@ -16,6 +17,13 @@ type DepartmentRepo struct {
 // 返回值: *DepartmentRepo - 部门数据访问层实例
 func NewDeptRepo() *DepartmentRepo {
 	return &DepartmentRepo{DB: db.DB}
+}
+
+// WithTx 切换数据库事务实例
+// 接收值：tx - 数据库事务实例
+// 返回值：*DepartmentRepo - 绑定事务的部门表数据层指针
+func (d *DepartmentRepo) WithTx(tx *gorm.DB) *DepartmentRepo {
+	return &DepartmentRepo{DB: tx}
 }
 
 // CreateDept 新增部门信息
@@ -62,6 +70,33 @@ func (d *DepartmentRepo) GetDeptByUK(deptName string, parentId int64) (*model.Sy
 	return &dept, err
 }
 
+// ListDeptByIds 根据部门ID列表批量查询菜单，并按 sort_order 排序
+// 接收值：deptIds - 部门ID列表
+// 返回值：[]*model.SysDept - 部门列表，error - 错误信息
+func (d *DepartmentRepo) ListDeptByIds(deptIds []int64) ([]*model.SysDept, error) {
+	var deptList []*model.SysDept
+	err := d.DB.
+		Where("dept_id IN ?", deptIds).
+		Order("sort_order asc").
+		Find(&deptList).Error
+	return deptList, err
+}
+
+// GetMaxSortId 获取此父节点下最大SortId + 10
+// 接收值：parentId - 父级部门ID
+// 返回值：int64 - 最大排序ID+10，error - 错误信息
+func (d *DepartmentRepo) GetMaxSortId(parentId int64) (int64, error) {
+	var sortId int64
+	err := d.DB.Model(&model.SysDept{}).
+		Where("parent_id = ?", parentId).
+		Select("COALESCE(MAX(sort_order), 0)").
+		Find(&sortId).Error
+	if err != nil {
+		return 0, err
+	}
+	return sortId, nil
+}
+
 // GetDeptList 分页查询部门信息（可根据类型查询）
 // 接收值：
 //
@@ -90,7 +125,7 @@ func (d *DepartmentRepo) GetDeptList(page, pageSize int, deptType string) ([]mod
 	}
 	// 分页查询部门数据
 	offset := (page - 1) * pageSize
-	if err := deptDb.Limit(int(pageSize)).Offset(int(offset)).Find(&deptList).Error; err != nil {
+	if err := deptDb.Limit(pageSize).Offset(offset).Find(&deptList).Error; err != nil {
 		return nil, 0, err
 	}
 	// 返回分页部门信息、部门总数、错误信息
@@ -111,12 +146,14 @@ func (d *DepartmentRepo) DeleteDept(id int64) error {
 	return d.DB.Delete(&model.SysDept{}, id).Error
 }
 
-//TODO: 检查是否存在用户与此部门关联
-//func (d *DepartmentRepo) CheckDeptRelUser(deptId int64) (bool, error) {
-//	var count int64
-//	err := d.DB.Table("sys_dept_user").Where("dept_id=?", deptId).Count(&count).Error
-//	if err != nil {
-//		return false, err
-//	}
-//	return count > 0, nil
-//}
+// CheckDeptRelUser 检查部门是否关联用户
+// 接收值：deptId - 部门ID
+// 返回值：bool - 是否关联用户，error - 错误信息
+func (d *DepartmentRepo) CheckDeptRelUser(deptId int64) (bool, error) {
+	var count int64
+	err := d.DB.Table("sys_dept_user").Where("dept_id=?", deptId).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}

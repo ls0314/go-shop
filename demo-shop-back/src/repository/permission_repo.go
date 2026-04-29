@@ -19,6 +19,13 @@ func NewPermissionRepo() *PermissionRepo {
 	return &PermissionRepo{DB: db.DB}
 }
 
+// WithTx 切换数据库事务实例
+// 接收值：tx - 数据库事务实例
+// 返回值：*MenuRepo - 绑定事务的权限表数据层指针
+func (r *PermissionRepo) WithTx(tx *gorm.DB) *PermissionRepo {
+	return &PermissionRepo{DB: tx}
+}
+
 // CreatePerm 创建权限
 // 接收值：perm - 权限对象指针
 // 返回值：error - 错误信息
@@ -61,11 +68,11 @@ func (r *PermissionRepo) GetPermByCode(code string) (*model.SysPermission, error
 //
 //	page - 页数
 //	pageSize - 页大小
-//	menuType - 权限类型
+//	permType - 权限类型
 //
 // 返回值:
 //
-//	[]model.SysMenu - 分页菜单信息
+//	[]model.SysPermission - 分页权限信息
 //	int64 - 权限总数
 //	error - 错误信息
 func (r *PermissionRepo) GetPermList(page, pageSize int, permType string) ([]model.SysPermission, int64, error) {
@@ -114,8 +121,6 @@ func (r *PermissionRepo) DeletePerm(id int64) error {
 //
 //	bool - 该权限是否有关联角色
 //	error - 错误信息
-//
-// TODO： 检查查是否有角色关联该权限
 func (r *PermissionRepo) CheckRoleRelPerm(permID int64) (bool, error) {
 	var count int64
 	err := r.DB.Table("sys_role_permission").Where("permission_id = ?", permID).Count(&count).Error

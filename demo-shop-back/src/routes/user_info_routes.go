@@ -1,0 +1,32 @@
+package routes
+
+import (
+	"demo-shop-back/src/handler"
+	"demo-shop-back/src/middleware"
+
+	"github.com/gin-gonic/gin"
+)
+
+var userInfoCtrl *handler.UserInfoHandler
+
+func InitUserInfoModule() {
+
+	userInfoCtrl = handler.NewUserInfoHandler()
+}
+
+func RegisterUserInfoRoutes(r *gin.Engine) {
+	// 创建角色接口路由分组，统一前缀 /api/v1/Info
+	userInfoGroup := r.Group("/api/v1/user/user-info")
+	// 添加全局认证中间件（必须登录才能访问角色接口）
+	userInfoGroup.Use(middleware.AuthMiddleware())
+	{
+		// 创建角色信息接口
+		userInfoGroup.POST("", userInfoCtrl.CreateUserInfo)
+		// 根据ID获取单个角色信息接口
+		userInfoGroup.GET("/:id", userInfoCtrl.GetUserInfo)
+		// 根据ID更新角色信息接口
+		userInfoGroup.PUT("/:id", userInfoCtrl.UpdateUserInfo)
+		// 根据ID删除角色信息接口
+		userInfoGroup.DELETE("/:id", userInfoCtrl.DeleteUserInfo)
+	}
+}

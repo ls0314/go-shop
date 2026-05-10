@@ -1,6 +1,6 @@
 import { createPinia } from 'pinia'
 import persistedState from 'pinia-plugin-persistedstate'
-import { useUserStore } from './user'
+import { useUserStore } from './modules/user'
 
 const pinia = createPinia()
 
@@ -8,9 +8,6 @@ pinia.use(persistedState)
 
 export default pinia
 
-export let getUserStore: typeof useUserStore
-
-export function initStores() {
-    getUserStore = () => useUserStore(pinia)
+export const getUserStore = () => {
+    return useUserStore(pinia)
 }
-

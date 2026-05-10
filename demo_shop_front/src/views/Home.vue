@@ -1,6 +1,8 @@
 <template>
-  <div class="home">
-    <h1>Home Page</h1>
+  <div class="text-center">
+    <h1 class="text-4xl font-bold text-slate-800 dark:text-slate-100">
+      Home Page
+    </h1>
     <el-button type="primary">Element Plus Button</el-button>
 
     <!-- 测试按钮 -->
@@ -18,28 +20,20 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { getUserInfoApi } from '../services/user'
-import { ElMessage } from 'element-plus'
+import { useUserStore} from '@/pinia/modules/user.ts'
 
 const userInfo = ref<any>(null)
 
-const handleGetUserInfo = async () => {
-  try {
-    const res = await getUserInfoApi()
-    console.log('获取用户信息成功：', res)
-    userInfo.value = res.data.data
-    console.log('获取用户信息成功：', res.data.data.user_id)
-    console.log('获取用户信息成功：', res.data.data.username)
-    ElMessage.success('获取用户信息成功')
-  } catch (err) {
-    console.log('获取用户信息失败：', err)
-    ElMessage.error('获取用户信息失败')
-  }
+const userStore = useUserStore()
+
+async function handleGetUserInfo() {
+  const res = await userStore.GetUserInfo(userInfo.value)
+  userInfo.value = res.data.data
+  console.log(res.data.data)
 }
+
 </script>
 
 <style scoped>
-.home {
-  padding: 20px;
-}
+
 </style>

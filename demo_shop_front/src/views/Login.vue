@@ -39,7 +39,7 @@
             <div class="input-group">
               <input
                   type="text"
-                  v-model="username"
+                  v-model="loginForm.username"
                   required
                   placeholder="请输入用户名"
               />
@@ -49,7 +49,7 @@
             <div class="input-group">
               <input
                   type="password"
-                  v-model="password"
+                  v-model="loginForm.password"
                   required
                   placeholder="请输入密码"
               />
@@ -73,44 +73,22 @@
 
 <script setup>
 import { ref } from 'vue'
-import { loginApi } from '../services/user'
-import { useUserStore } from '../store/user'
-import { useRouter } from 'vue-router'
+import { useUserStore} from '../pinia/modules/user.ts'
 
-const username = ref('')
-const password = ref('')
+
+
+const loginForm = ref({
+  username: '',
+  password: '',
+})
 
 const userStore = useUserStore()
-const router = useRouter()
 
-const handleLogin = async () => {
-  if (!username.value || !password.value) {
-    alert('请输入用户名和密码')
-    return
-  }
-
-    const res = await loginApi({
-      username: username.value,
-      password: password.value
-    }).then(res => {
-      userStore.setTokens(
-          res.data.access_token,
-          res.data.refresh_token
-      )
-      // console.log(res.data.access_token)
-      // console.log(res.data.refresh_token)
-      alert(res.message)
-
-      router.push('/home')
-    }).catch(err => {
-      console.log('请求失败', err)
-      if (err.response && err.response.data) {
-        alert(err.response.data)
-      } else {
-        alert('网络错误或服务器未响应')
-      }
-    })
+async function handleLogin() {
+  await userStore.LoginIn(loginForm.value)
 }
+
+
 </script>
 
 <style scoped>

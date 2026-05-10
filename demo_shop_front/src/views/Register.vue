@@ -116,7 +116,7 @@
 <script setup>
 import { ref } from 'vue'
 import axios from 'axios'
-import { registerApi } from '../services/user'
+import { registerApi } from '@/api/user.ts'
 import router from "../router/index.js";
 
 const username = ref('')
@@ -143,8 +143,10 @@ const handleRegister = async () => {
     password: password.value,
     nickname: generateNickname()
   }).then(res => {
-    console.log(res.message)
-    alert(res.message)
+    if (res.data.message === "Success"){
+      console.log("注册成功")
+      alert("注册成功")
+    }
     console.log('准备跳转')
     router.push('/Home')
   }).catch(err => {

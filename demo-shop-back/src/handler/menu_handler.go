@@ -91,7 +91,43 @@ func (m *MenuHandler) GetMenuTreeByRoleId(c *gin.Context) {
 		utils.Fail(c, 400, model.StatusIdNotExist+err.Error())
 		return
 	}
-	menuTree, err := m.MenuService.GetMenuTreeByRoleId(roleId)
+	var roleIds []int64
+	roleIds = append(roleIds, roleId)
+	menuTree, err := m.MenuService.GetMenuTreeByRoleIds(roleIds)
+	if err != nil {
+		utils.Error(c, 500, err.Error())
+		return
+	}
+	utils.Success(c, menuTree)
+}
+
+// GetMenuTreeByUserId 查询用户菜单树
+// 路由映射：POST /api/v1/menu/tree
+// 功能： 根据用户ID查询用户对应的全部的角色的关联菜单，并返回并集菜单树
+// 参数： ：c *gin.Context Gin上下文，用于获取参数
+// 请求参数：
+//
+//	userID - 用户ID
+//
+// 响应：
+//
+//	500：服务层查询失败
+//	200：查询成功，返回角色并集菜单树
+//	400：请求参数错误
+func (m *MenuHandler) GetMenuTreeByUserId(c *gin.Context) {
+	// 定义请求结构体
+	type UserIdRequest struct {
+		UserId int64 `json:"userId" binding:"required"`
+	}
+
+	// 绑定到结构体
+	var req UserIdRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Fail(c, 400, model.StatusBadRequest+err.Error())
+		return
+	}
+	// 调用服务层查询并集菜单树
+	menuTree, err := m.MenuService.GetMenuTreeByUserId(req.UserId)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
 		return

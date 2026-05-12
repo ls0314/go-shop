@@ -22,7 +22,8 @@ func RegisterMenuRoutes(r *gin.Engine) {
 		menuGroup.POST("", menuCtrl.CreateMenu)
 		menuGroup.GET("", menuCtrl.GetMenuList)
 		menuGroup.GET("/:id", menuCtrl.GetMenu)
-		menuGroup.GET("/tree/:roleId", menuCtrl.GetMenuTreeByRoleId)
+		menuGroup.POST("/tree", menuCtrl.GetMenuTreeByUserId)
+		menuGroup.GET("/:roleId/tree", menuCtrl.GetMenuTreeByRoleId)
 		menuGroup.PUT("/:id", menuCtrl.UpdateMenu)
 		menuGroup.DELETE("/:id", menuCtrl.DeleteMenu)
 	}

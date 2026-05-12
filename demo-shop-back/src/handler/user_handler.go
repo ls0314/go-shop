@@ -62,7 +62,7 @@ func (u *UserHandler) RegisterHandler(c *gin.Context) {
 // 响应：
 //
 //	200：查询成功，返回用户ID和用户名
-func GetUserInfo(c *gin.Context) {
+func (u *UserHandler) GetUserInfo(c *gin.Context) {
 
 	userID, _ := c.Get("user_id") //
 	username, _ := c.Get("username")

@@ -87,7 +87,7 @@ func InitRoutes() *gin.Engine {
 	private := r.Group("/api/v1/user")
 	private.Use(middleware.AuthMiddleware())
 	{
-		private.GET("/info", handler.GetUserInfo)
+		private.GET("/info", userCtrl.GetUserInfo)
 	}
 
 	r.GET("/", func(c *gin.Context) {

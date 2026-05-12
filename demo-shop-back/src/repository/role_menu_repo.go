@@ -43,19 +43,26 @@ func (rm *RoleMenuRepo) CreateRoleMenu(roleId int64, menuIds []int64) error {
 	return rm.DB.Create(&roleMenuList).Error
 }
 
-// GetRoleMenuListByRoleId 根据角色ID查询关联的菜单ID列表
-// 接收值：roleId - 角色ID
+// GetRoleMenuListByRoleIds 根据角色ID数组查询关联的菜单ID列表
+// 接收值：roleIds - 角色ID数组
 // 返回值：[]int64 - 菜单ID列表，error - 错误信息
-func (rm *RoleMenuRepo) GetRoleMenuListByRoleId(roleId int64) ([]int64, error) {
+func (rm *RoleMenuRepo) GetRoleMenuListByRoleIds(roleIds []int64) ([]int64, error) {
 	var menuIds []int64
+
+	if len(roleIds) == 0 {
+		return menuIds, nil
+	}
+
 	err := rm.DB.Model(&model.SysRoleMenu{}).
-		Where("role_id = ?", roleId).
+		Where("role_id IN ?", roleIds).
+		Distinct("menu_id").
 		Pluck("menu_id", &menuIds).Error
+
 	if err != nil {
 		return nil, err
 	}
-	return menuIds, nil
 
+	return menuIds, nil
 }
 
 // DeleteRoleMenuByRoleId 根据角色ID删除所有关联的菜单

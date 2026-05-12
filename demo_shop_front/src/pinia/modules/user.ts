@@ -33,21 +33,25 @@ export const useUserStore = defineStore('user', () => {
 
     const isLoggedIn = computed(() => !!userToken.value.access_token)
 
+    // setUserInfo 设置用户信息
     function setUserInfo(val:UserInfo){
         userInfo.value = val
     }
-
+    // setToken设置Token信息
     function setToken(val:UserToken) {
         userToken.value = val
     }
 
-    // 获取用户信息
+    // GetUserInfo 获取用户信息
     async function GetUserInfo(){
         try {
+            // 调用API从后端获取用户信息
             const res: ApiResponse<UserInfo> = await getUserInfoApi()
             console.log(res.data)
+            //  保存后端传回的用户信息
             if (res.data.code === 200) {
                 setUserInfo(res.data.data)
+                //  返回用户信息
                 return res
             }
 
@@ -60,22 +64,22 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    // 登录
+    // LoginIn 登录
     async function LoginIn(loginInfo:LoginForm) {
         try {
+            //  调用API执行登录操作并获取后端传回的Token信息
             const res: ApiResponse<UserToken> = await loginApi(loginInfo)
-
-            // console.log('登录接口返回 res:', res)
-            // console.log('res.code:', res.data.code)
-            // console.log('res.data:', res.data)
             if (res.data.code !== 200) {
                 console.log(res.data.message) //
                 return false
             }
+            //  成功调用后保存Token信息
             setToken(res.data.data)
+            //  获取并设置用户信息
             await GetUserInfo()
 
             ElMessage.success('登录成功')
+            // 登录成功后跳转到首页
             router.push('/home')
 
             return true

@@ -3,5 +3,19 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
-  ]
+  ],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.vue"
+  ],
+  "compilerOptions": {
+    // 必须设置：所有路径解析的基准目录为项目根目录
+    "baseUrl": ".",
+
+    // 路径别名映射：@/* 对应 src/*
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
 }

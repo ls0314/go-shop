@@ -169,11 +169,11 @@ func (u *UserService) DeleteUser(userId int64) error {
 // 返回值：error - 错误信息
 func (u *UserService) Register(user *model.SysUser) error {
 	// 校验密码格式
-	if !ValidatePassword(user.PasswordHash) {
+	if ValidatePassword(user.PasswordHash) {
 		return model.RegPasswordInvalid
 	}
 	// 校验手机号格式
-	if !ValidatePhone(user.Phone) {
+	if ValidatePhone(user.Phone) {
 		return model.PhoneMalformed
 	}
 
@@ -222,8 +222,8 @@ func (u *UserService) Register(user *model.SysUser) error {
 	}
 	// 初始化用户默认档案
 	profile := &model.UserProfile{
-		UserId:   user.UserID, // 绑定用户ID
-		Nickname: "默认用户名",     // 默认初始化
+		UserId:   user.UserID,  // 绑定用户ID
+		Nickname: "默认用户名", // 默认初始化
 	}
 
 	// 创建用户档案

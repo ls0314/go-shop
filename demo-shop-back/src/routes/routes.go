@@ -16,6 +16,21 @@ func InitUserModule() {
 
 func InitRoutes() *gin.Engine {
 	r := gin.Default()
+
+	// 配置CORS中间件
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Max-Age", "86400")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
+	
 	// ========== 用户模块初始化 ==========
 	InitUserModule()
 	// ========== 用户信息模块初始化 ==========
@@ -62,20 +77,6 @@ func InitRoutes() *gin.Engine {
 	InitMenuPermModule()
 	// ========== 注册菜单权限关联路由 ==========
 	RegisterMenuPermRoutes(r)
-
-	// 配置CORS中间件
-	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Max-Age", "86400")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
 
 	public := r.Group("/api/v1/user")
 	{

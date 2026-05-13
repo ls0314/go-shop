@@ -85,7 +85,7 @@ func (m *MenuHandler) GetMenu(c *gin.Context) {
 //	500：服务层查询菜单树失败
 //	200：查询成功，返回菜单树详细信息
 func (m *MenuHandler) GetMenuTreeByRoleId(c *gin.Context) {
-	roleIdStr := c.Param("roleId")
+	roleIdStr := c.Param("id")
 	roleId, err := strconv.ParseInt(roleIdStr, 10, 64)
 	if err != nil {
 		utils.Fail(c, 400, model.StatusIdNotExist+err.Error())
@@ -117,7 +117,7 @@ func (m *MenuHandler) GetMenuTreeByRoleId(c *gin.Context) {
 func (m *MenuHandler) GetMenuTreeByUserId(c *gin.Context) {
 	// 定义请求结构体
 	type UserIdRequest struct {
-		UserId int64 `json:"userId" binding:"required"`
+		UserId int64 `json:"user_id" binding:"required"`
 	}
 
 	// 绑定到结构体

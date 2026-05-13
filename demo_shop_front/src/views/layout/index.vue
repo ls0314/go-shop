@@ -20,9 +20,12 @@
       />
 
       <main class="min-h-0 flex-1 overflow-auto bg-gray-50 p-4 dark:bg-slate-900 md:p-6">
-        <RouterView v-slot="{ Component }">
+        <RouterView v-slot="{ Component, route }">
           <Transition name="fade" mode="out-in">
-            <component :is="Component" />
+            <component
+                :is="Component"
+                :key="route.fullPath"
+            />
           </Transition>
         </RouterView>
       </main>

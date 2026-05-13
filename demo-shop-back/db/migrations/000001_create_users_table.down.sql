@@ -2,3 +2,4 @@
 DROP TABLE IF EXISTS user_login_log;
 DROP TABLE IF EXISTS user_profile;
 DROP TABLE IF EXISTS sys_user;
+DROP TABLE IF EXISTS schema_migrations;

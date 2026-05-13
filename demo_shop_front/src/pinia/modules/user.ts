@@ -84,6 +84,7 @@ export const useUserStore = defineStore('user', () => {
 
             // 初始化路由
             const routerStore = useRouterStore()
+            // 根据用户ID实现动态路由
             await routerStore.SetAsyncRouter({
                 user_id:userInfo.value.user_id
             })
@@ -105,9 +106,12 @@ export const useUserStore = defineStore('user', () => {
     }
 
     function Logout() {
+        const routerStore = useRouterStore()
         // 清空本地状态
         userToken.value = { access_token: '', refresh_token: '' }
         userInfo.value = { user_id: '', username: '' }
+        // 清空动态路由
+        routerStore.ResetAsyncRouter()
         // 跳转到登录页
         router.push('/login')
         ElMessage.success('已退出登录')

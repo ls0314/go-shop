@@ -40,6 +40,14 @@ var (
 	RelExist               = errors.New("此关联已存在")
 	RelNotExist            = errors.New("此关联不存在")
 	UserHasRel             = errors.New("存在关联用户")
+	CategoryDisable        = errors.New("父级目录已被禁用")
+	CategoryUkExist        = errors.New("同级类目名称重复")
+	CategoryParentNotExist = errors.New("父类目不存在")
+	CategoryLevelDeep      = errors.New("类目层级超过4级")
+	CategoryNotExist       = errors.New("类目不存在")
+	CategoryHasChildren    = errors.New("该类目下有子类目，不能删除")
+	CategoryHasRel         = errors.New("该类目已关联商品/属性，不能删除")
+	CategoryParentInvalid  = errors.New("此父节点无效")
 )
 var (
 	StatusIdNotExist          = "ID不存在"

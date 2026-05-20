@@ -30,7 +30,7 @@ func InitRoutes() *gin.Engine {
 		}
 		c.Next()
 	})
-	
+
 	// ========== 用户模块初始化 ==========
 	InitUserModule()
 	// ========== 用户信息模块初始化 ==========
@@ -77,6 +77,10 @@ func InitRoutes() *gin.Engine {
 	InitMenuPermModule()
 	// ========== 注册菜单权限关联路由 ==========
 	RegisterMenuPermRoutes(r)
+	// ========== 类目模块初始化 ==========
+	InitCategoryModule()
+	// ========== 注册类目路由 ==========
+	RegisterCategoryRoutes(r)
 
 	public := r.Group("/api/v1/user")
 	{

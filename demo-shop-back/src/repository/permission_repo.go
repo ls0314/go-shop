@@ -129,3 +129,19 @@ func (r *PermissionRepo) CheckRoleRelPerm(permID int64) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+func (r *PermissionRepo) HasPermission(userId int64, permission string) (bool, error) {
+	var count int64
+
+	err := r.DB.Table("sys_user_role AS ur").
+		Joins("JOIN sys_role_permission AS rp ON ur.role_id = rp.role_id").
+		Joins("JOIN sys_permission AS p ON rp.permission_id = p.permission_id").
+		Where("ur.user_id = ? AND p.permission_code = ?", userId, permission).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}

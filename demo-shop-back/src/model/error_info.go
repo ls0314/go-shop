@@ -5,6 +5,10 @@ import "errors"
 //错误信息待整理 存在错误信息重复
 
 var (
+	UserNotLogin           = errors.New("用户未登录")
+	UserInfoError          = errors.New("用户信息异常")
+	HasNotPerm             = errors.New("权限校验失败")
+	UserHasNotPerm         = errors.New("用户无操作权限")
 	RegPasswordInvalid     = errors.New("密码必须同时包含字母数字标点符号且>=8位")
 	LoginPasswordInvalid   = errors.New("用户名或密码错误")
 	PhoneMalformed         = errors.New("手机号格式错误")

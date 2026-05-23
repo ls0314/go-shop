@@ -206,36 +206,3 @@ func (p *PermissionService) DeletePermission(id int64) error {
 	// 提交事务
 	return tx.Commit().Error
 }
-
-//func (p *PermissionService) HasPermission(userId int64, perm string) (bool, error) {
-//	roles, err := p.UserRoleRepo.GetUserRoleByUserId(userId)
-//	if err != nil {
-//		return false, err
-//	}
-//	if len(roles) == 0 {
-//		return false, nil
-//	}
-//
-//	for _, role := range roles {
-//		permissionIds, err := p.RolePermRepo.GetRolePermList(role)
-//		if err != nil {
-//			return false, err
-//		}
-//		if len(permissionIds) == 0 {
-//			return false, nil
-//		}
-//		for _, permissionId := range permissionIds {
-//			permission, err := p.PermRepo.GetPermByID(permissionId)
-//			if err != nil {
-//				return false, err
-//			}
-//			if permission == nil {
-//				return false, nil
-//			}
-//			if perm == permission.PermissionCode {
-//				return true, nil
-//			}
-//		}
-//	}
-//	return false, nil
-//}

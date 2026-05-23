@@ -46,7 +46,7 @@ request.interceptors.response.use(
 
         if (error.response?.status === 401) {
             if (originalRequest._retry) {
-                userStore.clearTokens()
+                userStore.setToken({ access_token: '', refresh_token: '' })
                 await router.push('/login')
                 return Promise.reject(error)
             }

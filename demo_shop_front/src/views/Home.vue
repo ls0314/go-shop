@@ -20,14 +20,14 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useUserStore} from '@/pinia/modules/user.ts'
+import { useUserStore,UserInfo} from '@/pinia/modules/user.ts'
 
-const userInfo = ref<any>(null)
+const userInfo = ref<UserInfo>(null)
 
 const userStore = useUserStore()
 
 async function handleGetUserInfo() {
-  const res = await userStore.GetUserInfo(userInfo.value)
+  const res = await userStore.GetUserInfo()
   userInfo.value = res.data.data
   console.log(res.data.data)
 }

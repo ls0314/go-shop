@@ -264,6 +264,8 @@ func (c *CategoryService) GetCategoryTree(level int64, includeDisabled bool) ([]
 			CategoryId:    category.CategoryId,
 			CategoryName:  category.CategoryName,
 			CategoryLevel: category.CategoryLevel,
+			IsVisible:     category.IsVisible,
+			Status:        category.Status,
 			ParentId:      category.ParentId,
 			Children:      []*response.GetTreeCategoryResp{},
 		}

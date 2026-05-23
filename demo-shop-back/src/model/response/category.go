@@ -11,6 +11,8 @@ type GetTreeCategoryResp struct {
 	CategoryId    int64                  `json:"category_id"`
 	CategoryName  string                 `json:"category_name"`
 	CategoryLevel int64                  `json:"category_level"`
+	IsVisible     bool                   `json:"is_visible"`
+	Status        string                 `json:"status"`
 	Children      []*GetTreeCategoryResp `json:"children"`
 	ParentId      int64                  `json:"-"`
 }

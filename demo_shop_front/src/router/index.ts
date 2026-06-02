@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/pinia/modules/user'
 import { useRouterStore } from '@/pinia/modules/router'
+import { ElMessage } from 'element-plus'
 import Layout from '@/views/layout/index.vue'
 
 const routes = [
@@ -43,6 +44,11 @@ const routes = [
             hideNav: true,
         },
     },
+    {
+        path: '/404',
+        name: 'NotFound',
+        component: () => import('@/views/error/404.vue'),
+    },
 ]
 
 const router = createRouter({
@@ -55,19 +61,21 @@ router.beforeEach(async (to, from) => {
     const routerStore = useRouterStore()
     const isLogin = !!userStore.userToken.access_token
 
-    // 白名单：登录、注册页 直接放行，不拦截
-    if (to.path === '/login' || to.path === '/register') {
-        // 已登录 → 去首页
-        if (isLogin) {
-            return '/home'
-        }
-        // 未登录 → 允许访问登录页
+    // 404 页面直接放行
+    if (to.name === 'NotFound') {
         return true
     }
 
-    // 未登录 + 访问非白名单 → 跳登录
+    // 白名单：登录、注册页 直接放行
+    if (to.path === '/login' || to.path === '/register') {
+        if (isLogin) {
+            return '/home'
+        }
+        return true
+    }
+
+    // 未登录 → 跳登录
     if (!isLogin) {
-        console.log('请登录')
         return '/login'
     }
 
@@ -75,16 +83,26 @@ router.beforeEach(async (to, from) => {
     if (!routerStore.isInitRouter) {
         try {
             await routerStore.SetAsyncRouter({
-                user_id: userStore.userInfo.user_id, // 你原来写的 userInfo.value 是错的！
+                user_id: userStore.userInfo.user_id,
             })
-            // 重新导航，让动态路由生效
             return { ...to, replace: true }
-        } catch {
+        } catch (err: any) {
+            // 区分网络错误和权限错误
+            if (err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
+                ElMessage.error('网络异常，获取菜单失败，请检查网络后刷新重试')
+                return false
+            }
+            // 无权限或其他错误 → 清除登录态跳登录
+            userStore.setToken({ access_token: '', refresh_token: '' })
+            routerStore.ResetAsyncRouter()
             return '/login'
         }
     }
 
-    console.log('路由跳转 →', to.path, '登录状态:', isLogin)
+    // 动态路由已加载，但匹配不到任何路由 → 跳 404
+    if (to.matched.length === 0) {
+        return '/404'
+    }
 })
 
 export default router

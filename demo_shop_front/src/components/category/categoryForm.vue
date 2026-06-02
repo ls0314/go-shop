@@ -89,7 +89,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, type PropType } from 'vue'
-import type { Category, CreateCategoryData, UpdateCategoryData } from '@/api/category'
+import type { Category, CreateCategoryData, UpdateCategoryData } from '@/types/category'
 import { useCategoryStore } from '@/pinia/modules/category'
 import { ElMessage, type FormInstance } from 'element-plus'
 

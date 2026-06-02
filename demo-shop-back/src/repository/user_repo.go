@@ -90,11 +90,15 @@ func (ur *UserRepo) GetUserByEmail(email string) (*model.SysUser, error) {
 // GetUserList 分页查询用户列表
 // 接收值：page - 页数，pageSize - 每页条数
 // 返回值：[]model.SysUser - 用户列表，int64 - 总条数，error - 错误信息
-func (ur *UserRepo) GetUserList(page, pageSize int) ([]model.SysUser, int64, error) {
+func (ur *UserRepo) GetUserList(page, pageSize int, status string) ([]model.SysUser, int64, error) {
 	var users []model.SysUser
 	var total int64
 
-	userDb := ur.DB.Model(&model.SysUser{}).Order("user_id ASC")
+	userDb := ur.DB.Model(&model.SysUser{})
+
+	if status != "" {
+		userDb = userDb.Where("status = ?", status)
+	}
 
 	if err := userDb.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -102,7 +106,7 @@ func (ur *UserRepo) GetUserList(page, pageSize int) ([]model.SysUser, int64, err
 
 	offset := (page - 1) * pageSize
 
-	if err := userDb.Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
+	if err := userDb.Order("user_id DESC").Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
 		return nil, 0, err
 	}
 

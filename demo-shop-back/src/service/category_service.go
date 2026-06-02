@@ -423,6 +423,21 @@ func (c *CategoryService) DeleteCategory(categoryId int64) error {
 			return err
 		}
 
+		if category.ParentId != 0 {
+			categoryList, err := categoryTxRepo.GetCategoryByParentId(category.ParentId)
+			if err != nil {
+				return err
+			}
+			if len(categoryList) == 0 {
+				updateCategory, err := categoryTxRepo.GetCategoryById(category.ParentId)
+				if err != nil {
+					return err
+				}
+				updateCategory.IsLeaf = true
+				return categoryTxRepo.UpdateCategory(updateCategory)
+			}
+		}
+
 		return nil
 	})
 }

@@ -69,16 +69,27 @@ func NewUserService() *UserService {
 	}
 }
 
-// GetUSer 根据用户ID查询用户信息
+// GetUser 根据用户ID查询用户信息
 // 接收值：userId - 用户ID
 // 返回值：*model.SysUser - 用户对象，error - 错误信息
-func (u *UserService) GetUSer(userId int64) (*model.SysUser, error) {
+func (u *UserService) GetUser(userId int64) (*model.SysUser, error) {
 	// 根据用户ID查询用户
 	user, err := u.UserRepo.GetUserById(userId)
 	if err != nil || user == nil {
 		return nil, model.UserNotExist
 	}
 	return user, nil
+}
+
+func (u *UserService) GetUserList(page, pageSize int, status string) ([]model.SysUser, int64, error) {
+	// 防止参数越界
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 || pageSize > 100 {
+		pageSize = 10
+	}
+	return u.UserRepo.GetUserList(page, pageSize, status)
 }
 
 // UpdateUser 更新用户信息
@@ -163,11 +174,11 @@ func (u *UserService) DeleteUser(userId int64) error {
 	return u.UserRepo.DeleteUser(userId)
 }
 
-// Register 用户注册
+// CreateUser 用户注册
 // 事务保证：用户+档案数据一致性
 // 接收值：user - 用户注册对象
 // 返回值：error - 错误信息
-func (u *UserService) Register(user *model.SysUser) error {
+func (u *UserService) CreateUser(user *model.SysUser) error {
 	// 校验密码格式
 	if ValidatePassword(user.PasswordHash) {
 		return model.RegPasswordInvalid
@@ -222,8 +233,8 @@ func (u *UserService) Register(user *model.SysUser) error {
 	}
 	// 初始化用户默认档案
 	profile := &model.UserProfile{
-		UserId:   user.UserID, // 绑定用户ID
-		Nickname: "默认用户名",     // 默认初始化
+		UserId:   user.UserID,  // 绑定用户ID
+		Nickname: "默认用户名", // 默认初始化
 	}
 
 	// 创建用户档案

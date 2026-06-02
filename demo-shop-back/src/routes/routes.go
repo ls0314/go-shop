@@ -1,18 +1,10 @@
 package routes
 
 import (
-	"demo-shop-back/src/handler"
-	"demo-shop-back/src/middleware"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
-
-var userCtrl *handler.UserHandler
-
-func InitUserModule() {
-	userCtrl = handler.NewUserHandler()
-}
 
 func InitRoutes() *gin.Engine {
 	r := gin.Default()
@@ -33,6 +25,8 @@ func InitRoutes() *gin.Engine {
 
 	// ========== 用户模块初始化 ==========
 	InitUserModule()
+	// ========== 注册用户路由 ==========
+	RegisterUserRoutes(r)
 	// ========== 用户信息模块初始化 ==========
 	InitUserInfoModule()
 	// ========== 注册用户信息路由 ==========
@@ -81,19 +75,6 @@ func InitRoutes() *gin.Engine {
 	InitCategoryModule()
 	// ========== 注册类目路由 ==========
 	RegisterCategoryRoutes(r)
-
-	public := r.Group("/api/v1/user")
-	{
-		public.POST("/register", userCtrl.RegisterHandler)
-		public.POST("/login", userCtrl.LoginHandler)
-		public.POST("/refresh", userCtrl.RefreshHandler)
-	}
-
-	private := r.Group("/api/v1/user")
-	private.Use(middleware.AuthMiddleware())
-	{
-		private.GET("/info", userCtrl.GetUserInfo)
-	}
 
 	r.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "Hello World")

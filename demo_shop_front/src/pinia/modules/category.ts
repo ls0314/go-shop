@@ -6,7 +6,7 @@ import type {
     UpdateCategoryData,
     CategoryTreeParams,
     CategoryChildrenListParams
-} from '@/api/category'
+} from '@/types/category'
 import {
     GetCategoryTreeApi,
     CreateCategoryApi,
@@ -15,7 +15,6 @@ import {
     GetCategoryApi,
     GetCategoryChildrenListApi
 } from '@/api/category'
-import {getRawAsset} from "node:sea";
 
 export const useCategoryStore = defineStore('category', () => {
     // 存储类目树结构

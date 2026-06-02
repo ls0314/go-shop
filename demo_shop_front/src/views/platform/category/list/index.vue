@@ -233,7 +233,7 @@ import { Search, Refresh, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCategoryStore } from '@/pinia/modules/category'
 import CategoryForm from '@/components/Category/CategoryForm.vue'
-import type { Category } from '@/api/category'
+import type { Category } from '@/types/category'
 
 // 状态管理
 const categoryStore = useCategoryStore()

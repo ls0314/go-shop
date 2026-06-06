@@ -75,6 +75,13 @@ func InitRoutes() *gin.Engine {
 	InitCategoryModule()
 	// ========== 注册类目路由 ==========
 	RegisterCategoryRoutes(r)
+	// ========== 上传模块初始化 ==========
+	InitUploadModule()
+	// ========== 注册上传路由 ==========
+	RegisterUploadRoutes(r)
+
+	// 静态文件服务 - 上传文件访问
+	r.Static("/uploads", "./uploads")
 
 	r.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "Hello World")

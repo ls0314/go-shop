@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/pinia/modules/user'
+import { useRouterStore } from '@/pinia/modules/router'
+import { ElMessage } from 'element-plus'
 import Layout from '@/views/layout/index.vue'
 
 const routes = [
@@ -42,6 +44,11 @@ const routes = [
             hideNav: true,
         },
     },
+    {
+        path: '/404',
+        name: 'NotFound',
+        component: () => import('@/views/error/404.vue'),
+    },
 ]
 
 const router = createRouter({
@@ -49,21 +56,52 @@ const router = createRouter({
     routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to, from) => {
     const userStore = useUserStore()
-
+    const routerStore = useRouterStore()
     const isLogin = !!userStore.userToken.access_token
 
-    console.log('路由跳转 →', to.path, '登录状态:', isLogin)
+    // 404 页面直接放行
+    if (to.name === 'NotFound') {
+        return true
+    }
 
-    if (to.meta.requiresAuth && !isLogin) {
-        console.log('请登录')
+    // 白名单：登录、注册页 直接放行
+    if (to.path === '/login' || to.path === '/register') {
+        if (isLogin) {
+            return '/home'
+        }
+        return true
+    }
+
+    // 未登录 → 跳登录
+    if (!isLogin) {
         return '/login'
     }
 
-    if ((to.path === '/login' || to.path === '/register') && isLogin) {
-        console.log('用户已登录')
-        return '/home'
+    // 已登录，处理动态路由
+    if (!routerStore.isInitRouter) {
+        try {
+            await routerStore.SetAsyncRouter({
+                user_id: userStore.userInfo.user_id,
+            })
+            return { ...to, replace: true }
+        } catch (err: any) {
+            // 区分网络错误和权限错误
+            if (err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
+                ElMessage.error('网络异常，获取菜单失败，请检查网络后刷新重试')
+                return false
+            }
+            // 无权限或其他错误 → 清除登录态跳登录
+            userStore.setToken({ access_token: '', refresh_token: '' })
+            routerStore.ResetAsyncRouter()
+            return '/login'
+        }
+    }
+
+    // 动态路由已加载，但匹配不到任何路由 → 跳 404
+    if (to.matched.length === 0) {
+        return '/404'
     }
 })
 

@@ -264,6 +264,8 @@ func (c *CategoryService) GetCategoryTree(level int64, includeDisabled bool) ([]
 			CategoryId:    category.CategoryId,
 			CategoryName:  category.CategoryName,
 			CategoryLevel: category.CategoryLevel,
+			IsVisible:     category.IsVisible,
+			Status:        category.Status,
 			ParentId:      category.ParentId,
 			Children:      []*response.GetTreeCategoryResp{},
 		}
@@ -419,6 +421,21 @@ func (c *CategoryService) DeleteCategory(categoryId int64) error {
 		// 调用数据层删除类目
 		if err := categoryTxRepo.DeleteCategoryById(categoryId); err != nil {
 			return err
+		}
+
+		if category.ParentId != 0 {
+			categoryList, err := categoryTxRepo.GetCategoryByParentId(category.ParentId)
+			if err != nil {
+				return err
+			}
+			if len(categoryList) == 0 {
+				updateCategory, err := categoryTxRepo.GetCategoryById(category.ParentId)
+				if err != nil {
+					return err
+				}
+				updateCategory.IsLeaf = true
+				return categoryTxRepo.UpdateCategory(updateCategory)
+			}
 		}
 
 		return nil

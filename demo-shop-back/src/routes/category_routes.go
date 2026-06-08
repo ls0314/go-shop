@@ -20,7 +20,7 @@ func RegisterCategoryRoutes(r *gin.Engine) {
 	categoryGroup.Use(middleware.AuthMiddleware())
 	{
 		categoryGroup.POST("", middleware.PermissionMiddleware("platform:category:create"), categoryCtrl.CreateCategory)
-		categoryGroup.GET("", categoryCtrl.GetCategoryList)
+		categoryGroup.GET("", middleware.PermissionMiddleware("platform:category:view"), categoryCtrl.GetCategoryList)
 		categoryGroup.GET("/:id", middleware.PermissionMiddleware("platform:category:view"), categoryCtrl.GetCategory)
 		categoryGroup.GET("/tree", middleware.PermissionMiddleware("platform:category:tree"), categoryCtrl.GetCategoryTree)
 		categoryGroup.GET("/children/:id", middleware.PermissionMiddleware("platform:category:children"), categoryCtrl.GetCategoryChildrenList)

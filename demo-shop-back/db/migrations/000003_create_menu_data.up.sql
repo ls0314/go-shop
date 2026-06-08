@@ -13,11 +13,10 @@ INSERT INTO sys_user (
     created_at,
     updated_at
 ) VALUES (
-             1,
              'user02',
              crypt('4545.aaa', gen_salt('bf')),
              'user02@example.com',
-             '18800000002',
+             '15944167678',
              'active',
              0,
              NULL,
@@ -25,14 +24,14 @@ INSERT INTO sys_user (
              CURRENT_TIMESTAMP
          )
 ON CONFLICT (user_id) DO UPDATE SET
-                                    username = EXCLUDED.username,
-                                    password_hash = EXCLUDED.password_hash,
-                                    email = EXCLUDED.email,
-                                    phone = EXCLUDED.phone,
-                                    status = EXCLUDED.status,
-                                    failed_attempts = 0,
-                                    lock_until = NULL,
-                                    updated_at = CURRENT_TIMESTAMP;
+                username = EXCLUDED.username,
+                password_hash = EXCLUDED.password_hash,
+                email = EXCLUDED.email,
+                phone = EXCLUDED.phone,
+                status = EXCLUDED.status,
+                failed_attempts = 0,
+                lock_until = NULL,
+                updated_at = CURRENT_TIMESTAMP;
 
 -- 角色 1
 INSERT INTO sys_role (

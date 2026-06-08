@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/repository"
 	"demo-shop-back/src/utils"
 	"errors"
 	"net/http"
@@ -64,5 +65,38 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
 		c.Next()
+	}
+}
+
+func PermissionMiddleware(perm string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userIdValue, exist := c.Get("user_id")
+		if !exist {
+			utils.Fail(c, 400, model.UserNotLogin.Error())
+			c.Abort()
+			return
+		}
+
+		userId, ok := userIdValue.(int64)
+		if !ok {
+			utils.Fail(c, 400, model.UserInfoError.Error())
+			c.Abort()
+			return
+		}
+		var permissionRepo = repository.NewPermissionRepo()
+		hasPerm, err := permissionRepo.HasPermission(userId, perm)
+		if err != nil {
+			utils.Error(c, 500, model.HasNotPerm.Error())
+			c.Abort()
+			return
+		}
+
+		if !hasPerm {
+			utils.Fail(c, 400, model.UserHasNotPerm.Error())
+			c.Abort()
+			return
+		}
+		c.Next()
+
 	}
 }

@@ -233,6 +233,9 @@ COMMENT ON COLUMN sys_menu_permission.created_at IS '创建时间';
 ALTER TABLE sys_menu_permission ADD CONSTRAINT fk_menu_permission_menu FOREIGN KEY (menu_id) REFERENCES sys_menu(menu_id);
 ALTER TABLE sys_menu_permission ADD CONSTRAINT fk_menu_permission_permission FOREIGN KEY (permission_id) REFERENCES sys_permission(permission_id);
 
+-- 添加索防止重复绑定
+CREATE UNIQUE INDEX IF NOT EXISTS uk_menu_permission ON sys_menu_permission (menu_id, permission_id);
+
 -- 创建操作日志表
 CREATE TABLE IF NOT EXISTS sys_operation_log (
     log_id BIGSERIAL PRIMARY KEY,

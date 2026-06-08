@@ -13,6 +13,7 @@ import (
 type MenuService struct {
 	MenuRepo     *repository.MenuRepo     // 菜单表数据层实例
 	RoleMenuRepo *repository.RoleMenuRepo // 角色-菜单关联表数据层实例
+	UserRoleRepo *repository.UserRoleRepo // 用户-角色关联表数据层实例
 	db           *gorm.DB
 }
 
@@ -23,6 +24,7 @@ func NewMenuService() *MenuService {
 	return &MenuService{
 		MenuRepo:     repository.NewMenuRepo(),
 		RoleMenuRepo: repository.NewRoleMenuRepo(),
+		UserRoleRepo: repository.NewUserRoleRepo(),
 		db:           db.DB,
 	}
 }
@@ -109,27 +111,7 @@ func (m *MenuService) GetMenuList(page, pageSize int, menuType string) ([]model.
 	return m.MenuRepo.GetMenuList(page, pageSize, menuType)
 }
 
-// GetMenuTreeByRoleId 获取角色菜单树
-// 接收值：roleId - 角色ID
-// 返回值：
-//
-//	[]*model.SysMenu - 相关角色下的菜单树
-//	error - 错误信息
-func (m *MenuService) GetMenuTreeByRoleId(roleId int64) ([]*model.SysMenu, error) {
-	// 获取角色关联的菜单ID列表
-	menuIds, err := m.RoleMenuRepo.GetRoleMenuListByRoleId(roleId)
-	if err != nil {
-		return nil, err
-	}
-	if len(menuIds) == 0 {
-		return nil, model.MenuNotExist
-	}
-	// 批量查询菜单，且已按 sort_order 排序
-	menuList, err := m.MenuRepo.ListMenuByIds(menuIds)
-	if err != nil {
-		return nil, err
-	}
-
+func (m *MenuService) MakeTree(menuList []*model.SysMenu) ([]*model.SysMenu, error) {
 	// 初始化 menuMap
 	menuMap := make(map[int64]*model.SysMenu)
 	for _, menu := range menuList {
@@ -147,7 +129,84 @@ func (m *MenuService) GetMenuTreeByRoleId(roleId int64) ([]*model.SysMenu, error
 		parent.Children = append(parent.Children, menu)
 	}
 	return treeList, nil
+}
 
+// GetMenuTreeByRoleIds 获取角色菜单树
+// 接收值：roleIds - 角色ID数组
+// 返回值：
+//
+//	[]*model.SysMenu - 相关角色下的菜单树
+//	error - 错误信息
+func (m *MenuService) GetMenuTreeByRoleIds(roleIds []int64) ([]*model.SysMenu, error) {
+	// 获取角色关联的菜单ID列表
+	menuIds, err := m.RoleMenuRepo.GetRoleMenuListByRoleIds(roleIds)
+	if err != nil {
+		return nil, err
+	}
+	if len(menuIds) == 0 {
+		return nil, model.MenuNotExist
+	}
+	// 批量查询菜单，且已按 sort_order 排序
+	menuList, err := m.MenuRepo.ListMenuByIds(menuIds)
+	if err != nil {
+		return nil, err
+	}
+	treeList, err := m.MakeTree(menuList)
+	if err != nil {
+		return nil, err
+	}
+	return treeList, nil
+}
+
+// GetMenuTreeByUserId 获取用户对应的角色菜单树并集
+// 接收值：userId - 角色ID
+// 返回值：
+//
+//	[]*model.SysMenu - 相关角色下的菜单树
+//	error - 错误信息
+func (m *MenuService) GetMenuTreeByUserId(userId int64) ([]*model.SysMenu, error) {
+	// 获取用户关联的角色ID列表
+	roleIds, err := m.UserRoleRepo.GetUserRoleByUserId(userId)
+	if err != nil {
+		return nil, err
+	}
+	// 获取角色关联的菜单ID列表
+	menuIds, err := m.RoleMenuRepo.GetRoleMenuListByRoleIds(roleIds)
+	if err != nil {
+		return nil, err
+	}
+	if len(menuIds) == 0 {
+		return nil, model.MenuNotExist
+	}
+	// 批量查询菜单，且已按 sort_order 排序
+	menuList, err := m.MenuRepo.ListMenuByIds(menuIds)
+	if err != nil {
+		return nil, err
+	}
+
+	treeList, err := m.MakeTree(menuList)
+	if err != nil {
+		return nil, err
+	}
+	return treeList, nil
+
+	//// 初始化 menuMap
+	//menuMap := make(map[int64]*model.SysMenu)
+	//for _, menu := range menuList {
+	//	menuMap[menu.MenuId] = menu
+	//}
+	//
+	//// 构建树形结构
+	//var treeList []*model.SysMenu
+	//for _, menu := range menuList {
+	//	parent, hasParent := menuMap[menu.ParentId]
+	//	if !hasParent {
+	//		treeList = append(treeList, menu)
+	//		continue
+	//	}
+	//	parent.Children = append(parent.Children, menu)
+	//}
+	//return treeList, nil
 }
 
 // UpdateMenu 更新菜单信息

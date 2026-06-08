@@ -4,6 +4,7 @@ import { loginApi, getUserInfoApi } from '@/api/user'
 import router from '@/router/index'
 import { ElMessage } from 'element-plus'
 import {useRouter} from "vue-router";
+import {useRouterStore} from "@/pinia/modules/router";
 
 interface UserToken {
     access_token: string
@@ -21,6 +22,8 @@ interface LoginForm {
 }
 
 
+
+
 export const useUserStore = defineStore('user', () => {
     const userToken = ref<UserToken>({
         access_token: "",
@@ -28,7 +31,7 @@ export const useUserStore = defineStore('user', () => {
     })
     const userInfo = ref<UserInfo>({
         user_id: '',
-        userName: '',
+        username: '',
     })
 
     const isLoggedIn = computed(() => !!userToken.value.access_token)
@@ -52,7 +55,7 @@ export const useUserStore = defineStore('user', () => {
             if (res.data.code === 200) {
                 setUserInfo(res.data.data)
                 //  返回用户信息
-                return res
+                return true
             }
 
             ElMessage.error(res.data.message || '获取用户信息失败')
@@ -75,8 +78,16 @@ export const useUserStore = defineStore('user', () => {
             }
             //  成功调用后保存Token信息
             setToken(res.data.data)
+
             //  获取并设置用户信息
             await GetUserInfo()
+
+            // 初始化路由
+            const routerStore = useRouterStore()
+            // 根据用户ID实现动态路由
+            await routerStore.SetAsyncRouter({
+                user_id:userInfo.value.user_id
+            })
 
             ElMessage.success('登录成功')
             // 登录成功后跳转到首页
@@ -95,9 +106,12 @@ export const useUserStore = defineStore('user', () => {
     }
 
     function Logout() {
+        const routerStore = useRouterStore()
         // 清空本地状态
         userToken.value = { access_token: '', refresh_token: '' }
         userInfo.value = { user_id: '', username: '' }
+        // 清空动态路由
+        routerStore.ResetAsyncRouter()
         // 跳转到登录页
         router.push('/login')
         ElMessage.success('已退出登录')

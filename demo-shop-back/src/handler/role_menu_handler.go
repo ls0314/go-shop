@@ -69,8 +69,9 @@ func (rm *RoleMenuHandler) GetRoleMenuRelList(c *gin.Context) {
 		utils.Fail(c, 400, model.StatusIdNotExist+err.Error())
 		return
 	}
-
-	roleMenuList, total, err := rm.RoleMenuService.GetRoleMenuList(id)
+	var ids []int64
+	ids = append(ids, id)
+	roleMenuList, total, err := rm.RoleMenuService.GetRoleMenuList(ids)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
 		return

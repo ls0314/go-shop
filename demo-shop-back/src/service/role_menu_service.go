@@ -68,9 +68,9 @@ func (rm *RoleMenuService) CreateRoleMenu(roleId int64, menuIds []int64) error {
 // GetRoleMenuList 根据角色ID查询关联的菜单列表
 // 接收值：roleId - 角色ID
 // 返回值：[]*model.SysMenu - 菜单列表，int64 - 菜单总数，error - 错误信息
-func (rm *RoleMenuService) GetRoleMenuList(roleId int64) ([]*model.SysMenu, int64, error) {
+func (rm *RoleMenuService) GetRoleMenuList(roleIds []int64) ([]*model.SysMenu, int64, error) {
 
-	menuIds, err := rm.RoleMenuRepo.GetRoleMenuListByRoleId(roleId)
+	menuIds, err := rm.RoleMenuRepo.GetRoleMenuListByRoleIds(roleIds)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -17,38 +17,21 @@
     </div>
 
     <nav class="space-y-2 p-3">
-      <button
-          v-for="item in menus"
-          :key="item.path"
-          type="button"
-          class="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm transition hover:bg-white/10 hover:text-white"
-          :class="isActive(item.path) ? 'bg-white text-slate-900' : 'text-slate-400'"
-          @click="handleMenuClick(item.path)"
-      >
-        <span class="w-6 shrink-0 text-center text-base">
-          {{ item.icon }}
-        </span>
-
-        <span
-            v-show="!collapsed"
-            class="whitespace-nowrap"
-        >
-          {{ item.title }}
-        </span>
-      </button>
+      <AsideMenuItem
+          v-for="item in visibleMenus"
+          :key="item.menu_id"
+          :item="item"
+          :collapsed="collapsed"
+          @close="emit('close')"
+      />
     </nav>
   </aside>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-
-interface MenuItem {
-  title: string
-  path: string
-  icon: string
-}
+import { useRouterStore } from '@/pinia/modules/router'
+import AsideMenuItem from './menu_item.vue'
 
 const props = defineProps<{
   collapsed: boolean
@@ -59,31 +42,13 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const route = useRoute()
-const router = useRouter()
+const routerStore = useRouterStore()
 
-const menus: MenuItem[] = [
-  {
-    title: '占位1',
-    path: '/home',
-    icon: '🏠'
-  },
-  {
-    title: '占位2',
-    path: '/home',
-    icon: '📘'
-  },
-  {
-    title: '占位3',
-    path: '/home',
-    icon: '📝'
-  },
-  {
-    title: '占位4',
-    path: '/home',
-    icon: '🔐'
-  }
-]
+const visibleMenus = computed(() => {
+  return routerStore.menuList
+      .filter(item => item.is_visible)
+      .sort((a, b) => a.sort_order - b.sort_order)
+})
 
 const asideClass = computed(() => {
   const desktopWidth = props.collapsed ? 'md:w-20' : 'md:w-60'
@@ -91,16 +56,4 @@ const asideClass = computed(() => {
 
   return [desktopWidth, mobileState]
 })
-
-const isActive = (path: string) => {
-  return route.path === path
-}
-
-const handleMenuClick = async (path: string) => {
-  emit('close')
-
-  if (route.path !== path) {
-    await router.push(path)
-  }
-}
 </script>

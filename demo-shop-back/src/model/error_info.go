@@ -53,6 +53,22 @@ var (
 	CategoryHasRel         = errors.New("该类目已关联商品/属性，不能删除")
 	CategoryParentInvalid  = errors.New("此父节点无效")
 )
+
+var (
+	ProductNotExist            = errors.New("商品不存在")
+	ErrSpuTemplate             = errors.New("规格值与规格模板不匹配")
+	ErrSkuNum                  = errors.New("SKU数量错误")
+	ErrSpecValues              = errors.New("SKU规格值不匹配")
+	ErrSkuCodeNotOnly          = errors.New("SKU编码需唯一")
+	ErrSpecValuesNotOnly       = errors.New("SKU规格组合唯一")
+	ErrNoActiveSku             = errors.New("至少需要一个启用状态的SKU")
+	ErrNoAvailableStock        = errors.New("启用SKU的总库存必须大于0")
+	ErrInvalidPrice            = errors.New("所有启用SKU的售价必须大于0")
+	ErrCategoryNotUsed         = errors.New("类目不可用")
+	ErrPublishedCantChangeSpec = errors.New("已上架商品不允许修改规格模板")
+	ErrSkuListEmpty            = errors.New("修改后SKU列表为空")
+	ErrInvalidStatusTransition = errors.New("商品状态转换不合法")
+)
 var (
 	StatusIdNotExist          = "ID不存在"
 	StatusInternalServerError = "服务器错误"

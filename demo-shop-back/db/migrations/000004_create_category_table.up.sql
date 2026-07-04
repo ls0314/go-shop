@@ -366,23 +366,6 @@ FROM sys_role r
 WHERE r.role_name = '平台审核人员'
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
--- 绑定菜单权限
-INSERT INTO sys_menu_permission (
-    menu_id,
-    permission_id
-)
-SELECT
-    m.menu_id,
-    p.permission_id
-FROM sys_menu m
-         JOIN sys_permission p
-              ON p.permission_code = 'platform:category:view'
-WHERE m.route_path IN (
-       '/platform/category',
-       '/platform/category/list'
-    )
-ON CONFLICT (menu_id, permission_id) DO NOTHING;
-
 -- 绑定按钮权限
 WITH category_list_menu AS (
     SELECT menu_id
@@ -434,7 +417,7 @@ WHERE NOT EXISTS (
 );
 
 
--- 3. 绑定按钮菜单和权限编码
+-- 绑定按钮菜单和权限编码
 WITH category_list_menu AS (
     SELECT menu_id
     FROM sys_menu

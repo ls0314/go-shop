@@ -137,7 +137,6 @@ func (c *CategoryRepo) GetCategoryList(page, pageSize int) ([]*model.SysCategory
 	}
 	offset := (page - 1) * pageSize
 	if err := cateDb.Offset(offset).Limit(pageSize).Find(&cateList).Error; err != nil {
-		// 防止使用First出现的查询为空的数据库错误
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, 0, nil
 		}

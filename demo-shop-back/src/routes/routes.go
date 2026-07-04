@@ -79,6 +79,10 @@ func InitRoutes() *gin.Engine {
 	InitUploadModule()
 	// ========== 注册上传路由 ==========
 	RegisterUploadRoutes(r)
+	// ========== 商品模块初始化 ==========
+	InitProductModule()
+	// ========== 注册商品路由 ==========
+	RegisterProductRoutes(r)
 
 	// 静态文件服务 - 上传文件访问
 	r.Static("/uploads", "./uploads")

@@ -16,6 +16,7 @@ import (
 // CategoryService 类目表服务层实例
 type CategoryService struct {
 	CategoryRepo *repository.CategoryRepo // 类目表数据层实例
+	ProductRepo  *repository.ProductRepo
 	db           *gorm.DB
 }
 
@@ -25,6 +26,7 @@ type CategoryService struct {
 func NewCategoryService() *CategoryService {
 	return &CategoryService{
 		CategoryRepo: repository.NewCategoryRepo(),
+		ProductRepo:  repository.NewProductRepo(),
 		db:           db.DB,
 	}
 }
@@ -305,7 +307,7 @@ func (c *CategoryService) UpdateCategory(categoryId int64, updateCategory map[st
 	err := c.db.Transaction(func(tx *gorm.DB) error {
 		// 创建事务实例
 		categoryTXRepo := c.CategoryRepo.WithTx(tx)
-		// 1查询旧类目信息
+		// 查询旧类目信息
 		oldCategory, err := categoryTXRepo.GetCategoryById(categoryId)
 		if err != nil {
 			return err
@@ -393,6 +395,7 @@ func (c *CategoryService) UpdateCategory(categoryId int64, updateCategory map[st
 // 接收值：categoryId - 待删除类目唯一标识
 // 返回值：error - 错误信息
 func (c *CategoryService) DeleteCategory(categoryId int64) error {
+
 	// 开始事务
 	return c.db.Transaction(func(tx *gorm.DB) error {
 		// 创建事务实例
@@ -416,7 +419,10 @@ func (c *CategoryService) DeleteCategory(categoryId int64) error {
 			return model.CategoryHasChildren
 		}
 
-		// TODO 关联商品检查
+		// 判断待删除类目是否存在关联商品
+		if spu, err := c.ProductRepo.GetSpuByCategory(categoryId); err != nil || spu != nil {
+			return model.CategoryHasRel
+		}
 
 		// 调用数据层删除类目
 		if err := categoryTxRepo.DeleteCategoryById(categoryId); err != nil {

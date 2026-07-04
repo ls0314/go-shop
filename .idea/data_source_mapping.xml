@@ -10,6 +10,8 @@
     <file url="file://$PROJECT_DIR$/demo-shop-back/db/migrations/000003_create_menu_data.up.sql" value="a0273616-b7c2-4a55-9be3-83133fb7210d" />
     <file url="file://$PROJECT_DIR$/demo-shop-back/db/migrations/000004_create_category_table.down.sql" value="a0273616-b7c2-4a55-9be3-83133fb7210d" />
     <file url="file://$PROJECT_DIR$/demo-shop-back/db/migrations/000004_create_category_table.up.sql" value="a0273616-b7c2-4a55-9be3-83133fb7210d" />
+    <file url="file://$PROJECT_DIR$/demo-shop-back/db/migrations/000005_create_product_table.down.sql" value="a0273616-b7c2-4a55-9be3-83133fb7210d" />
+    <file url="file://$PROJECT_DIR$/demo-shop-back/db/migrations/000005_create_product_table.up.sql" value="a0273616-b7c2-4a55-9be3-83133fb7210d" />
     <file url="file://$PROJECT_DIR$/demo-shop-back/src/service/user_service.go" value="a0273616-b7c2-4a55-9be3-83133fb7210d" />
   </component>
 </project>

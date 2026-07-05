@@ -26,6 +26,14 @@ const routes = [
                     requiresAuth: true,
                 },
             },
+            {
+                path: 'platform/product/create/:id?',
+                name: 'ProductCreate',
+                component: () => import('@/views/platform/product/create/index.vue'),
+                meta: {
+                    requiresAuth: true,
+                },
+            },
         ],
     },
     {

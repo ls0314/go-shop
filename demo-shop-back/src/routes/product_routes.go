@@ -29,7 +29,7 @@ func RegisterProductRoutes(r *gin.Engine) {
 		productGroup.DELETE("/:id", middleware.PermissionMiddleware("platform:product:delete"), productCtrl.DeleteProduct)
 	}
 
-	userProductGroup := r.Group("/api/v1/users/platform/products")
+	userProductGroup := r.Group("/api/v1/user/platform/products")
 	userProductGroup.Use()
 	{
 		userProductGroup.GET("", productCtrl.UserProductList)

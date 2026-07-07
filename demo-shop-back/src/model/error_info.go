@@ -69,6 +69,14 @@ var (
 	ErrSkuListEmpty            = errors.New("修改后SKU列表为空")
 	ErrInvalidStatusTransition = errors.New("商品状态转换不合法")
 )
+
+var (
+	AddressNotExist   = errors.New("地址不存在")
+	AddressListIsNull = errors.New("地址列表为空")
+	AddressNumsIsFull = errors.New("地址数量超出限制")
+	UserNotSetAddress = errors.New("用户越权修改地址")
+	ReceiverNotNull   = errors.New("收货人姓名或手机号码不能为空")
+)
 var (
 	StatusIdNotExist          = "ID不存在"
 	StatusInternalServerError = "服务器错误"

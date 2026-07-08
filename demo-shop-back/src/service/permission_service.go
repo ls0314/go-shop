@@ -33,31 +33,24 @@ func NewPermissionService() *PermissionService {
 // 接收值：perm - 权限结构体
 // 返回值：error - 错误信息
 func (p *PermissionService) CreatePermission(perm *model.SysPermission) error {
-	// 根据传入权限名判断权限是否存在
-	existing, _ := p.PermRepo.GetPermByCode(perm.PermissionCode)
+	// 根据传入权限编码联合判断权限是否存在
+	existing, _ := p.PermRepo.GetPermByCodeUk(perm.ApiPath, perm.RequestMethod, perm.PermissionCode)
 	if existing != nil {
 		return model.PermissionExist
 	}
 
-	// 开启事务
-	tx := p.db.Begin()
-	if tx.Error != nil {
-		return tx.Error
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
+	err := p.db.Transaction(func(tx *gorm.DB) error {
+		permTxRepo := p.PermRepo.WithTx(tx)
+
+		if err := permTxRepo.CreatePerm(perm); err != nil {
+			return err
 		}
-	}()
-	// 创建事务实例
-	permTxRepo := p.PermRepo.WithTx(tx)
-	// 调用数据层创建权限
-	if err := permTxRepo.CreatePerm(perm); err != nil {
-		tx.Rollback()
-		return err
-	}
-	// 提交事务
-	return tx.Commit().Error
+
+		return nil
+	})
+
+	return err
+
 }
 
 // GetPermission 查询权限信息（根据权限ID）

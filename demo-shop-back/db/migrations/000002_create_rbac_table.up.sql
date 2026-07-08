@@ -1,8 +1,7 @@
--- 数据库未设置完整 在完善RBAC过程中逐步修改
 -- 创建权限表
 CREATE TABLE IF NOT EXISTS sys_permission (
     permission_id BIGSERIAL PRIMARY KEY,
-    permission_code VARCHAR(100) UNIQUE NOT NULL,
+    permission_code VARCHAR(100)  NOT NULL,
     permission_name VARCHAR(100) NOT NULL,
     permission_type VARCHAR(20) NOT NULL ,
     request_method VARCHAR(10),
@@ -23,7 +22,8 @@ COMMENT ON COLUMN sys_permission.description IS '权限描述';
 COMMENT ON COLUMN sys_permission.is_system IS '是否系统内置权限';
 COMMENT ON COLUMN sys_permission.created_at IS '创建时间';
 
-
+-- 权限编码 api地址 请求方法 联合唯一约束
+ALTER TABLE sys_permission ADD CONSTRAINT uk_perm_code_api UNIQUE (permission_code, api_path, request_method);
 
 -- 创建菜单表
 CREATE TABLE IF NOT EXISTS sys_menu (

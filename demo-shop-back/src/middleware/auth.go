@@ -68,8 +68,12 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func PermissionMiddleware(perm string) gin.HandlerFunc {
+func PermissionMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+
+		path := c.FullPath() // Gin 路由模板，如 /api/v1/platform/products/:id
+		method := c.Request.Method
+
 		userIdValue, exist := c.Get("user_id")
 		if !exist {
 			utils.Fail(c, 400, model.UserNotLogin.Error())
@@ -84,11 +88,30 @@ func PermissionMiddleware(perm string) gin.HandlerFunc {
 			return
 		}
 		var permissionRepo = repository.NewPermissionRepo()
-		hasPerm, err := permissionRepo.HasPermission(userId, perm)
+		codes, err := permissionRepo.GetPermCodesByApi(path, method)
 		if err != nil {
-			utils.Error(c, 500, model.HasNotPerm.Error())
+			utils.Fail(c, 400, err.Error())
 			c.Abort()
 			return
+		}
+		if len(codes) == 0 {
+			utils.Fail(c, 400, model.PermissionNotExist.Error())
+			c.Abort()
+			return
+		}
+
+		// 遍历所有 permission_code，用户持有任意一个即放行
+		var hasPerm bool
+		for _, code := range codes {
+			hasPerm, err = permissionRepo.HasPermission(userId, code)
+			if err != nil {
+				utils.Error(c, 500, model.HasNotPerm.Error())
+				c.Abort()
+				return
+			}
+			if hasPerm {
+				break
+			}
 		}
 
 		if !hasPerm {

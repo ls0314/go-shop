@@ -191,35 +191,35 @@ WITH platform_menu AS (
          WHERE route_path = '/platform/category'
          LIMIT 1
      )
-INSERT INTO sys_menu (
-    parent_id,
-    menu_name,
-    menu_type,
-    icon,
-    route_path,
-    component,
-    is_visible,
-    is_cache,
-    sort_order,
-    meta_info
-)
-SELECT
-    c.menu_id,
-    '类目列表',
-    'M',
-    NULL,
-    '/platform/category/list',
-    'platform/category/list/index',
-    TRUE,
-    TRUE,
-    1,
-    '{"title":"类目列表","icon":"","noCache":false}'::jsonb
-FROM category_menu_id c
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM sys_menu
-    WHERE route_path = '/platform/category/list'
-);
+    INSERT INTO sys_menu (
+        parent_id,
+        menu_name,
+        menu_type,
+        icon,
+        route_path,
+        component,
+        is_visible,
+        is_cache,
+        sort_order,
+        meta_info
+    )
+    SELECT
+        c.menu_id,
+        '类目列表',
+        'M',
+        NULL,
+        '/platform/category/list',
+        'platform/category/list/index',
+        TRUE,
+        TRUE,
+        1,
+        '{"title":"类目列表","icon":"","noCache":false}'::jsonb
+    FROM category_menu_id c
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM sys_menu
+        WHERE route_path = '/platform/category/list'
+    );
 
 -- 创建系统权限
 INSERT INTO sys_permission (
@@ -285,7 +285,7 @@ INSERT INTO sys_permission (
           '所属模块：平台类目管理',
           TRUE
       )
-ON CONFLICT (permission_code) DO NOTHING;
+ON CONFLICT (permission_code, request_method, api_path) DO NOTHING;
 
 
 -- 菜单权限绑定数据
@@ -317,12 +317,9 @@ SELECT
 FROM sys_role r
          JOIN sys_permission p
               ON p.permission_code IN (
-                   'platform:category:create',
-                   'platform:category:update',
-                   'platform:category:delete',
-                   'platform:category:view',
-                   'platform:category:tree',
-                   'platform:category:children'
+                   'platform:inventory:adjust',
+                   'platform:inventory:log',
+                   'platform:product:view'
                   )
 WHERE r.role_name = '平台超级管理员'
 ON CONFLICT (role_id, permission_id) DO NOTHING;

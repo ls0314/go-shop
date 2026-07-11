@@ -91,6 +91,7 @@ type SysProductStockLog struct {
 	OrderId     int64     `gorm:"column:order_id" json:"order_id"`
 	Remark      string    `gorm:"column:remark" json:"remark"`
 	CreatedAt   time.Time `gorm:"column:created_at" json:"created_at"`
+	CreateBy    int64     `gorm:"column:create_by" json:"create_by"`
 }
 
 // TableName 返回库存变更日志表名
@@ -114,4 +115,10 @@ type SkuValidateResult struct {
 	SkuCount int64   `gorm:"column:sku_count"`
 	MaxStock int64   `gorm:"column:max_stock"`
 	MinPrice float64 `gorm:"column:min_price"`
+}
+
+type SkuListWithAgg struct {
+	TotalStock int64 `gorm:"column:total_stock"`
+	TotalLock  int64 `gorm:"column:total_lock"`
+	TotalSold  int64 `gorm:"column:total_sold"`
 }

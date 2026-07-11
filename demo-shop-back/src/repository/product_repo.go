@@ -9,7 +9,12 @@ import (
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+// ============================================================
+//	定义及实例化部分
+// ============================================================
 
 // ProductRepo 商品表数据层实例
 type ProductRepo struct {
@@ -33,6 +38,68 @@ func (p *ProductRepo) WithTx(db *gorm.DB) *ProductRepo {
 		DB: db,
 	}
 }
+
+// ============================================================
+//	检查函数
+// ============================================================
+
+// CheckSpecValue 检查同一 SPU 下是否已存在完全相同的规格组合
+// 接收值：
+//
+//	spuId - spu唯一标识
+//	specValues - sku规格值
+//
+// 返回值：
+//
+//	*model.SysProductSku - 所查询对应规格的sku信息
+//	error - 错误信息
+func (p *ProductRepo) CheckSpecValue(spuId int64, specValues datatypes.JSONMap) (*model.SysProductSku, error) {
+	var sku model.SysProductSku
+	if err := p.DB.Where("spu_id = ? AND spec_values = ? AND is_deleted = ?", spuId, specValues, false).First(&sku).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &sku, nil
+}
+
+// ValidateSpuPublish 校验商品是否满足上架条件
+// 检查项：至少有一个启用(active)SKU、库存>0、价格>0
+// 接收值：spuId - 待校验SPU唯一标识
+// 返回值：error - 不满足条件时返回具体业务错误，满足时返回nil
+func (p *ProductRepo) ValidateSpuPublish(spuId int64) error {
+	var res model.SkuValidateResult
+
+	err := p.DB.Model(&model.SysProductSku{}).
+		Where("spu_id = ? AND is_deleted = ? AND sku_status = ?", spuId, false, "active").
+		Select(`
+					COUNT(*) AS sku_count,
+					COALESCE(MAX(stock), 0) AS max_stock,
+					COALESCE(MIN(price), 0) AS min_price
+					`).
+		Scan(&res).Error
+	if err != nil {
+		return err
+	}
+
+	if res.SkuCount == 0 {
+		return model.ErrNoActiveSku
+	}
+
+	if res.MaxStock <= 0 {
+		return model.ErrNoAvailableStock
+	}
+
+	if res.MinPrice <= 0 {
+		return model.ErrInvalidPrice
+	}
+	return nil
+}
+
+// ============================================================
+//	定义及实例化部分
+// ============================================================
 
 // CreateSpu 创建商品SPU
 // 接收值：spu - SPU对象指针
@@ -60,26 +127,9 @@ func (p *ProductRepo) CreateImage(image *model.SysProductSpuImage) error {
 	return p.DB.Create(&image).Error
 }
 
-// CheckSpecValue 检查同一 SPU 下是否已存在完全相同的规格组合
-// 接收值：
-//
-//	spuId - spu唯一标识
-//	specValues - sku规格值
-//
-// 返回值：
-//
-//	*model.SysProductSku - 所查询对应规格的sku信息
-//	error - 错误信息
-func (p *ProductRepo) CheckSpecValue(spuId int64, specValues datatypes.JSONMap) (*model.SysProductSku, error) {
-	var sku model.SysProductSku
-	if err := p.DB.Where("spu_id = ? AND spec_values = ? AND is_deleted = ?", spuId, specValues, false).First(&sku).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &sku, nil
-}
+// ============================================================
+//	查询商品相关信息
+// ============================================================
 
 // GetSpuById 查询SPU信息(按spuID查)
 // 接收值：spuId - 所查询SPU唯一标识
@@ -91,7 +141,7 @@ func (p *ProductRepo) GetSpuById(spuId int64) (*model.SysProductSpu, error) {
 	var spu model.SysProductSpu
 	if err := p.DB.Where("spu_id = ?", spuId).First(&spu).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
+			return nil, model.ProductNotExist
 		}
 		return nil, err
 	}
@@ -225,6 +275,28 @@ func (p *ProductRepo) GetSpuList(req requset.SpuQueryReq) ([]model.SpuWithAgg, i
 func (p *ProductRepo) GetSku(skuId int64) (*model.SysProductSku, error) {
 	var sku model.SysProductSku
 	if err := p.DB.Where("sku_id = ?", skuId).First(&sku).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, model.ProductNotExist
+		}
+		return nil, err
+	}
+	return &sku, nil
+}
+
+// GetSkuForUpdate 查询SKU并加行锁(用于库存并发操作)
+// 接收值：skuId - SKU唯一标识
+// 返回值：
+//
+//	*model.SysProductSku - 锁定后的SKU信息
+//	error - 错误信息
+func (p *ProductRepo) GetSkuForUpdate(skuId int64) (*model.SysProductSku, error) {
+	var sku model.SysProductSku
+	if err := p.DB.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("sku_id = ?", skuId).
+		First(&sku).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, model.ProductNotExist
+		}
 		return nil, err
 	}
 	return &sku, nil
@@ -239,6 +311,9 @@ func (p *ProductRepo) GetSku(skuId int64) (*model.SysProductSku, error) {
 func (p *ProductRepo) GetSkuListBySpuId(spuId int64) ([]model.SysProductSku, error) {
 	var skuList []model.SysProductSku
 	if err := p.DB.Where("spu_id = ? AND is_deleted = ?", spuId, false).Find(&skuList).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, model.ProductNotExist
+		}
 		return nil, err
 	}
 	return skuList, nil
@@ -272,6 +347,10 @@ func (p *ProductRepo) GetImageListBySpuId(spuId int64) ([]*model.SysProductSpuIm
 	return imageList, nil
 }
 
+// ============================================================
+// 更新商品相关信息
+// ============================================================
+
 // UpdateSpu 更新商品SPU信息
 // 接收值：spu - 待更新的SPU对象指针
 // 返回值：error - 错误信息
@@ -292,6 +371,10 @@ func (p *ProductRepo) UpdateSku(sku *model.SysProductSku) error {
 func (p *ProductRepo) UpdateImage(image *model.SysProductSpuImage) error {
 	return p.DB.Save(image).Error
 }
+
+// ============================================================
+// 删除商品相关信息
+// ============================================================
 
 // DeleteSpu 硬删除指定SPU(按SPU ID)
 // 接收值：spuId - 待删除SPU唯一标识
@@ -331,53 +414,14 @@ func (p *ProductRepo) BatchDeleteSkuById(spuId int64) error {
 		}).Error
 }
 
-// PublishProduct 上架商品(将draft/withdrawn状态变更为published)
-// 接收值：spuId - 待上架SPU唯一标识
-// 返回值：error - 错误信息(商品不存在或状态不合法时返回gorm.ErrRecordNotFound)
-func (p *ProductRepo) PublishProduct(spuId int64) error {
-	result := p.DB.Model(&model.SysProductSpu{}).
-		Where("spu_id = ? AND is_deleted = ? AND spu_status IN (?)", spuId, false, []string{"draft", "withdrawn"}).
-		Update("spu_status", "published")
-	if result.Error != nil {
-		return result.Error
+// DeleteImageByIds 硬删除指定ID的图片
+// 接收值：ids - 待删除图片ID列表
+// 返回值：error - 错误信息
+func (p *ProductRepo) DeleteImageByIds(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
 	}
-	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
-}
-
-// ValidateSpuPublish 校验商品是否满足上架条件
-// 检查项：至少有一个启用(active)SKU、库存>0、价格>0
-// 接收值：spuId - 待校验SPU唯一标识
-// 返回值：error - 不满足条件时返回具体业务错误，满足时返回nil
-func (p *ProductRepo) ValidateSpuPublish(spuId int64) error {
-	var res model.SkuValidateResult
-
-	err := p.DB.Model(&model.SysProductSku{}).
-		Where("spu_id = ? AND is_deleted = ? AND sku_status = ?", spuId, false, "active").
-		Select(`
-					COUNT(*) AS sku_count,
-					COALESCE(MAX(stock), 0) AS max_stock,
-					COALESCE(MIN(price), 0) AS min_price
-					`).
-		Scan(&res).Error
-	if err != nil {
-		return err
-	}
-
-	if res.SkuCount == 0 {
-		return model.ErrNoActiveSku
-	}
-
-	if res.MaxStock <= 0 {
-		return model.ErrNoAvailableStock
-	}
-
-	if res.MinPrice <= 0 {
-		return model.ErrInvalidPrice
-	}
-	return nil
+	return p.DB.Where("image_id IN ?", ids).Delete(&model.SysProductSpuImage{}).Error
 }
 
 // SoftDeleteSkusExcept 软删除指定SPU下不在保留列表中的SKU(设置is_deleted=true)
@@ -400,14 +444,24 @@ func (p *ProductRepo) SoftDeleteSkusExcept(spuId int64, keepIds []int64) error {
 	}).Error
 }
 
-// DeleteImageByIds 硬删除指定ID的图片
-// 接收值：ids - 待删除图片ID列表
-// 返回值：error - 错误信息
-func (p *ProductRepo) DeleteImageByIds(ids []int64) error {
-	if len(ids) == 0 {
-		return nil
+// ============================================================
+// 商品上下架操作
+// ============================================================
+
+// PublishProduct 上架商品(将draft/withdrawn状态变更为published)
+// 接收值：spuId - 待上架SPU唯一标识
+// 返回值：error - 错误信息(商品不存在或状态不合法时返回gorm.ErrRecordNotFound)
+func (p *ProductRepo) PublishProduct(spuId int64) error {
+	result := p.DB.Model(&model.SysProductSpu{}).
+		Where("spu_id = ? AND is_deleted = ? AND spu_status IN (?)", spuId, false, []string{"draft", "withdrawn"}).
+		Update("spu_status", "published")
+	if result.Error != nil {
+		return result.Error
 	}
-	return p.DB.Where("image_id IN ?", ids).Delete(&model.SysProductSpuImage{}).Error
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // WithdrawProduct 下架商品(将published状态变更为withdrawn)

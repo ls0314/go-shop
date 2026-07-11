@@ -83,10 +83,14 @@ func InitRoutes() *gin.Engine {
 	InitProductModule()
 	// ========== 注册商品路由 ==========
 	RegisterProductRoutes(r)
-	// ========== 用户模块初始化 ==========
+	// ========== 用户地址管理模块初始化 ==========
 	InitAddressModule()
-	// ========== 注册用户地址路由 ==========
+	// ========== 注册用户地址管理路由 ==========
 	RegisterAddressRoutes(r)
+	// ========== 库存管理模块初始化 ==========
+	InitInventoryModule()
+	// ========== 注册库存管理路由 ==========
+	RegisterInventoryRoutes(r)
 
 	// 静态文件服务 - 上传文件访问
 	r.Static("/uploads", "./uploads")

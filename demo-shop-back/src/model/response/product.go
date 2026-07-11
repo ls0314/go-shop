@@ -125,3 +125,23 @@ type UserGetProductResp struct {
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 }
+
+type SkuInventoryResp struct {
+	SkuId      int64             `json:"sku_id"`
+	SkuName    string            `json:"sku_name"`
+	SpuId      int64             `json:"spu_id"`
+	SpuName    string            `json:"spu_name"`
+	SpecValue  datatypes.JSONMap `json:"spec_value"`
+	Stock      int64             `json:"stock"`
+	LockStock  int64             `json:"lock_stock"`
+	TotalStock int64             `json:"total_stock"`
+	SoldCount  int64             `json:"sold_count"`
+	SkuStatus  string            `json:"sku_status"`
+}
+
+type SkuInventoryListResp struct {
+	List       []SkuInventoryResp `json:"list"`
+	TotalStock int64              `json:"total_stock"`
+	TotalLock  int64              `json:"total_lock"`
+	TotalSold  int64              `json:"total_sold"`
+}

@@ -29,6 +29,8 @@ interface MenuItem {
 const Layout = () => import('@/views/layout/index.vue')
 // ParentView组件
 const ParentView = () => import('@/components/ParentView.vue')
+// userLayout组件
+const UserLayout = () => import('@/views/userLayout/index.vue')
 
 // 动态导入 views 目录下的所有 .vue 页面
 const modules = import.meta.glob('../../views/**/*.vue')
@@ -41,6 +43,10 @@ function loadView(component?: string) {
     // 特殊组件：Layout
     if (component === 'Layout') {
         return Layout
+    }
+
+    if (component === 'userLayout') {
+        return UserLayout
     }
     // 特殊组件：ParentView
     if (component === 'ParentView') {

@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS sys_product_stock_log (
    order_id     BIGINT,
    remark       VARCHAR(500),
    created_at   TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   create_by    INT ,
 
    CONSTRAINT fk_sys_product_stock_log_sku FOREIGN KEY (sku_id)
        REFERENCES sys_product_sku (sku_id)
@@ -163,6 +164,7 @@ COMMENT ON COLUMN sys_product_stock_log.after_lock   IS '变更后锁定库存';
 COMMENT ON COLUMN sys_product_stock_log.order_id     IS '关联订单ID（手动调整时为NULL）';
 COMMENT ON COLUMN sys_product_stock_log.remark       IS '备注说明';
 COMMENT ON COLUMN sys_product_stock_log.created_at   IS '创建时间';
+COMMENT ON COLUMN sys_product_stock_log.create_by    IS '创建人用户ID';
 
 -- 按SKU查日志
 CREATE INDEX IF NOT EXISTS idx_stock_log_sku_id ON sys_product_stock_log (sku_id);
@@ -309,7 +311,7 @@ INSERT INTO sys_permission (
         '所属模块：平台商品管理',
         TRUE
     )
-ON CONFLICT (permission_code) DO NOTHING;
+ON CONFLICT (permission_code, request_method, api_path) DO NOTHING;
 
 -- 菜单权限绑定数据
 INSERT INTO sys_menu_permission (

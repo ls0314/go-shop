@@ -92,3 +92,12 @@ var (
 	ErrStockNotEnough = errors.New("库存不足")       // 7004
 	ErrSkuDisabled    = errors.New("SKU已禁用或已删除") // 7005
 )
+
+// 购物车模块错误码
+var (
+	ErrSpuDisabled   = errors.New("SKU已禁用或已删除")
+	CartItemMax      = errors.New("购物车数量已达上限（100条）")
+	QuantityMax      = errors.New("购买数量超出限制（单SKU购买范围为0~999）")
+	CartItemNotExist = errors.New("购物车项不存在")
+	NotAuthority     = errors.New("无权操作该购物车项")
+)

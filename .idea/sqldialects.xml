@@ -12,6 +12,7 @@
     <file url="file://$PROJECT_DIR$/demo-shop-back/db/migrations/000005_create_product_table.down.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/demo-shop-back/db/migrations/000005_create_product_table.up.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/demo-shop-back/db/migrations/000006_create_address_table.up.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/demo-shop-back/db/migrations/000007_create_cart_item_table.up.sql" dialect="PostgreSQL" />
     <file url="PROJECT" dialect="PostgreSQL" />
   </component>
 </project>

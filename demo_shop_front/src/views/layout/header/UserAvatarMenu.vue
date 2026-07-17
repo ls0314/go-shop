@@ -25,6 +25,14 @@
 
         <button
             type="button"
+            class="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm text-indigo-600 transition hover:bg-indigo-50 dark:border-slate-700 dark:text-indigo-400 dark:hover:bg-slate-700"
+            @click="handleSwitchToShop"
+        >
+          返回商城
+        </button>
+
+        <button
+            type="button"
             class="block w-full px-4 py-3 text-left text-sm text-red-500 transition hover:bg-red-50 dark:hover:bg-slate-700"
             @click="handleLogout"
         >
@@ -63,14 +71,12 @@ const closeMenu = () => {
 
 const handleProfile = async () => {
   closeMenu()
+  ElMessage.info('个人信息功能开发中')
+}
 
-  try {
-    closeMenu()
-    ElMessage.info('个人信息功能开发中')
-    // await router.push('/profile')
-  } catch {
-    ElMessage.info('个人信息页面暂未配置')
-  }
+const handleSwitchToShop = () => {
+  closeMenu()
+  router.push('/shop/home')
 }
 
 const handleLogout = () => {

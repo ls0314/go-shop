@@ -144,7 +144,7 @@ func (m *MenuService) GetMenuTreeByRoleIds(roleIds []int64) ([]*model.SysMenu, e
 		return nil, err
 	}
 	if len(menuIds) == 0 {
-		return nil, model.MenuNotExist
+		return []*model.SysMenu{}, nil
 	}
 	// 批量查询菜单，且已按 sort_order 排序
 	menuList, err := m.MenuRepo.ListMenuByIds(menuIds)
@@ -176,7 +176,7 @@ func (m *MenuService) GetMenuTreeByUserId(userId int64) ([]*model.SysMenu, error
 		return nil, err
 	}
 	if len(menuIds) == 0 {
-		return nil, model.MenuNotExist
+		return []*model.SysMenu{}, nil
 	}
 	// 批量查询菜单，且已按 sort_order 排序
 	menuList, err := m.MenuRepo.ListMenuByIds(menuIds)

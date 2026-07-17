@@ -109,6 +109,8 @@ export const useRouterStore = defineStore('router', () => {
     const asyncRouter = ref<RouteRecordRaw[]>([])
     // 动态路由是否已经初始化,防止重复请求菜单、重复 addRoute
     const isInitRouter = ref(false)
+    // 是否有管理端权限（菜单树非空即为管理员）
+    const hasAdmin = ref(false)
     // 保存这些删除函数，退出登录时可以把动态路由移除
     const removeRouteFns = ref<Array<() => void>>([])
 
@@ -143,9 +145,25 @@ export const useRouterStore = defineStore('router', () => {
                 removeRouteFns.value.push(removeRoute)
             }
         })
+        // 非空菜单即为管理员
+        hasAdmin.value = menuList.value.length > 0
         // 标记动态路由已经初始化完成。
         isInitRouter.value = true
     }
+
+    // 检查当前用户是否有管理端权限（轻量级，仅调菜单API不添加路由）
+    async function CheckAdminAccess(userId?: string) {
+        if (hasAdmin.value) return true
+        try {
+            const res = await asyncMenu(userId)
+            const menus = res.data.data || []
+            hasAdmin.value = menus.length > 0
+            return hasAdmin.value
+        } catch {
+            return false
+        }
+    }
+
     // 重置动态路由
     function ResetAsyncRouter() {
         // 移除所有动态添加的路由
@@ -158,13 +176,17 @@ export const useRouterStore = defineStore('router', () => {
         asyncRouter.value = []
         // 标记动态路由未初始化
         isInitRouter.value = false
+        // 清除管理员标记
+        hasAdmin.value = false
     }
 
     return {
         menuList,
         asyncRouter,
         isInitRouter,
+        hasAdmin,
         SetAsyncRouter,
+        CheckAdminAccess,
         ResetAsyncRouter
     }
 })

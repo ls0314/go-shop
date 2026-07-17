@@ -1,5 +1,12 @@
 <template>
-  <div class="relative">
+  <!-- 未登录：显示登录/注册按钮 -->
+  <div v-if="!isLogin" class="flex items-center gap-2">
+    <el-button class="h-8 rounded-lg text-sm" @click="$router.push('/login')">登录</el-button>
+    <el-button type="primary" class="h-8 rounded-lg text-sm" @click="$router.push('/register')">注册</el-button>
+  </div>
+
+  <!-- 已登录：显示头像下拉菜单 -->
+  <div v-else class="relative">
     <button
         ref="avatarButtonRef"
         type="button"
@@ -24,6 +31,15 @@
         </button>
 
         <button
+            v-if="hasAdmin"
+            type="button"
+            class="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm text-indigo-600 transition hover:bg-indigo-50 dark:border-slate-700 dark:text-indigo-400 dark:hover:bg-slate-700"
+            @click="handleSwitchToAdmin"
+        >
+          管理端
+        </button>
+
+        <button
             type="button"
             class="block w-full px-4 py-3 text-left text-sm text-red-500 transition hover:bg-red-50 dark:hover:bg-slate-700"
             @click="handleLogout"
@@ -36,21 +52,34 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/pinia/modules/user'
+import { useRouterStore } from '@/pinia/modules/router'
 
 const router = useRouter()
 const userStore = useUserStore()
+const routerStore = useRouterStore()
 
 const visible = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
 const avatarButtonRef = ref<HTMLElement | null>(null)
 
+const isLogin = computed(() => !!userStore.userToken.access_token)
+
+const hasAdmin = computed(() => routerStore.hasAdmin)
+
 const avatarText = computed(() => {
   const username = userStore.userInfo?.username || 'U'
   return username.slice(0, 1).toUpperCase()
+})
+
+// 登录后自动检测管理端权限
+watch(isLogin, async (val) => {
+  if (val) {
+    await routerStore.CheckAdminAccess(userStore.userInfo?.user_id)
+  }
 })
 
 const toggleMenu = () => {
@@ -63,14 +92,12 @@ const closeMenu = () => {
 
 const handleProfile = async () => {
   closeMenu()
+  ElMessage.info('个人信息功能开发中')
+}
 
-  try {
-    closeMenu()
-    ElMessage.info('个人信息功能开发中')
-    // await router.push('/profile')
-  } catch {
-    ElMessage.info('个人信息页面暂未配置')
-  }
+const handleSwitchToAdmin = () => {
+  closeMenu()
+  router.push('/home')
 }
 
 const handleLogout = () => {

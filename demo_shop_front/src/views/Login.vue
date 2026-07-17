@@ -3,7 +3,12 @@
     <!-- 顶部导航栏 -->
     <div class="top-nav">
       <div class="logo-area">
-        <span class="logo-text">demo_shop</span>
+        <RouterLink
+            to="/home"
+            class="text-xl font-bold text-indigo-500"
+        >
+          Ds_demo
+        </RouterLink>
       </div>
       <div class="nav-links">
         <a href="#">用户协议</a>
@@ -29,8 +34,8 @@
       <div class="right-form-container">
         <div class="form-card">
           <div class="form-tabs">
-            <a href="/Login" class="tab-item active">登录</a>
-            <a href="/Register" class="tab-item">注册</a>
+            <RouterLink to="/login" class="tab-item active">登录</RouterLink>
+            <RouterLink to="/register" class="tab-item">注册</RouterLink>
           </div>
 
           <form @submit.prevent="handleLogin" class="xiaomi-form">
@@ -61,7 +66,7 @@
 
             <div class="form-footer">
               <span>还没有账号？</span>
-              <a href="/Register">立即注册</a>
+              <RouterLink to="/register" class="form-footer-link">立即注册</RouterLink>
             </div>
 
           </form>
@@ -73,6 +78,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useUserStore} from '../pinia/modules/user.ts'
 
 

@@ -10,7 +10,7 @@
       </button>
 
       <RouterLink
-          to="/home"
+          to="/shop/home"
           class="text-xl font-bold text-indigo-500"
       >
         Ds_demo
@@ -29,15 +29,32 @@
       </nav>
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-3">
+      <!-- 购物车图标 -->
+      <RouterLink
+        to="/shop/cart"
+        class="relative flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+      >
+        <el-icon size="20"><ShoppingCart /></el-icon>
+        <span
+          v-if="cartCount > 0"
+          class="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-xs font-bold text-white"
+        >
+          {{ cartCount > 99 ? '99+' : cartCount }}
+        </span>
+      </RouterLink>
+
       <UserAvatarMenu />
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { ShoppingCart } from '@element-plus/icons-vue'
+import { useCartStore } from '@/pinia/modules/cart'
+import { useUserStore } from '@/pinia/modules/user'
 import UserAvatarMenu from "./UserAvatarMenu.vue";
 
 defineProps<{
@@ -50,25 +67,20 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
+const cartStore = useCartStore()
+const userStore = useUserStore()
 const isDark = ref(false)
+const cartCount = computed(() => cartStore.cartCount)
 
 const menus = [
   {
     title: '首页',
-    path: '/home'
+    path: '/shop/home'
   },
   {
-    title: '关于',
-    path: '/about'
+    title: '全部商品',
+    path: '/shop/product/list'
   },
-  {
-    title: '注册',
-    path: '/register'
-  },
-  {
-    title: '登录',
-    path: '/login'
-  }
 ]
 
 const isActive = (path: string) => {
@@ -81,7 +93,12 @@ const toggleDark = () => {
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // 仅已登录时获取购物车数量，避免未登录 401 触发 axios 拦截器跳转登录页
+  if (userStore.userToken.access_token) {
+    await cartStore.GetCartCount()
+  }
+
   const theme = localStorage.getItem('theme')
 
   if (theme === 'dark') {

@@ -34,6 +34,7 @@ type UserSpuList struct {
 	MinPrice     int64  `json:"min_price"`
 	MaxPrice     int64  `json:"max_price"`
 	TotalSold    int64  `json:"total_sold"`
+	Stock        int64  `json:"stock"`
 }
 
 // GetProductListResp 管理端商品列表响应体

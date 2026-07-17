@@ -155,7 +155,7 @@ export const useRouterStore = defineStore('router', () => {
     async function CheckAdminAccess(userId?: string) {
         if (hasAdmin.value) return true
         try {
-            const res = await asyncMenu(userId)
+            const res = await asyncMenu({ user_id: userId })
             const menus = res.data.data || []
             hasAdmin.value = menus.length > 0
             return hasAdmin.value

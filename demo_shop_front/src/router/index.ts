@@ -57,6 +57,11 @@ const routes = [
                 name: 'ShopCart',
                 component: () => import('@/views/shop/cart/index.vue'),
             },
+            {
+                path: 'address',
+                name: 'ShopAddress',
+                component: () => import('@/views/shop/address/index.vue'),
+            },
         ],
     },
     // ==================== 公共路由 ====================

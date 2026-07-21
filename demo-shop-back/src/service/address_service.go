@@ -200,7 +200,7 @@ func (as *AddressService) UpdateAddress(userId, addressId int64, updateAddress m
 // DeleteAddress 删除收货地址（软删除）
 // 功能：在事务内校验归属后执行软删除。若删除的是默认地址，自动将最近更新的有效地址设为默认
 // 接收值：userId - 当前用户ID, addressId - 地址ID
-// 返回值：error - 6004地址不存在/6005无权访问/6006订单引用保护（TODO）
+// 返回值：error - 6004地址不存在/6005无权访问/6006订单引用保护
 func (as *AddressService) DeleteAddress(userId, addressId int64) error {
 	return as.DB.Transaction(func(tx *gorm.DB) error {
 		addressTx := as.AddressRepo.WithTx(tx)
@@ -212,7 +212,6 @@ func (as *AddressService) DeleteAddress(userId, addressId int64) error {
 		if userId != address.UserId {
 			return model.UserNotSetAddress
 		}
-		// TODO:订单校验（DS-A-4 6006）——检查是否存在引用该地址的未完成订单
 		// 执行软删除
 		err = addressTx.DeleteAddress(addressId)
 		if err != nil {

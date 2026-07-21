@@ -145,7 +145,7 @@ const currentSku = computed<UserSkuItem | null>(() => {
   if (selectedEntries.length === 0) return product.value.sku_list[0] ?? null
 
   return product.value.sku_list.find(sku => {
-    const specValues = sku.spec_value || ({} as Record<string, string>)
+    const specValues = sku.spec_values || ({} as Record<string, string>)
     return selectedEntries.every(([key, val]) => specValues[key] === val)
   }) ?? null
 })

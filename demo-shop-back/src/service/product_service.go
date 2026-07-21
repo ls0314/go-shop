@@ -362,18 +362,18 @@ func (p *ProductService) GetProduct(spuId int64) (*response.GetProductResp, erro
 	// 根据sku列表信息 逐条构建管理端响应信息
 	for _, sku := range skuList {
 		skuResp := response.SkuList{
-			SkuId:     sku.SkuId,
-			SpuId:     sku.SpuId,
-			SkuName:   sku.SkuName,
-			SpecValue: sku.SpecValues,
-			Price:     sku.Price,
-			CostPrice: sku.CostPrice,
-			Stock:     sku.Stock,
-			LockStock: sku.LockStock,
-			SoldCount: sku.SoldCount,
-			SkuCode:   sku.SkuCode,
-			SkuImage:  sku.SkuImage,
-			SkuStatus: sku.SkuStatus,
+			SkuId:      sku.SkuId,
+			SpuId:      sku.SpuId,
+			SkuName:    sku.SkuName,
+			SpecValues: sku.SpecValues,
+			Price:      sku.Price,
+			CostPrice:  sku.CostPrice,
+			Stock:      sku.Stock,
+			LockStock:  sku.LockStock,
+			SoldCount:  sku.SoldCount,
+			SkuCode:    sku.SkuCode,
+			SkuImage:   sku.SkuImage,
+			SkuStatus:  sku.SkuStatus,
 		}
 		skuListResp = append(skuListResp, skuResp)
 	}
@@ -452,16 +452,16 @@ func (p *ProductService) UserGetProduct(spuId int64) (*response.UserGetProductRe
 	// 根据sku列表信息 逐条构建用户端响应信息
 	for _, sku := range skuList {
 		skuResp := response.UserSkuList{
-			SkuId:     sku.SkuId,
-			SpuId:     sku.SpuId,
-			SkuName:   sku.SkuName,
-			SpecValue: sku.SpecValues,
-			Price:     sku.Price,
-			Stock:     sku.Stock,
-			SoldCount: sku.SoldCount,
-			SkuCode:   sku.SkuCode,
-			SkuImage:  sku.SkuImage,
-			SkuStatus: sku.SkuStatus,
+			SkuId:      sku.SkuId,
+			SpuId:      sku.SpuId,
+			SkuName:    sku.SkuName,
+			SpecValues: sku.SpecValues,
+			Price:      sku.Price,
+			Stock:      sku.Stock,
+			SoldCount:  sku.SoldCount,
+			SkuCode:    sku.SkuCode,
+			SkuImage:   sku.SkuImage,
+			SkuStatus:  sku.SkuStatus,
 		}
 		skuListResp = append(skuListResp, skuResp)
 	}

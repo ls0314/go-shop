@@ -1,0 +1,46 @@
+package routes
+
+import (
+	"demo-shop-back/src/handler"
+	"demo-shop-back/src/middleware"
+
+	"github.com/gin-gonic/gin"
+)
+
+var orderCtrl *handler.OrderHandler
+
+// InitOrderModule 订单模块初始化（在InitRoutes中调用）
+func InitOrderModule() {
+	orderCtrl = handler.NewOrderHandler()
+}
+
+// RegisterOrderRoutes 初始化订单路由
+// 管理端路由前缀：/api/v1/platform/orders，鉴权：AuthMiddleware + PermissionMiddleware
+// 用户端路由前缀：/api/v1/user/platform/orders，鉴权：AuthMiddleware（JWT登录即可）
+// 管理端所需权限：platform:order:view（列表/详情）/ platform:order:ship（发货）
+func RegisterOrderRoutes(r *gin.Engine) {
+	orderGroup := r.Group("/api/v1/platform/orders")
+	orderGroup.Use(middleware.AuthMiddleware())
+	{
+		// 接口5：管理端订单列表 → GET /api/v1/platform/orders
+		orderGroup.GET("", middleware.PermissionMiddleware(), orderCtrl.GetOrderList)
+		// 接口6：管理端订单详情 → GET /api/v1/platform/orders/:id
+		orderGroup.GET("/:id", middleware.PermissionMiddleware(), orderCtrl.GetOrderInfo)
+		// 接口7：管理端发货 → PUT /api/v1/platform/orders/:id/ship
+		orderGroup.PUT("/:id/ship", middleware.PermissionMiddleware(), orderCtrl.OrderShip)
+	}
+	userOrderGroup := r.Group("/api/v1/users/platform/orders")
+	userOrderGroup.Use(middleware.AuthMiddleware())
+	{
+		// 接口1：创建订单 → POST /api/v1/user/platform/orders
+		userOrderGroup.POST("", orderCtrl.CreateOrder)
+		// 接口2：用户订单列表 → GET /api/v1/user/platform/orders
+		userOrderGroup.GET("", orderCtrl.GetUserOrderList)
+		// 接口3：用户订单详情 → GET /api/v1/user/platform/orders/:id
+		userOrderGroup.GET("/:id", orderCtrl.GetUserOrderInfo)
+		// 接口4：取消订单 → PUT /api/v1/user/platform/orders/:id/cancel
+		userOrderGroup.PUT("/:id/cancel", orderCtrl.CancelOrder)
+		// 接口8：确认收货 → PUT /api/v1/user/platform/orders/:id/confirm
+		userOrderGroup.PUT("/:id/confirm", orderCtrl.ConfirmOrder)
+	}
+}

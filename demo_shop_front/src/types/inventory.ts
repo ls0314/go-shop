@@ -6,7 +6,7 @@ export interface SkuInventory {
     sku_name: string
     spu_id: number
     spu_name: string
-    spec_value: Record<string, any>
+    spec_values: Record<string, any>
     stock: number
     lock_stock: number
     total_stock: number

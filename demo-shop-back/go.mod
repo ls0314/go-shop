@@ -8,6 +8,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/lib/pq v1.11.2
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/rabbitmq/amqp091-go v1.12.0
 	golang.org/x/crypto v0.48.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/datatypes v1.2.7

@@ -24,6 +24,31 @@ func NewUserHandler() *UserHandler {
 	}
 }
 
+// GetUserInfoByContext 从JWT鉴权上下文中提取当前登录用户ID
+// 接收值：c - Gin上下文
+// 返回值：int64 - 用户ID,userName - 用户名, error - 用户未登录时返回UserNotLogin
+func GetUserInfoByContext(c *gin.Context) (int64, string, error) {
+	// 从上下文中获取中间件注入的user_id
+	userIdVal, exist := c.Get("user_id")
+	if !exist {
+		return 0, "", model.UserNotLogin
+	}
+	userNameVal, exist := c.Get("username")
+	if !exist {
+		return 0, "", model.UserNotLogin
+	}
+	// 类型断言确保为int64
+	userId, ok := userIdVal.(int64)
+	if !ok {
+		return 0, "", model.UserNotLogin
+	}
+	userName, ok := userNameVal.(string)
+	if !ok {
+		return 0, "", model.UserNotLogin
+	}
+	return userId, userName, nil
+}
+
 // CreateUserHandler 用户注册接口
 // 路由映射：POST /api/v1/user/register
 // 功能：接收前端传递的用户注册信息，校验参数后调用服务层执行注册

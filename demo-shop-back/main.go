@@ -3,6 +3,7 @@ package main
 import (
 	"demo-shop-back/db"
 	"demo-shop-back/src/config"
+	"demo-shop-back/src/infra"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/routes"
 	"demo-shop-back/src/utils"
@@ -22,14 +23,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("数据库迁移失败: %v", err)
 	}
-	//log.Println("数据库迁移成功")
-	//
-	//// 初始化数据库连接
-	//err = db.InitDB()
-	//if err != nil {
-	//	log.Fatalf("初始化数据库连接失败: %v", err)
-	//}
-	//log.Println("数据库连接初始化成功")
 
 	// 程序结束时关闭数据库连接
 	defer func() {
@@ -40,8 +33,27 @@ func main() {
 			log.Println("数据库连接已关闭")
 		}
 	}()
+
+	// 雪花算法初始化
+	utils.InitSnowflake(1)
+
+	// 基础组件初始化（redis，mq等）
+	if err := infra.InitInfra(infra.Config{
+		RabbitMQ: struct{ DSN string }{
+			DSN: "amqp://demoShop:demoShop@localhost:5672/demoShop",
+		},
+	}); err != nil {
+		log.Printf("[WARN] RabbitMQ 初始化失败（不影响核心业务）: %v", err)
+	}
+	defer infra.Shutdown()
+
+	// JWT初始化
 	middleware.InitJWT(utils.Secret)
+	// 路由初始化
 	router := routes.InitRoutes()
+
+	// 启动mq消费者
+	infra.StartOrderConsumer()
 
 	err = router.SetTrustedProxies([]string{"127.0.0.1"})
 	if err != nil {

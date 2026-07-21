@@ -52,6 +52,20 @@ func (ar *AddressRepo) GetAddress(addressId int64) (address *model.UserAddress, 
 	return address, err
 }
 
+// GetAddressSnap 查询地址快照供订单使用（按地址ID查，排除已删除）
+// 接收值：addressId - 地址唯一标识
+// 返回值：*model.UserAddress - 地址对象指针, error - 地址不存在返回AddressNotExist
+func (ar *AddressRepo) GetAddressSnap(addressId int64, userId int64) (addressSnap *model.UserAddress, err error) {
+	err = ar.DB.Model(&model.UserAddress{}).
+		Select("receiver_name, receiver_phone, province, city, district, detail_address, postal_code").
+		Where("address_id = ? AND user_id = ? AND is_deleted = ?", addressId, userId, false).
+		Scan(&addressSnap).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, model.AddressNotExist
+	}
+	return addressSnap, err
+}
+
 // GetDefaultAddress 查询用户当前默认地址（排除已删除）
 // 接收值：userId - 用户ID
 // 返回值：*model.UserAddress - 默认地址对象指针, error - 无默认地址返回AddressNotExist

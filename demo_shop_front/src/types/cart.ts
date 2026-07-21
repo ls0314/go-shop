@@ -8,7 +8,7 @@ export interface CartItem {
     spu_name: string
     main_image: string
     sku_name: string
-    spec_value: Record<string, any>
+    spec_values: Record<string, any>
     sku_image: string
     price: number
     stock: number

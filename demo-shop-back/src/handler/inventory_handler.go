@@ -101,7 +101,7 @@ func (ih *InventoryHandler) AdjustStock(c *gin.Context) {
 		return
 	}
 	// 从JWT上下文获取当前操作用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return

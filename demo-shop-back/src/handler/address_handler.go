@@ -23,23 +23,6 @@ func NewAddressHandler() *AddressHandler {
 	}
 }
 
-// GetUserId 从JWT鉴权上下文中提取当前登录用户ID
-// 接收值：c - Gin上下文
-// 返回值：int64 - 用户ID, error - 用户未登录时返回UserNotLogin
-func GetUserId(c *gin.Context) (int64, error) {
-	// 从上下文中获取中间件注入的user_id
-	userIdVal, exist := c.Get("user_id")
-	if !exist {
-		return 0, model.UserNotLogin
-	}
-	// 类型断言确保为int64
-	userId, ok := userIdVal.(int64)
-	if !ok {
-		return 0, model.UserNotLogin
-	}
-	return userId, nil
-}
-
 // CreateAddress 新增收货地址接口
 // 路由映射：POST /api/v1/user/addresses
 // 功能：接收前端传入的地址信息，校验参数后调用服务层创建地址。首个地址自动设为默认，超过20条返回错误
@@ -69,7 +52,7 @@ func (ah *AddressHandler) CreateAddress(c *gin.Context) {
 		return
 	}
 	// 从JWT上下文获取当前用户ID并注入地址对象
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return
@@ -96,7 +79,7 @@ func (ah *AddressHandler) CreateAddress(c *gin.Context) {
 //	200：查询成功，返回地址数组（默认地址排最前）
 func (ah *AddressHandler) GetAddressList(c *gin.Context) {
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return
@@ -133,7 +116,7 @@ func (ah *AddressHandler) GetAddress(c *gin.Context) {
 		return
 	}
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return
@@ -180,7 +163,7 @@ func (ah *AddressHandler) UpdateAddress(c *gin.Context) {
 		return
 	}
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return
@@ -217,7 +200,7 @@ func (ah *AddressHandler) DeleteAddress(c *gin.Context) {
 		return
 	}
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return
@@ -254,7 +237,7 @@ func (ah *AddressHandler) SetDefaultAddress(c *gin.Context) {
 		return
 	}
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return

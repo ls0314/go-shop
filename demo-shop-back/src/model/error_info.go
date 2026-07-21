@@ -101,3 +101,16 @@ var (
 	CartItemNotExist = errors.New("购物车项不存在")
 	NotAuthority     = errors.New("无权操作该购物车项")
 )
+
+// 订单模块错误码
+var (
+	ErrAddressNotExist       = errors.New("收货地址不存在")
+	ErrCartNoSettlementItems = errors.New("购物车无可结算商品")
+	ErrDuplicateSubmit       = errors.New("重复提交（幂等键已使用）")
+	ErrOrderNotExist         = errors.New("订单不存在")
+	ErrOrderNoPermission     = errors.New("无权查看/操作该订单")
+	ErrOrderCannotCancel     = errors.New("订单状态不允许取消（仅待支付可取消）")
+	ErrOrderCannotShip       = errors.New("订单状态不允许发货（仅已支付可发货）")
+	ErrExpressIncomplete     = errors.New("快递信息不完整")
+	ErrOrderCannotConfirm    = errors.New("订单状态不允许确认收货（仅已发货可确认）")
+)

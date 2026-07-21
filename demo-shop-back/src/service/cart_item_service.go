@@ -49,7 +49,7 @@ func (ci *CartItemService) validateQuantity(quantity int64) error {
 	return nil
 }
 
-// validateQuantity 校验商品状态（保证商品可以被正常购买）
+// ValidateProductAvailable 校验商品状态（保证商品可以被正常购买）
 // 接收值：skuId - 商品skuId
 // 返回值：
 //

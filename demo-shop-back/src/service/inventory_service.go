@@ -59,7 +59,7 @@ func (is *InventoryService) GetSkuStock(skuId int64) (*response.SkuInventoryResp
 		SkuName:    sku.SkuName,
 		SpuId:      sku.SpuId,
 		SpuName:    spu.SpuName,
-		SpecValue:  sku.SpecValues,
+		SpecValues: sku.SpecValues,
 		Stock:      sku.Stock,
 		LockStock:  sku.LockStock,
 		TotalStock: sku.Stock + sku.LockStock,
@@ -102,7 +102,7 @@ func (is *InventoryService) GetSkuStockListBySpu(spuId int64) (*response.SkuInve
 			SkuName:    sku.SkuName,
 			SpuId:      sku.SpuId,
 			SpuName:    spu.SpuName,
-			SpecValue:  sku.SpecValues,
+			SpecValues: sku.SpecValues,
 			Stock:      sku.Stock,
 			LockStock:  sku.LockStock,
 			TotalStock: sku.Stock + sku.LockStock,
@@ -132,7 +132,7 @@ func (is *InventoryService) GetWarnStockList(req requset.InventoryWarnReq) (*[]r
 		req.Threshold = 10
 	}
 	if req.SpuStatus == "" {
-		req.SpuStatus = "published"
+		req.SpuStatus = model.SpuStatusPublished
 	}
 	// 调用数据层查询商品库存信息列表
 	stockWarnList, err := is.ProductRepo.GetWarnStock(req)
@@ -228,7 +228,7 @@ func (is *InventoryService) AdjustStock(userID int64, req requset.InventoryAdjus
 		// 新建库存变动日志，写入对应变动信息
 		err = logTx.CreateInventoryLog(&model.SysProductStockLog{
 			SkuId:       sku.SkuId,
-			ChangeType:  "manual_adjust",
+			ChangeType:  model.StockManualAdjust,
 			ChangeQty:   req.ChangeQty,
 			BeforeStock: sku.Stock,
 			AfterStock:  sku.Stock + req.ChangeQty,
@@ -252,7 +252,7 @@ func (is *InventoryService) AdjustStock(userID int64, req requset.InventoryAdjus
 //	库存操作部分(内部接口）
 // ============================================================
 
-// LockStock 下单锁定库存（内部接口，供 OrderService 调用）
+// LockStock 下单锁定库存（内部接口，独立事务）
 // 并发策略: SELECT ... FOR UPDATE 行锁
 // 幂等保障: 同一 order_id 的 order_lock 操作仅执行一次
 //
@@ -264,12 +264,28 @@ func (is *InventoryService) AdjustStock(userID int64, req requset.InventoryAdjus
 //
 // 返回值: error - 错误信息
 func (is *InventoryService) LockStock(skuId, qty, orderId int64) error {
-	return is.db.Transaction(func(tx *gorm.DB) error {
-		productTx := is.ProductRepo.WithTx(tx)
-		logTx := is.InventoryLogRepo.WithTx(tx)
+	return is.LockStockWithTx(is.db, skuId, qty, orderId)
+}
+
+// LockStockWithTx 下单锁定库存（共享外部事务）
+// 接收值:
+//
+//	tx     - 外部事务（为 nil 时自动开启独立事务）
+//	skuId  - SKU ID
+//	qty    - 锁定数量
+//	orderId - 关联订单ID
+//
+// 返回值: error - 错误信息
+func (is *InventoryService) LockStockWithTx(tx *gorm.DB, skuId, qty, orderId int64) error {
+	if tx == nil {
+		tx = is.db
+	}
+	return tx.Transaction(func(innerTx *gorm.DB) error {
+		productTx := is.ProductRepo.WithTx(innerTx)
+		logTx := is.InventoryLogRepo.WithTx(innerTx)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(orderId, "order_lock")
+		idempotent, err := logTx.CheckOrderLogExists(orderId, model.StockOrderLock)
 		if err != nil {
 			return err
 		}
@@ -284,7 +300,7 @@ func (is *InventoryService) LockStock(skuId, qty, orderId int64) error {
 		}
 
 		// 校验SKU状态
-		if sku.SkuStatus != "active" || sku.IsDeleted {
+		if sku.SkuStatus != model.SkuStatusActive || sku.IsDeleted {
 			return model.ErrSkuDisabled
 		}
 
@@ -301,7 +317,7 @@ func (is *InventoryService) LockStock(skuId, qty, orderId int64) error {
 		// 写入库存变更日志
 		return logTx.CreateInventoryLog(&model.SysProductStockLog{
 			SkuId:       skuId,
-			ChangeType:  "order_lock",
+			ChangeType:  model.StockOrderLock,
 			ChangeQty:   qty,
 			BeforeStock: sku.Stock,
 			AfterStock:  sku.Stock - qty,
@@ -329,7 +345,7 @@ func (is *InventoryService) DeductStock(skuId, qty, orderId int64) error {
 		logTx := is.InventoryLogRepo.WithTx(tx)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(orderId, "pay_deduct")
+		idempotent, err := logTx.CheckOrderLogExists(orderId, model.StockPayDeduct)
 		if err != nil {
 			return err
 		}
@@ -344,7 +360,7 @@ func (is *InventoryService) DeductStock(skuId, qty, orderId int64) error {
 		}
 
 		// 校验SKU状态
-		if sku.SkuStatus != "active" || sku.IsDeleted {
+		if sku.SkuStatus != model.SkuStatusActive || sku.IsDeleted {
 			return model.ErrSkuDisabled
 		}
 
@@ -361,7 +377,7 @@ func (is *InventoryService) DeductStock(skuId, qty, orderId int64) error {
 		// 写入库存变更日志
 		return logTx.CreateInventoryLog(&model.SysProductStockLog{
 			SkuId:       skuId,
-			ChangeType:  "pay_deduct",
+			ChangeType:  model.StockPayDeduct,
 			ChangeQty:   qty,
 			BeforeStock: sku.Stock,
 			AfterStock:  sku.Stock,
@@ -373,7 +389,7 @@ func (is *InventoryService) DeductStock(skuId, qty, orderId int64) error {
 	})
 }
 
-// ReleaseStock 取消订单释放库存（内部接口，供 OrderService 调用）
+// ReleaseStock 取消订单释放库存（内部接口，独立事务）
 // 并发策略: SELECT ... FOR UPDATE 行锁
 // 幂等保障: 同一 order_id 的 order_lock 操作仅执行一次
 //
@@ -385,12 +401,30 @@ func (is *InventoryService) DeductStock(skuId, qty, orderId int64) error {
 //
 // 返回值: error - 错误信息
 func (is *InventoryService) ReleaseStock(skuId, qty, orderId int64) error {
+	return is.ReleaseStockWithTx(is.db, skuId, qty, orderId)
+}
+
+// ReleaseStockWithTx 取消订单释放库存（共享外部事务）
+// 并发策略: SELECT ... FOR UPDATE 行锁
+// 幂等保障: 同一 order_id 的 order_lock 操作仅执行一次
+//
+// 接收值:
+//
+//	skuId  - SKU ID
+//	qty    - 锁定数量
+//	orderId - 关联订单ID
+//
+// 返回值: error - 错误信息
+func (is *InventoryService) ReleaseStockWithTx(tx *gorm.DB, skuId, qty, orderId int64) error {
+	if tx == nil {
+		tx = is.db
+	}
 	return is.db.Transaction(func(tx *gorm.DB) error {
 		productTx := is.ProductRepo.WithTx(tx)
 		logTx := is.InventoryLogRepo.WithTx(tx)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(orderId, "order_release")
+		idempotent, err := logTx.CheckOrderLogExists(orderId, model.StockOrderRelease)
 		if err != nil {
 			return err
 		}
@@ -405,7 +439,7 @@ func (is *InventoryService) ReleaseStock(skuId, qty, orderId int64) error {
 		}
 
 		// 校验SKU状态
-		if sku.SkuStatus != "active" || sku.IsDeleted {
+		if sku.SkuStatus != model.SkuStatusActive || sku.IsDeleted {
 			return model.ErrSkuDisabled
 		}
 
@@ -422,7 +456,7 @@ func (is *InventoryService) ReleaseStock(skuId, qty, orderId int64) error {
 		// 写入库存变更日志
 		return logTx.CreateInventoryLog(&model.SysProductStockLog{
 			SkuId:       skuId,
-			ChangeType:  "order_release",
+			ChangeType:  model.StockOrderRelease,
 			ChangeQty:   qty,
 			BeforeStock: sku.Stock,
 			AfterStock:  sku.Stock + qty,
@@ -451,7 +485,7 @@ func (is *InventoryService) RefundStock(skuId, qty, orderId int64) error {
 		logTx := is.InventoryLogRepo.WithTx(tx)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(orderId, "refund_release")
+		idempotent, err := logTx.CheckOrderLogExists(orderId, model.StockRefundRelease)
 		if err != nil {
 			return err
 		}
@@ -466,7 +500,7 @@ func (is *InventoryService) RefundStock(skuId, qty, orderId int64) error {
 		}
 
 		// 校验SKU状态
-		if sku.SkuStatus != "active" || sku.IsDeleted {
+		if sku.SkuStatus != model.SkuStatusActive || sku.IsDeleted {
 			return model.ErrSkuDisabled
 		}
 
@@ -476,9 +510,9 @@ func (is *InventoryService) RefundStock(skuId, qty, orderId int64) error {
 		}
 
 		// 写入库存变更日志
-		return logTx.CreateInventoryLog(&model.SysProductStockLog{ // TODO 退款单号
+		return logTx.CreateInventoryLog(&model.SysProductStockLog{
 			SkuId:       skuId,
-			ChangeType:  "refund_release",
+			ChangeType:  model.StockRefundRelease,
 			ChangeQty:   qty,
 			BeforeStock: sku.Stock,
 			AfterStock:  sku.Stock + qty,

@@ -63,32 +63,32 @@ type ImageList struct {
 
 // SkuList 管理端商品详情响应体Sku子列表
 type SkuList struct {
-	SkuId     int64             `json:"sku_id"`
-	SpuId     int64             `json:"spu_id"`
-	SkuName   string            `json:"sku_name"`
-	SpecValue datatypes.JSONMap `json:"spec_value"`
-	Price     float64           `json:"price"`
-	CostPrice float64           `json:"cost_price"`
-	Stock     int64             `json:"stock"`
-	LockStock int64             `json:"lock_stock"`
-	SoldCount int64             `json:"sold_count"`
-	SkuCode   string            `json:"sku_code"`
-	SkuImage  string            `json:"sku_image"`
-	SkuStatus string            `json:"sku_status"`
+	SkuId      int64             `json:"sku_id"`
+	SpuId      int64             `json:"spu_id"`
+	SkuName    string            `json:"sku_name"`
+	SpecValues datatypes.JSONMap `json:"spec_values"`
+	Price      float64           `json:"price"`
+	CostPrice  float64           `json:"cost_price"`
+	Stock      int64             `json:"stock"`
+	LockStock  int64             `json:"lock_stock"`
+	SoldCount  int64             `json:"sold_count"`
+	SkuCode    string            `json:"sku_code"`
+	SkuImage   string            `json:"sku_image"`
+	SkuStatus  string            `json:"sku_status"`
 }
 
 // UserSkuList 用户端商品详情响应体Sku子列表
 type UserSkuList struct {
-	SkuId     int64             `json:"sku_id"`
-	SpuId     int64             `json:"spu_id"`
-	SkuName   string            `json:"sku_name"`
-	SpecValue datatypes.JSONMap `json:"spec_value"`
-	Price     float64           `json:"price"`
-	Stock     int64             `json:"stock"`
-	SoldCount int64             `json:"sold_count"`
-	SkuCode   string            `json:"sku_code"`
-	SkuImage  string            `json:"sku_image"`
-	SkuStatus string            `json:"sku_status"`
+	SkuId      int64             `json:"sku_id"`
+	SpuId      int64             `json:"spu_id"`
+	SkuName    string            `json:"sku_name"`
+	SpecValues datatypes.JSONMap `json:"spec_values"`
+	Price      float64           `json:"price"`
+	Stock      int64             `json:"stock"`
+	SoldCount  int64             `json:"sold_count"`
+	SkuCode    string            `json:"sku_code"`
+	SkuImage   string            `json:"sku_image"`
+	SkuStatus  string            `json:"sku_status"`
 }
 
 // GetProductResp 管理端商品详情响应体
@@ -132,7 +132,7 @@ type SkuInventoryResp struct {
 	SkuName    string            `json:"sku_name"`
 	SpuId      int64             `json:"spu_id"`
 	SpuName    string            `json:"spu_name"`
-	SpecValue  datatypes.JSONMap `json:"spec_value"`
+	SpecValues datatypes.JSONMap `json:"spec_values"`
 	Stock      int64             `json:"stock"`
 	LockStock  int64             `json:"lock_stock"`
 	TotalStock int64             `json:"total_stock"`

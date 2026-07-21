@@ -65,7 +65,7 @@ export interface UserSkuItem {
   sku_id: number
   spu_id: number
   sku_name: string
-  spec_value: Record<string, string>
+  spec_values: Record<string, string>
   price: number
   stock: number
   sold_count: number

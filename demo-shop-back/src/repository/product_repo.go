@@ -13,7 +13,7 @@ import (
 )
 
 // ============================================================
-//	定义及实例化部分
+//	商品模块数据层定义及实例化部分
 // ============================================================
 
 // ProductRepo 商品表数据层实例
@@ -363,6 +363,18 @@ func (p *ProductRepo) UpdateSpu(spu *model.SysProductSpu) error {
 // 返回值：error - 错误信息
 func (p *ProductRepo) UpdateSku(sku *model.SysProductSku) error {
 	return p.DB.Save(sku).Error
+}
+
+// UpdateSkuSold 更新商品SKU信息
+// 接收值：skuId - 待更新的SkuId, quantity - 更新的销量
+// 返回值：error - 错误信息
+func (p *ProductRepo) UpdateSkuSold(skuId int64, quantity int64) error {
+	return p.DB.Model(model.SysProductSku{}).
+		Where("sku_id = ?", skuId).
+		Updates(map[string]interface{}{
+			"sold_count": gorm.Expr("sold_count + ?", quantity),
+			"updated_at": time.Now(),
+		}).Error
 }
 
 // UpdateImage 更新商品图片信息

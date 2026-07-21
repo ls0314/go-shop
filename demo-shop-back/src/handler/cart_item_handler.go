@@ -46,7 +46,7 @@ func (ci *CartItemHandler) AddCartItem(c *gin.Context) {
 		return
 	}
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return
@@ -76,7 +76,7 @@ func (ci *CartItemHandler) AddCartItem(c *gin.Context) {
 //	200：查询成功，返回购物车数组（含可用状态、不可购买原因）
 func (ci *CartItemHandler) GetCartItemList(c *gin.Context) {
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return
@@ -124,7 +124,7 @@ func (ci *CartItemHandler) UpdateCartItem(c *gin.Context) {
 		return
 	}
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return
@@ -161,7 +161,7 @@ func (ci *CartItemHandler) DeleteCartItem(c *gin.Context) {
 		return
 	}
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return
@@ -196,7 +196,7 @@ func (ci *CartItemHandler) SelectAllCartItem(c *gin.Context) {
 		return
 	}
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return
@@ -224,7 +224,7 @@ func (ci *CartItemHandler) SelectAllCartItem(c *gin.Context) {
 //	200：查询成功，返回商品种类总数
 func (ci *CartItemHandler) GetCartItemTotal(c *gin.Context) {
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return
@@ -252,7 +252,7 @@ func (ci *CartItemHandler) GetCartItemTotal(c *gin.Context) {
 //	200：查询成功，返回选中项列表及汇总数据（total_count/total_quantity/total_amount/has_unavailable）
 func (ci *CartItemHandler) GetPayPreviewCartItem(c *gin.Context) {
 	// 从JWT上下文获取当前用户ID
-	userId, err := GetUserId(c)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
 		utils.Fail(c, 400, err.Error())
 		return

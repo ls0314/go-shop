@@ -95,6 +95,10 @@ func InitRoutes() *gin.Engine {
 	InitCartItemModule()
 	// ========== 注册用户购物车管理路由 ==========
 	RegisterCartItemRoutes(r)
+	// ========== 用户订单管理模块初始化 ==========
+	InitOrderModule()
+	// ========== 注册用户订单管理路由 ==========
+	RegisterOrderRoutes(r)
 
 	// 静态文件服务 - 上传文件访问
 	r.Static("/uploads", "./uploads")

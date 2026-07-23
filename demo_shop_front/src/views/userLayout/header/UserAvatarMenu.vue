@@ -30,6 +30,14 @@
           收货地址
         </button>
 
+
+        <button
+            type="button"
+            class="block w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
+            @click="handleOrder"
+          >
+            我的订单
+          </button>
         <button
             type="button"
             class="block w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
@@ -96,6 +104,11 @@ const toggleMenu = () => {
 
 const closeMenu = () => {
   visible.value = false
+}
+
+const handleOrder = () => {
+  closeMenu()
+  router.push('/shop/order/list')
 }
 
 const handleAddress = () => {

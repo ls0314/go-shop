@@ -138,12 +138,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Delete, Minus, Plus, Picture } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCartStore } from '@/pinia/modules/cart'
 import type { CartItem } from '@/types/cart'
 
 const cartStore = useCartStore()
+const router = useRouter()
 const loading = ref(false)
 
 const cartList = computed(() => cartStore.cartList)
@@ -197,7 +199,7 @@ async function handleDeleteSelected() {
 }
 
 function handleCheckout() {
-  ElMessage.info('支付功能开发中')
+  router.push('/shop/checkout')
 }
 
 onMounted(async () => {

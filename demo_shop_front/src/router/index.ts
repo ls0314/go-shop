@@ -29,6 +29,12 @@ const routes = [
                 component: () => import('@/views/platform/product/create/index.vue'),
                 meta: { requiresAuth: true },
             },
+            {
+                path: 'platform/order/list/detail/:id',
+                name: 'AdminOrderDetail',
+                component: () => import('@/views/platform/order/detail/index.vue'),
+                meta: { requiresAuth: true },
+            },
         ],
     },
     // ==================== 用户端路由（无需登录） ====================
@@ -61,6 +67,21 @@ const routes = [
                 path: 'address',
                 name: 'ShopAddress',
                 component: () => import('@/views/shop/address/index.vue'),
+            },
+            {
+                path: 'checkout',
+                name: 'ShopCheckout',
+                component: () => import('@/views/shop/checkout/index.vue'),
+            },
+            {
+                path: 'order/list',
+                name: 'ShopOrderList',
+                component: () => import('@/views/shop/order/list/index.vue'),
+            },
+            {
+                path: 'order/:id',
+                name: 'ShopOrderDetail',
+                component: () => import('@/views/shop/order/detail/index.vue'),
             },
         ],
     },

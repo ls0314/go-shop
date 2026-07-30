@@ -328,21 +328,39 @@ func (is *InventoryService) LockStockWithTx(tx *gorm.DB, skuId, qty, orderId int
 	})
 }
 
-// DeductStock 支付减少锁定库存（内部接口，供 OrderService 调用）
+// DeductStock 支付减少锁定库存（内部接口，独立事务）
 // 并发策略: SELECT ... FOR UPDATE 行锁
 // 幂等保障: 同一 order_id 的 order_lock 操作仅执行一次
 //
 // 接收值:
 //
 //	skuId  - SKU ID
-//	qty    - 锁定数量
+//	qty    - 减少数量
 //	orderId - 关联订单ID
 //
 // 返回值: error - 错误信息
 func (is *InventoryService) DeductStock(skuId, qty, orderId int64) error {
-	return is.db.Transaction(func(tx *gorm.DB) error {
-		productTx := is.ProductRepo.WithTx(tx)
-		logTx := is.InventoryLogRepo.WithTx(tx)
+	return is.DeductStockWithTx(is.db, skuId, qty, orderId)
+}
+
+// DeductStockWithTx 支付减少锁定库存（共享外部事务）
+// 并发策略: SELECT ... FOR UPDATE 行锁
+// 幂等保障: 同一 order_id 的 order_lock 操作仅执行一次
+//
+// 接收值:
+//
+//	skuId  - SKU ID
+//	qty    - 减少数量
+//	orderId - 关联订单ID
+//
+// 返回值: error - 错误信息
+func (is *InventoryService) DeductStockWithTx(tx *gorm.DB, skuId, qty, orderId int64) error {
+	if tx == nil {
+		tx = is.db
+	}
+	return tx.Transaction(func(innerTx *gorm.DB) error {
+		productTx := is.ProductRepo.WithTx(innerTx)
+		logTx := is.InventoryLogRepo.WithTx(innerTx)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
 		idempotent, err := logTx.CheckOrderLogExists(orderId, model.StockPayDeduct)

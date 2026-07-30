@@ -33,3 +33,18 @@ const (
 	OrderConfirm    = "confirm"
 	OrderAutoCancel = "auto_cancel"
 )
+
+// 支付状态
+const (
+	PayPending = "pending"
+	PaySuccess = "success"
+	PayFailed  = "failed"
+	PayClosed  = "closed"
+)
+
+// 支付方式
+const (
+	PayMethodMock   = "mock"
+	PayMethodWechat = "wechat"
+	PayMethodAlipay = "alipay"
+)

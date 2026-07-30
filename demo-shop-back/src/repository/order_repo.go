@@ -236,20 +236,20 @@ func (o *OrderRepo) GetOrderList(req requset.GetOrderListReq) ([]response.GetOrd
 
 	// 构建筛选条件
 	if req.OrderNo != "" {
-		baseQuery = baseQuery.Where(".order_no = ?", req.OrderNo)
+		baseQuery = baseQuery.Where(orderTable+".order_no = ?", req.OrderNo)
 	}
 
 	if req.OrderStatus != "" {
-		baseQuery = baseQuery.Where(".order_status = ?", req.OrderStatus)
+		baseQuery = baseQuery.Where(orderTable+".order_status = ?", req.OrderStatus)
 	}
 
 	if req.StartTime != nil {
-		baseQuery = baseQuery.Where(".created_at >= ?", req.StartTime)
+		baseQuery = baseQuery.Where(orderTable+".created_at >= ?", req.StartTime)
 	}
 
 	if req.EndTime != nil {
 		endOfDay := req.EndTime.Truncate(24 * time.Hour).Add(24*time.Hour - time.Second)
-		baseQuery = baseQuery.Where(".created_at <= ?", endOfDay)
+		baseQuery = baseQuery.Where(orderTable+".created_at <= ?", endOfDay)
 	}
 
 	// 获取总条数
@@ -281,6 +281,20 @@ func (o *OrderRepo) CancelOrder(orderId int64) error {
 		Updates(map[string]interface{}{
 			"order_status": "cancelled",
 			"updated_at":   time.Now(), // 取消订单后更新操作时间
+		}).Error
+}
+
+// PayOrder 订单支付
+// 接收值： orderId - 订单Id, payMethod - 支付方式
+// 返回值： error - 错误信息
+func (o *OrderRepo) PayOrder(orderId int64, payMethod string) error {
+	return o.db.Model(model.UserOrder{}).
+		Where("order_id = ? AND order_status = ?", orderId, model.OrderPendingPay).
+		Updates(map[string]interface{}{
+			"order_status": model.OrderPaid,
+			"pay_method":   payMethod,
+			"pay_time":     time.Now(),
+			"updated_at":   time.Now(),
 		}).Error
 }
 

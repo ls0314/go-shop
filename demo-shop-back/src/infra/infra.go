@@ -8,6 +8,7 @@ package infra
 
 import (
 	"demo-shop-back/src/infra/mq"
+	"demo-shop-back/src/infra/pay"
 	"log"
 )
 
@@ -39,6 +40,8 @@ func InitInfra(cfg Config) error {
 		}
 		GlobalInfra.MQ.InitOrderDelayTopology()
 	}
+
+	pay.InitGateways()
 	return nil
 }
 

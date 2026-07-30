@@ -114,3 +114,14 @@ var (
 	ErrExpressIncomplete     = errors.New("快递信息不完整")
 	ErrOrderCannotConfirm    = errors.New("订单状态不允许确认收货（仅已发货可确认）")
 )
+
+// 支付模块错误码
+var (
+	ErrPayNoPermission         = errors.New("订单不属于当前用户")
+	ErrOrderCannotPay          = errors.New("订单状态不允许支付（仅待支付可支付）")
+	ErrPayRecordExisting       = errors.New("已有进行中的支付记录")
+	ErrPayRecordNoExist        = errors.New("支付记录不存在")
+	ErrPayRecordNoNoPermission = errors.New("无权查看该支付记录")
+	ErrPayStatusMisTake        = errors.New("支付状态不正确（非pending，回调幂等）")
+	ErrPayAmountMisTake        = errors.New("支付金额与订单金额不匹配")
+)

@@ -103,8 +103,7 @@
         <p class="text-sm text-slate-400">订单号：{{ createdOrderNo }}</p>
       </div>
       <template #footer>
-        <!-- 支付功能开发中 -->
-        <el-button type="success" size="large" class="h-9 rounded-xl" disabled>去支付（开发中）</el-button>
+        <el-button type="success" size="large" class="h-9 rounded-xl" @click="handleGoPay">去支付</el-button>
         <el-button class="h-9 rounded-xl" @click="$router.push('/shop/order/list')">查看订单</el-button>
         <el-button type="primary" class="h-9 rounded-xl" style="background:#ff6700;border-color:#ff6700" @click="$router.push('/shop/home')">继续购物</el-button>
       </template>
@@ -114,6 +113,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Picture, Loading } from '@element-plus/icons-vue'
 import { useCartStore } from '@/pinia/modules/cart'
@@ -123,10 +123,12 @@ import { useOrderStore } from '@/pinia/modules/order'
 const cartStore = useCartStore()
 const addressStore = useAddressStore()
 const orderStore = useOrderStore()
+const router = useRouter()
 
 const loading = ref(false)
 const submitting = ref(false)
 const successVisible = ref(false)
+const createdOrderId = ref(0)
 const createdOrderNo = ref('')
 const selectedAddressId = ref<number | null>(null)
 
@@ -164,6 +166,11 @@ function generateUUID() {
   })
 }
 
+function handleGoPay() {
+  successVisible.value = false
+  router.push(`/shop/pay/${createdOrderId.value}`)
+}
+
 async function handleSubmit() {
   if (!selectedAddressId.value) { ElMessage.warning('请选择收货地址'); return }
 
@@ -174,6 +181,7 @@ async function handleSubmit() {
       idempotent_key: generateUUID(),
     })
     if (result) {
+      createdOrderId.value = result.order_id
       createdOrderNo.value = result.order_no
       successVisible.value = true
       // 刷新购物车

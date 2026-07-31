@@ -83,6 +83,15 @@
           <el-button
             v-if="order.order_status === 'pending_pay'"
             size="small"
+            class="h-8 rounded-lg text-xs"
+            style="background:#ff6700;border-color:#ff6700;color:#fff"
+            @click.stop="$router.push(`/shop/pay/${order.order_id}`)"
+          >
+            去支付
+          </el-button>
+          <el-button
+            v-if="order.order_status === 'pending_pay'"
+            size="small"
             type="danger"
             class="h-8 rounded-lg text-xs"
             @click.stop="handleCancel(order.order_id)"

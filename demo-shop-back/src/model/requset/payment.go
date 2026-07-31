@@ -16,11 +16,11 @@ type CallbackPaymentReq struct {
 }
 
 type GetPaymentListReq struct {
-	Page      int        `json:"page"`
-	PageSize  int        `json:"page_size"`
-	PayStatus string     `json:"pay_status"`
-	PayMethod string     `json:"pay_method"`
-	OrderNo   string     `json:"order_no"`
-	StartTime *time.Time `json:"start_time"`
-	EndTime   *time.Time `json:"end_time"`
+	Page      int        `form:"page"`
+	PageSize  int        `form:"page_size"`
+	PayStatus string     `form:"pay_status"`
+	PayMethod string     `form:"pay_method"`
+	OrderNo   string     `form:"order_no"`
+	StartTime *time.Time `form:"start_time"`
+	EndTime   *time.Time `form:"end_time"`
 }

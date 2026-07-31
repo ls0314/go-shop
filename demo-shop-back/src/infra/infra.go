@@ -31,6 +31,7 @@ type Config struct {
 func InitInfra(cfg Config) error {
 	var err error
 	GlobalInfra = &Infra{}
+	pay.InitGateways()
 
 	// RabbitMQ 可选：DSN 为空时跳过，非空时初始化并声明拓扑
 	if cfg.RabbitMQ.DSN != "" {
@@ -41,7 +42,6 @@ func InitInfra(cfg Config) error {
 		GlobalInfra.MQ.InitOrderDelayTopology()
 	}
 
-	pay.InitGateways()
 	return nil
 }
 

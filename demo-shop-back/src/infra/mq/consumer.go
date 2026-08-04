@@ -61,11 +61,24 @@ func (r *RabbitMQ) StartOrderConsumer() error {
 //	msg       - AMQP 投递消息（body 为 orderId 字符串）
 //	canceller - 取消回调接口
 func (r *RabbitMQ) handleOrderExpired(msg amqp091.Delivery, canceller OrderCanceller) {
-	orderId, _ := strconv.ParseInt(string(msg.Body), 10, 64)
+	// 防御：回调未注册时不能调用，否则 nil panic；消息直接确认丢弃并告警
+	if canceller == nil {
+		log.Printf("[MQ] 订单取消回调未注册，丢弃消息 orderId=%s", string(msg.Body))
+		msg.Ack(false)
+		return
+	}
+
+	orderId, err := strconv.ParseInt(string(msg.Body), 10, 64)
+	if err != nil {
+		// 消息体损坏无法解析，确认丢弃并告警，避免无限重投递
+		log.Printf("[MQ] 解析订单ID失败，丢弃消息 body=%q err=%v", string(msg.Body), err)
+		msg.Ack(false)
+		return
+	}
 
 	// CancelOrder 内部有状态机校验：仅 pending_pay 可取消，其他状态自动跳过
 	// 无论取消失败与否都 Ack，避免无限重试
-	_, err := canceller.CancelOrder(orderId, 4, "系统")
+	_, err = canceller.CancelOrder(orderId, 4, "系统")
 	if err != nil {
 		log.Printf("[MQ] 自动取消订单失败 orderId=%d err=%v", orderId, err)
 	}

@@ -166,3 +166,18 @@ func (r *PermissionRepo) HasPermission(userId int64, permission string) (bool, e
 
 	return count > 0, nil
 }
+
+// GetPermCodesByUserId 查询用户持有的全部权限码(去重)——权限缓存的数据源
+func (r *PermissionRepo) GetPermCodesByUserId(userId int64) ([]string, error) {
+	var codes []string
+	err := r.DB.Table("sys_user_role AS ur").
+		Joins("JOIN sys_role_permission AS rp ON ur.role_id = rp.role_id").
+		Joins("JOIN sys_permission AS p ON rp.permission_id = p.permission_id").
+		Where("ur.user_id = ?", userId).
+		Distinct("p.permission_code").
+		Pluck("p.permission_code", &codes).Error
+	if err != nil {
+		return nil, err
+	}
+	return codes, nil
+}

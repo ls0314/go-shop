@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"demo-shop-back/db"
+	"demo-shop-back/src/infra"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
@@ -48,8 +50,14 @@ func (p *PermissionService) CreatePermission(perm *model.SysPermission) error {
 
 		return nil
 	})
-
-	return err
+	if err != nil {
+		return err
+	}
+	// 权限映射变更：版本号+1，使所有 api:perm 缓存即时失效
+	if cache := infra.GetCache(); cache != nil {
+		_, _ = cache.Incr(context.Background(), "api:perm:version")
+	}
+	return nil
 
 }
 
@@ -153,7 +161,16 @@ func (p *PermissionService) UpdatePermission(permID int64, updatePerm map[string
 		return err
 	}
 	// 提交事务
-	return tx.Commit().Error
+	err = tx.Commit().Error
+
+	if err != nil {
+		return err
+	}
+	// 权限映射变更：版本号+1，使所有 api:perm 缓存即时失效
+	if cache := infra.GetCache(); cache != nil {
+		_, _ = cache.Incr(context.Background(), "api:perm:version")
+	}
+	return nil
 
 }
 
@@ -197,5 +214,14 @@ func (p *PermissionService) DeletePermission(id int64) error {
 		return err
 	}
 	// 提交事务
-	return tx.Commit().Error
+	err = tx.Commit().Error
+
+	if err != nil {
+		return err
+	}
+	// 权限映射变更：版本号+1，使所有 api:perm 缓存即时失效
+	if cache := infra.GetCache(); cache != nil {
+		_, _ = cache.Incr(context.Background(), "api:perm:version")
+	}
+	return nil
 }

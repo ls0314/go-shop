@@ -7,9 +7,14 @@
 package infra
 
 import (
+	"demo-shop-back/src/config"
+	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/infra/mq"
 	"demo-shop-back/src/infra/pay"
+	"fmt"
 	"log"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // GlobalInfra 全局基础设施实例（main.go 中 InitInfra 赋值）
@@ -17,12 +22,14 @@ var GlobalInfra *Infra
 
 // Infra 基础设施聚合——持有所有中间件连接
 type Infra struct {
-	MQ *mq.RabbitMQ // RabbitMQ 连接（nil 表示未初始化或不可用）
+	MQ    *mq.RabbitMQ // RabbitMQ 连接（nil 表示未初始化或不可用）
+	Redis *cache.RedisService
 }
 
 // Config 基础设施初始化配置
 type Config struct {
-	RabbitMQ struct{ DSN string }
+	RabbitMQ config.RabbitMQConfig
+	Redis    config.RedisConfig
 }
 
 // InitInfra 初始化所有基础设施组件
@@ -39,10 +46,31 @@ func InitInfra(cfg Config) error {
 		if err != nil {
 			return err
 		}
-		GlobalInfra.MQ.InitOrderDelayTopology()
+		if err := GlobalInfra.MQ.InitOrderDelayTopology(); err != nil {
+			return fmt.Errorf("初始化订单延迟队列拓扑失败: %w", err)
+		}
+	}
+	if cfg.Redis.Addr != "" {
+		client, err := cache.NewRedisService(&redis.Options{
+			Addr:     cfg.Redis.Addr,
+			Password: cfg.Redis.Password,
+			DB:       cfg.Redis.DB,
+		})
+		if err != nil {
+			return err // 弱依赖，可降级
+		}
+		GlobalInfra.Redis = client
 	}
 
 	return nil
+}
+
+// GetCache 获取缓存服务（全局单例）
+func GetCache() *cache.RedisService {
+	if GlobalInfra == nil {
+		return nil
+	}
+	return GlobalInfra.Redis
 }
 
 // GetMQ 获取默认 RabbitMQ 实例
@@ -68,7 +96,12 @@ func StartOrderConsumer() {
 // Shutdown 优雅关闭所有基础设施连接
 // 接收值：无
 func Shutdown() {
-	if GlobalInfra != nil && GlobalInfra.MQ != nil {
-		GlobalInfra.MQ.Close()
+	if GlobalInfra != nil {
+		if GlobalInfra.MQ != nil {
+			GlobalInfra.MQ.Close()
+		}
+		if GlobalInfra.Redis != nil {
+			GlobalInfra.Redis.Close()
+		}
 	}
 }

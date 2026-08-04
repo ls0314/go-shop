@@ -1,15 +1,19 @@
 package service
 
 import (
+	"context"
 	"demo-shop-back/db"
+	"demo-shop-back/src/infra"
+	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
 	"demo-shop-back/src/repository"
 	"encoding/json"
-	"fmt"
-
 	"errors"
+	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"gorm.io/gorm"
@@ -108,6 +112,51 @@ func contains(slice []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// fillSkuStock 用 sku:stock 缓存覆盖每个 SKU 的实时库存;miss 查 DB 回填
+func (p *ProductService) fillSkuStock(cache *cache.RedisService, resp *response.UserGetProductResp) {
+	if resp.SkuList == nil {
+		return
+	}
+	for i := range *resp.SkuList {
+		skuId := (*resp.SkuList)[i].SkuId
+		stockKey := fmt.Sprintf("sku:stock:%d", skuId)
+		val, err := cache.Get(context.Background(), stockKey)
+		if err == nil {
+			if stock, perr := strconv.ParseInt(val, 10, 64); perr == nil {
+				(*resp.SkuList)[i].Stock = stock
+				continue
+			}
+		}
+
+		sku, err := p.ProductRepo.GetSku(skuId)
+		if err != nil || sku == nil {
+			continue
+		}
+		_ = cache.Set(context.Background(), stockKey, strconv.FormatInt(sku.Stock, 10), 30*time.Second)
+	}
+}
+
+// getCategory 获取类目信息：缓存(category:{id})优先，miss 查 DB 回写；仅用于展示读，写路径校验请直查 DB
+func (p *ProductService) getCategory(categoryId int64) (*model.SysCategory, error) {
+	cache := infra.GetCache()
+	key := fmt.Sprintf("category:%d", categoryId)
+	if cache != nil {
+		var cat model.SysCategory
+		hit, err := cache.GetJSON(context.Background(), key, &cat)
+		if err == nil && hit {
+			return &cat, nil
+		}
+	}
+	cat, err := p.CategoryRepo.GetCategoryById(categoryId)
+	if err != nil || cat == nil {
+		return cat, err
+	}
+	if cache != nil {
+		_ = cache.SetJSON(context.Background(), key, cat, time.Hour)
+	}
+	return cat, nil
 }
 
 // ProductService 商品服务层实例
@@ -229,7 +278,7 @@ func (p *ProductService) GetProductSpuList(req requset.SpuQueryReq) (*response.G
 	list := make([]response.SpuList, 0, len(rows))
 	for _, row := range rows {
 		// 获取类目id对应的的类目信息
-		category, err := p.CategoryRepo.GetCategoryById(row.CategoryId)
+		category, err := p.getCategory(row.CategoryId)
 		if err != nil {
 			return nil, err
 		}
@@ -290,7 +339,7 @@ func (p *ProductService) UserGetProductSpuList(req requset.SpuQueryReq) (*respon
 	list := make([]response.UserSpuList, 0, len(rows))
 	for _, row := range rows {
 		// 获取类目id对应的的类目信息
-		category, err := p.CategoryRepo.GetCategoryById(row.CategoryId)
+		category, err := p.getCategory(row.CategoryId)
 		if err != nil {
 			return nil, err
 		}
@@ -325,6 +374,15 @@ func (p *ProductService) UserGetProductSpuList(req requset.SpuQueryReq) (*respon
 //
 //	error - 错误信息
 func (p *ProductService) GetProduct(spuId int64) (*response.GetProductResp, error) {
+	cache := infra.GetCache()
+	key := fmt.Sprintf("product:detail:admin:%d", spuId)
+	if cache != nil {
+		var cached response.GetProductResp
+		hit, err := cache.GetJSON(context.Background(), key, &cached)
+		if err == nil && hit {
+			return &cached, nil
+		}
+	}
 	var spuResp response.GetProductResp
 	var skuListResp []response.SkuList
 	var imageListResp []response.ImageList
@@ -339,7 +397,7 @@ func (p *ProductService) GetProduct(spuId int64) (*response.GetProductResp, erro
 	}
 
 	// 调用数据层获取spu对应的类目信息
-	category, err := p.CategoryRepo.GetCategoryById(spu.CategoryId)
+	category, err := p.getCategory(spu.CategoryId)
 	if err != nil {
 		return nil, err
 	}
@@ -406,6 +464,9 @@ func (p *ProductService) GetProduct(spuId int64) (*response.GetProductResp, erro
 		CreatedAt:    spu.CreatedAt,
 		UpdatedAt:    spu.UpdatedAt,
 	}
+	if cache != nil {
+		_ = cache.SetJSON(context.Background(), key, &spuResp, 10*time.Minute)
+	}
 	return &spuResp, nil
 }
 
@@ -416,6 +477,17 @@ func (p *ProductService) GetProduct(spuId int64) (*response.GetProductResp, erro
 //
 //	error - 错误信息
 func (p *ProductService) UserGetProduct(spuId int64) (*response.UserGetProductResp, error) {
+	cache := infra.GetCache()
+	key := fmt.Sprintf("product:detail:user:%d", spuId)
+	if cache != nil {
+		var cached response.UserGetProductResp
+		hit, err := cache.GetJSON(context.Background(), key, &cached)
+		if err == nil && hit {
+			p.fillSkuStock(cache, &cached)
+			return &cached, nil
+		}
+	}
+
 	var spuResp response.UserGetProductResp
 	var skuListResp []response.UserSkuList
 	var imageListResp []response.ImageList
@@ -431,7 +503,7 @@ func (p *ProductService) UserGetProduct(spuId int64) (*response.UserGetProductRe
 	}
 
 	// 调用数据层获取spu对应的类目信息
-	category, err := p.CategoryRepo.GetCategoryById(spu.CategoryId)
+	category, err := p.getCategory(spu.CategoryId)
 	if err != nil {
 		return nil, err
 	}
@@ -493,6 +565,10 @@ func (p *ProductService) UserGetProduct(spuId int64) (*response.UserGetProductRe
 		ImageList:    &imageListResp,
 		CreatedAt:    spu.CreatedAt,
 		UpdatedAt:    spu.UpdatedAt,
+	}
+
+	if cache != nil {
+		_ = cache.SetJSON(context.Background(), key, &spuResp, 10*time.Minute)
 	}
 	return &spuResp, nil
 }
@@ -566,6 +642,12 @@ func (p *ProductService) UpdateProduct(spuId int64, updateSpu map[string]interfa
 	})
 	if err != nil {
 		return nil, err
+	}
+	// 更新缓存
+	if cache := infra.GetCache(); cache != nil {
+		_ = cache.Del(context.Background(),
+			fmt.Sprintf("product:detail:admin:%d", spuId),
+			fmt.Sprintf("product:detail:user:%d", spuId))
 	}
 	// 返回更新后的商品信息
 	return p.GetProduct(spuId)
@@ -691,6 +773,12 @@ func (p *ProductService) UpdateProductFull(spuId int64, req requset.FullUpdatePr
 	if err != nil {
 		return nil, err
 	}
+	// 更新缓存
+	if cache := infra.GetCache(); cache != nil {
+		_ = cache.Del(context.Background(),
+			fmt.Sprintf("product:detail:admin:%d", spuId),
+			fmt.Sprintf("product:detail:user:%d", spuId))
+	}
 	// 返回更新后的商品信息
 	return p.GetProduct(spuId)
 }
@@ -701,7 +789,7 @@ func (p *ProductService) UpdateProductFull(spuId int64, req requset.FullUpdatePr
 // 返回值：error - 错误信息
 // TODO：订单关联检查
 func (p *ProductService) DeleteProduct(spuId int64) error {
-	return p.db.Transaction(func(tx *gorm.DB) error {
+	err := p.db.Transaction(func(tx *gorm.DB) error {
 		// 创建事务实例
 		spuTxRepo := p.ProductRepo.WithTx(tx)
 		// 校验待删除商品是否存在
@@ -721,8 +809,16 @@ func (p *ProductService) DeleteProduct(spuId int64) error {
 		if err := spuTxRepo.DeleteSpuById(spuId); err != nil {
 			return err
 		}
+
 		return nil
 	})
+	// 更新商品缓存
+	if cache := infra.GetCache(); cache != nil {
+		_ = cache.Del(context.Background(),
+			fmt.Sprintf("product:detail:admin:%d", spuId),
+			fmt.Sprintf("product:detail:user:%d", spuId))
+	}
+	return err
 }
 
 // PublishProduct 上架商品
@@ -730,7 +826,7 @@ func (p *ProductService) DeleteProduct(spuId int64) error {
 // 接收值：spuId - 商品SPU ID
 // 返回值：error - 错误信息
 func (p *ProductService) PublishProduct(spuId int64) error {
-	return p.db.Transaction(func(tx *gorm.DB) error {
+	err := p.db.Transaction(func(tx *gorm.DB) error {
 		// 创新事务实例
 		spuTxRepo := p.ProductRepo.WithTx(tx)
 
@@ -770,6 +866,14 @@ func (p *ProductService) PublishProduct(spuId int64) error {
 		}
 		return nil
 	})
+
+	// 更新商品缓存
+	if cache := infra.GetCache(); cache != nil {
+		_ = cache.Del(context.Background(),
+			fmt.Sprintf("product:detail:admin:%d", spuId),
+			fmt.Sprintf("product:detail:user:%d", spuId))
+	}
+	return err
 }
 
 // WithdrawProduct 下架商品
@@ -790,6 +894,12 @@ func (p *ProductService) WithdrawProduct(spuId int64) error {
 	// 调用数据层完成下架操作
 	if err := p.ProductRepo.WithdrawProduct(spuId); err != nil {
 		return err
+	}
+	// 更新商品缓存
+	if cache := infra.GetCache(); cache != nil {
+		_ = cache.Del(context.Background(),
+			fmt.Sprintf("product:detail:admin:%d", spuId),
+			fmt.Sprintf("product:detail:user:%d", spuId))
 	}
 	return nil
 }

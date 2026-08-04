@@ -39,11 +39,10 @@ func main() {
 
 	// 基础组件初始化（redis，mq等）
 	if err := infra.InitInfra(infra.Config{
-		RabbitMQ: struct{ DSN string }{
-			DSN: "amqp://demoShop:demoShop@localhost:5672/demoShop",
-		},
+		RabbitMQ: config.GlobalConfig.RabbitMQ,
+		Redis:    config.GlobalConfig.Redis,
 	}); err != nil {
-		log.Printf("[WARN] RabbitMQ 初始化失败（不影响核心业务）: %v", err)
+		log.Printf("[WARN] 基础设施初始化失败: %v", err)
 	}
 	defer infra.Shutdown()
 

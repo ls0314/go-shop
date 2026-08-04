@@ -63,3 +63,10 @@ func (ur *UserRoleRepo) GetUserRoleByUserId(userId int64) ([]int64, error) {
 func (ur *UserRoleRepo) DeleteUserRoleByUserId(userId int64) error {
 	return ur.DB.Where("user_id = ?", userId).Delete(&model.SysUserRole{}).Error
 }
+
+// GetUserIdsByRoleId 查询持有某角色的全部用户ID
+func (ur *UserRoleRepo) GetUserIdsByRoleId(roleId int64) ([]int64, error) {
+	var userIds []int64
+	err := ur.DB.Table("sys_user_role").Where("role_id = ?", roleId).Pluck("user_id", &userIds).Error
+	return userIds, err
+}

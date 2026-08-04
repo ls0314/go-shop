@@ -10,6 +10,7 @@
 package mq
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/rabbitmq/amqp091-go"
@@ -60,20 +61,30 @@ func (r *RabbitMQ) Close() {
 //
 // 声明顺序：死信交换机 → 死信队列 → 绑定 → 延迟队列（带 TTL + DLX）
 // 接收值：无
-// 返回值：error - RabbitMQ 操作失败时返回
+// 返回值：error - 任一声明失败时返回带上下文的错误（调用方应中止或告警，
+//
+//	否则后续消息会投递到不存在的队列而静默丢失）
 func (r *RabbitMQ) InitOrderDelayTopology() error {
 	// 死信交换机
-	r.Channel.ExchangeDeclare(ExchangeOrderDead, "direct", true, false, false, false, nil)
+	if err := r.Channel.ExchangeDeclare(ExchangeOrderDead, "direct", true, false, false, false, nil); err != nil {
+		return fmt.Errorf("声明死信交换机 %s 失败: %w", ExchangeOrderDead, err)
+	}
 
 	// 死信队列——消费者监听
-	r.Channel.QueueDeclare(QueueOrderDead, true, false, false, false, nil)
-	r.Channel.QueueBind(QueueOrderDead, RoutingKeyOrderDead, ExchangeOrderDead, false, nil)
+	if _, err := r.Channel.QueueDeclare(QueueOrderDead, true, false, false, false, nil); err != nil {
+		return fmt.Errorf("声明死信队列 %s 失败: %w", QueueOrderDead, err)
+	}
+	if err := r.Channel.QueueBind(QueueOrderDead, RoutingKeyOrderDead, ExchangeOrderDead, false, nil); err != nil {
+		return fmt.Errorf("绑定死信队列 %s 到交换机 %s 失败: %w", QueueOrderDead, ExchangeOrderDead, err)
+	}
 
 	// 延迟队列——无消费者，TTL 过期自动转入死信交换机
-	r.Channel.QueueDeclare(QueueOrderDelay, true, false, false, false, amqp091.Table{
+	if _, err := r.Channel.QueueDeclare(QueueOrderDelay, true, false, false, false, amqp091.Table{
 		"x-dead-letter-exchange":    ExchangeOrderDead,
 		"x-dead-letter-routing-key": RoutingKeyOrderDead,
 		"x-message-ttl":             int32(15 * time.Minute / time.Millisecond),
-	})
+	}); err != nil {
+		return fmt.Errorf("声明延迟队列 %s 失败: %w", QueueOrderDelay, err)
+	}
 	return nil
 }

@@ -48,3 +48,13 @@ const (
 	PayMethodWechat = "wechat"
 	PayMethodAlipay = "alipay"
 )
+
+// 操作日志模块名（OperationLogMiddleware 挂载参数）
+const (
+	LogModuleProduct    = "商品管理"
+	LogModuleOrder      = "订单管理"
+	LogModuleInventory  = "库存管理"
+	LogModuleCategory   = "类目管理"
+	LogModulePermission = "权限管理"
+	LogModuleUser       = "用户管理"
+)

@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,6 +24,7 @@ func RegisterUserRoutes(r *gin.Engine) {
 
 	userPrivate := r.Group("/api/v1/user")
 	userPrivate.Use(middleware.AuthMiddleware())
+	userPrivate.Use(middleware.OperationLogMiddleware(model.LogModuleUser))
 	{
 		userPrivate.GET("/info", userCtrl.GetUserInfo)
 		userPrivate.GET("", userCtrl.GetUserList)

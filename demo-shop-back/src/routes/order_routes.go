@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,6 +22,7 @@ func InitOrderModule() {
 func RegisterOrderRoutes(r *gin.Engine) {
 	orderGroup := r.Group("/api/v1/platform/orders")
 	orderGroup.Use(middleware.AuthMiddleware())
+	orderGroup.Use(middleware.OperationLogMiddleware(model.LogModuleOrder))
 	{
 		// 接口5：管理端订单列表 → GET /api/v1/platform/orders
 		orderGroup.GET("", middleware.PermissionMiddleware(), orderCtrl.GetOrderList)

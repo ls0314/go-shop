@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,6 +20,7 @@ func RegisterUserRoleRoutes(r *gin.Engine) {
 	userRoleGroup := r.Group("/api/v1/user")
 	// 添加全局认证中间件（必须登录才能访问角色接口）
 	userRoleGroup.Use(middleware.AuthMiddleware())
+	userRoleGroup.Use(middleware.OperationLogMiddleware(model.LogModuleUser))
 	{
 		// 批量创建用户角色关联接口
 		userRoleGroup.POST("/assign-role", userRoleCtrl.CreateUserRoleRel)

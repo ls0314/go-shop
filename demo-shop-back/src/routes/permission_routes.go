@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +21,7 @@ func InitPermissionModule() {
 func RegisterPermissionRoutes(r *gin.Engine) {
 	permGroup := r.Group("/api/v1/permissions")
 	permGroup.Use(middleware.AuthMiddleware())
+	permGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
 		permGroup.POST("", permCtrl.CreatePermission)
 		permGroup.GET("", permCtrl.GetPermissionList)

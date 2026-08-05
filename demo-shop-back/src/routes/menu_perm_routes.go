@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,6 +21,7 @@ func RegisterMenuPermRoutes(r *gin.Engine) {
 	menuPermissionGroup := r.Group("/api/v1/menu")
 	// 添加全局认证中间件（必须登录才能访问）
 	menuPermissionGroup.Use(middleware.AuthMiddleware())
+	menuPermissionGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
 		// 为菜单分配权限接口
 		menuPermissionGroup.POST("/assign-perm", menuPermissionCtrl.CreateMenuPermissionRel)

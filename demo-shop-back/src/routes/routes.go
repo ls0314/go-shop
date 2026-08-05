@@ -103,6 +103,10 @@ func InitRoutes() *gin.Engine {
 	InitPaymentModule()
 	// ========== 注册用户支付管理路由 ==========
 	RegisterPaymentRoutes(r)
+	// ========== 操作日志管理模块初始化 ==========
+	InitOperationLogModule()
+	// ========== 注册操作日志管理路由 ==========
+	RegisterOperationLogRoutes(r)
 
 	// 静态文件服务 - 上传文件访问
 	r.Static("/uploads", "./uploads")

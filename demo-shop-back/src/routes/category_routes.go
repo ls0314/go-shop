@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,6 +19,7 @@ func InitCategoryModule() {
 func RegisterCategoryRoutes(r *gin.Engine) {
 	categoryGroup := r.Group("/api/v1/platform/category")
 	categoryGroup.Use(middleware.AuthMiddleware())
+	categoryGroup.Use(middleware.OperationLogMiddleware(model.LogModuleCategory))
 	{
 		categoryGroup.POST("", middleware.PermissionMiddleware(), categoryCtrl.CreateCategory)
 		categoryGroup.GET("", middleware.PermissionMiddleware(), categoryCtrl.GetCategoryList)

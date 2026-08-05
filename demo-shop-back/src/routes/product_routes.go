@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,6 +19,7 @@ func InitProductModule() {
 func RegisterProductRoutes(r *gin.Engine) {
 	productGroup := r.Group("/api/v1/platform/products")
 	productGroup.Use(middleware.AuthMiddleware())
+	productGroup.Use(middleware.OperationLogMiddleware(model.LogModuleProduct))
 	{
 		productGroup.POST("", middleware.PermissionMiddleware(), productCtrl.CreateProduct)
 		productGroup.GET("", middleware.PermissionMiddleware(), productCtrl.GetProductList)

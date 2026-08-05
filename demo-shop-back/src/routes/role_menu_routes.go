@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,6 +19,7 @@ func RegisterRoleMenuRoutes(r *gin.Engine) {
 	roleMenuGroup := r.Group("/api/v1/role")
 	// 添加全局认证中间件（必须登录才能访问角色接口）
 	roleMenuGroup.Use(middleware.AuthMiddleware())
+	roleMenuGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
 		// 批量创建角色菜单关联接口
 		roleMenuGroup.POST("/assign-menu", roleMenuCtrl.CreateRoleMenuRel)

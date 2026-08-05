@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,6 +22,7 @@ func InitInventoryModule() {
 func RegisterInventoryRoutes(r *gin.Engine) {
 	inventoryGroup := r.Group("/api/v1/admin/inventory")
 	inventoryGroup.Use(middleware.AuthMiddleware())
+	inventoryGroup.Use(middleware.OperationLogMiddleware(model.LogModuleInventory))
 	{
 		// 接口1：查询单个SKU库存 → GET /api/v1/admin/inventory/sku/:id
 		inventoryGroup.GET("/sku/:id", middleware.PermissionMiddleware(), inventoryCtrl.GetSkuStock)

@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,6 +19,7 @@ func InitMenuModule() {
 func RegisterMenuRoutes(r *gin.Engine) {
 	menuGroup := r.Group("/api/v1/menu")
 	menuGroup.Use(middleware.AuthMiddleware())
+	menuGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
 		menuGroup.POST("", menuCtrl.CreateMenu)
 		menuGroup.GET("", menuCtrl.GetMenuList)

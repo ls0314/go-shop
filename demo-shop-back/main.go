@@ -46,6 +46,8 @@ func main() {
 	}
 	defer infra.Shutdown()
 
+	// 操作日志初始化
+	middleware.InitLogWorker()
 	// JWT初始化
 	middleware.InitJWT(utils.Secret)
 	// 路由初始化

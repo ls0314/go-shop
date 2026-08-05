@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,6 +20,7 @@ func RegisterRolePermRoutes(r *gin.Engine) {
 	rolePermGroup := r.Group("/api/v1/role")
 	// 添加全局认证中间件（必须登录才能访问角色接口）
 	rolePermGroup.Use(middleware.AuthMiddleware())
+	rolePermGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
 		// 批量创建角色权限关联接口
 		rolePermGroup.POST("/assign-perm", rolePermCtrl.CreateRolePermRel)

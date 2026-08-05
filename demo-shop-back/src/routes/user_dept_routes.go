@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,6 +19,7 @@ func RegisterUserDeptRoutes(r *gin.Engine) {
 	userDeptGroup := r.Group("/api/v1/user")
 	// 添加全局认证中间件（必须登录才能访问角色接口）
 	userDeptGroup.Use(middleware.AuthMiddleware())
+	userDeptGroup.Use(middleware.OperationLogMiddleware(model.LogModuleUser))
 	{
 		// 批量创建用户部门关联接口
 		userDeptGroup.POST("/assign-dept", userDeptCtrl.CreateUserDeptRel)

@@ -9,6 +9,7 @@ package infra
 import (
 	"demo-shop-back/src/config"
 	"demo-shop-back/src/infra/cache"
+	"demo-shop-back/src/infra/es"
 	"demo-shop-back/src/infra/mq"
 	"demo-shop-back/src/infra/pay"
 	"fmt"
@@ -24,12 +25,14 @@ var GlobalInfra *Infra
 type Infra struct {
 	MQ    *mq.RabbitMQ // RabbitMQ 连接（nil 表示未初始化或不可用）
 	Redis *cache.RedisService
+	ES    *es.ESClient
 }
 
 // Config 基础设施初始化配置
 type Config struct {
 	RabbitMQ config.RabbitMQConfig
 	Redis    config.RedisConfig
+	ES       config.ESConfig
 }
 
 // InitInfra 初始化所有基础设施组件
@@ -44,10 +47,21 @@ func InitInfra(cfg Config) error {
 	if cfg.RabbitMQ.DSN != "" {
 		GlobalInfra.MQ, err = mq.NewRabbitMQ(cfg.RabbitMQ.DSN)
 		if err != nil {
-			return err
+			log.Printf("[WARN] 启动mq失败: %v ,降级", err)
 		}
-		if err := GlobalInfra.MQ.InitOrderDelayTopology(); err != nil {
-			return fmt.Errorf("初始化订单延迟队列拓扑失败: %w", err)
+		if GlobalInfra.MQ != nil {
+			if err := GlobalInfra.MQ.InitOrderDelayTopology(); err != nil {
+				return fmt.Errorf("初始化订单延迟队列拓扑失败: %w", err)
+			}
+		}
+	}
+
+	if len(cfg.ES.Addresses) > 0 {
+		client, err := es.NewESClient(cfg.ES.Addresses)
+		if err != nil {
+			log.Printf("[WARN] 启动es失败: %v ,降级", err)
+		} else {
+			GlobalInfra.ES = client
 		}
 	}
 	if cfg.Redis.Addr != "" {
@@ -57,9 +71,10 @@ func InitInfra(cfg Config) error {
 			DB:       cfg.Redis.DB,
 		})
 		if err != nil {
-			return err // 弱依赖，可降级
+			log.Printf("[WARN] 启动redis失败: %v ,降级", err)
+		} else {
+			GlobalInfra.Redis = client
 		}
-		GlobalInfra.Redis = client
 	}
 
 	return nil
@@ -81,6 +96,13 @@ func GetMQ() *mq.RabbitMQ {
 		return nil
 	}
 	return GlobalInfra.MQ
+}
+
+func GetES() *es.ESClient {
+	if GlobalInfra == nil {
+		return nil
+	}
+	return GlobalInfra.ES
 }
 
 // StartOrderConsumer 启动订单超时消费者（goroutine）

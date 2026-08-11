@@ -5,6 +5,7 @@ import (
 	"demo-shop-back/db"
 	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/cache"
+	"demo-shop-back/src/infra/es"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
@@ -12,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -157,6 +159,51 @@ func (p *ProductService) getCategory(categoryId int64) (*model.SysCategory, erro
 		_ = cache.SetJSON(context.Background(), key, cat, time.Hour)
 	}
 	return cat, nil
+}
+
+func (p *ProductService) syncProductToES(spuId int64) {
+	esClient := infra.GetES()
+	if esClient == nil {
+		return // ES 未初始化,静默跳过(降级)
+	}
+	doc, err := p.ProductRepo.GetSpuESDoc(spuId)
+	if err != nil {
+		log.Printf("[WARN] 查询 ES 文档数据失败 spuId=%d: %v", spuId, err)
+		return
+	}
+	if err := esClient.IndexProduct(context.Background(), toESProduct(doc)); err != nil {
+		log.Printf("[WARN] ES 索引失败 spuId=%d: %v", spuId, err)
+	}
+}
+
+func (p *ProductService) removeProductFromES(spuId int64) {
+	esClient := infra.GetES()
+	if esClient == nil {
+		return
+	}
+	if err := esClient.DeleteProduct(context.Background(), spuId); err != nil {
+		log.Printf("[WARN] ES 删除失败 spuId=%d: %v", spuId, err)
+	}
+}
+
+func toESProduct(doc *model.SpuESDoc) *es.ESProduct {
+	return &es.ESProduct{
+		SpuId:        doc.SpuId,
+		SpuName:      doc.SpuName,
+		Brand:        doc.Brand,
+		Description:  doc.Description,
+		CategoryId:   doc.CategoryId,
+		CategoryName: doc.CategoryName,
+		MainImage:    doc.MainImage,
+		TotalStock:   doc.TotalStock,
+		TotalSold:    doc.TotalSold,
+		Priority:     doc.Priority,
+		SpuStatus:    doc.SpuStatus,
+		CreatedAt:    doc.CreatedAt,
+		UpdatedAt:    doc.UpdatedAt,
+		MinPrice:     doc.MinPrice,
+		MaxPrice:     doc.MaxPrice,
+	}
 }
 
 // ProductService 商品服务层实例
@@ -313,13 +360,67 @@ func (p *ProductService) GetProductSpuList(req requset.SpuQueryReq) (*response.G
 	}, nil
 }
 
-// UserGetProductSpuList 用户端商品列表
+func (p *ProductService) UserGetProductSpuList(req requset.SpuQueryReq) (*response.UserGetProductListResp, error) {
+	if req.SpuName != "" && infra.GetES() != nil {
+		resp, err := p.getProductListByES(req)
+		if err == nil {
+			return resp, nil
+		}
+	}
+	return p.getProductSpuListByDB(req)
+}
+
+func (p *ProductService) getProductListByES(req requset.SpuQueryReq) (*response.UserGetProductListResp, error) {
+	esClient := infra.GetES()
+
+	var categoryId int64
+	if req.CategoryId != nil {
+		categoryId = *req.CategoryId
+	}
+	searchProduct, err := esClient.Search(context.Background(), &es.SearchRequest{
+		Keyword:    req.SpuName,
+		CategoryId: categoryId,
+		Brand:      req.Brand,
+		Sort:       req.Sort,
+		Page:       req.Page,
+		PageSize:   req.PageSize,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	spuList := make([]response.UserSpuList, 0, len(searchProduct.Products))
+	for _, product := range searchProduct.Products {
+		spuList = append(spuList, response.UserSpuList{
+			SpuId:        product.SpuId,
+			SpuName:      product.SpuName,
+			CategoryName: product.CategoryName,
+			Brand:        product.Brand,
+			MainImage:    product.MainImage,
+			MaxPrice:     int64(product.MaxPrice),
+			MinPrice:     int64(product.MinPrice),
+			TotalSold:    product.TotalSold,
+		})
+	}
+
+	resp := &response.UserGetProductListResp{
+		List:     &spuList,
+		Total:    searchProduct.Total,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}
+
+	return resp, nil
+}
+
+// GetProductSpuListByDB 直连DB获取用户端商品列表
 // 公开接口，返回已上架+未删除的商品列表，按销量和优先级排序
 // 接收值：req - 商品查询请求参数（仅返回spu_status=published的商品）
 // 返回值：*response.UserGetProductListResp - 用户端商品列表响应（不含成本价等内部字段）
 //
 //	error - 错误信息
-func (p *ProductService) UserGetProductSpuList(req requset.SpuQueryReq) (*response.UserGetProductListResp, error) {
+func (p *ProductService) getProductSpuListByDB(req requset.SpuQueryReq) (*response.UserGetProductListResp, error) {
+
 	// 保证传入页面信息合法性
 	if req.Page <= 0 {
 		req.Page = 1
@@ -649,6 +750,8 @@ func (p *ProductService) UpdateProduct(spuId int64, updateSpu map[string]interfa
 			fmt.Sprintf("product:detail:admin:%d", spuId),
 			fmt.Sprintf("product:detail:user:%d", spuId))
 	}
+	// 更新索引
+	p.syncProductToES(spuId)
 	// 返回更新后的商品信息
 	return p.GetProduct(spuId)
 }
@@ -779,6 +882,8 @@ func (p *ProductService) UpdateProductFull(spuId int64, req requset.FullUpdatePr
 			fmt.Sprintf("product:detail:admin:%d", spuId),
 			fmt.Sprintf("product:detail:user:%d", spuId))
 	}
+	// 更新索引
+	p.syncProductToES(spuId)
 	// 返回更新后的商品信息
 	return p.GetProduct(spuId)
 }
@@ -818,6 +923,8 @@ func (p *ProductService) DeleteProduct(spuId int64) error {
 			fmt.Sprintf("product:detail:admin:%d", spuId),
 			fmt.Sprintf("product:detail:user:%d", spuId))
 	}
+	// 删除索引
+	p.removeProductFromES(spuId)
 	return err
 }
 
@@ -873,6 +980,10 @@ func (p *ProductService) PublishProduct(spuId int64) error {
 			fmt.Sprintf("product:detail:admin:%d", spuId),
 			fmt.Sprintf("product:detail:user:%d", spuId))
 	}
+
+	// 索引商品
+	p.syncProductToES(spuId)
+
 	return err
 }
 
@@ -901,5 +1012,7 @@ func (p *ProductService) WithdrawProduct(spuId int64) error {
 			fmt.Sprintf("product:detail:admin:%d", spuId),
 			fmt.Sprintf("product:detail:user:%d", spuId))
 	}
+	// 删除索引
+	p.removeProductFromES(spuId)
 	return nil
 }

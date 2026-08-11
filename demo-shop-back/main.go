@@ -6,8 +6,10 @@ import (
 	"demo-shop-back/src/infra"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/routes"
+	"demo-shop-back/src/task"
 	"demo-shop-back/src/utils"
 	"log"
+	"time"
 )
 
 func main() {
@@ -41,10 +43,14 @@ func main() {
 	if err := infra.InitInfra(infra.Config{
 		RabbitMQ: config.GlobalConfig.RabbitMQ,
 		Redis:    config.GlobalConfig.Redis,
+		ES:       config.GlobalConfig.ES,
 	}); err != nil {
 		log.Printf("[WARN] 基础设施初始化失败: %v", err)
 	}
 	defer infra.Shutdown()
+
+	reconcile := task.NewReconcileService()
+	go reconcile.Start(5*time.Minute, 12*time.Hour)
 
 	// 操作日志初始化
 	middleware.InitLogWorker()

@@ -13,6 +13,7 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 	Redis    RedisConfig    `yaml:"redis"`
 	RabbitMQ RabbitMQConfig `yaml:"rabbitmq"`
+	ES       ESConfig       `yaml:"elasticsearch"`
 }
 
 type RedisConfig struct {
@@ -23,6 +24,10 @@ type RedisConfig struct {
 
 type RabbitMQConfig struct {
 	DSN string `yaml:"dsn"`
+}
+
+type ESConfig struct {
+	Addresses []string `yaml:"addresses"`
 }
 
 // ServerConfig 服务器配置

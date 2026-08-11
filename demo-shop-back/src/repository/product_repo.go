@@ -16,6 +16,20 @@ import (
 //	商品模块数据层定义及实例化部分
 // ============================================================
 
+var (
+	spuTable      = model.SysProductSpu{}.TableName()
+	skuTable      = model.SysProductSku{}.TableName()
+	categoryTable = model.SysCategory{}.TableName()
+
+	// 注意:skuAggSelect 引用了 skuTable,所以必须也是 var(常量不能引用变量)
+	skuAggSelect = `COALESCE(MIN(` + skuTable + `.price), 0) AS min_price,
+		COALESCE(MAX(` + skuTable + `.price), 0) AS max_price,
+		COALESCE(SUM(` + skuTable + `.stock), 0) AS total_stock,
+		COALESCE(SUM(` + skuTable + `.sold_count), 0) AS total_sold`
+
+	skuJoinClause = "LEFT JOIN " + skuTable + " ON " + spuTable + ".spu_id = " + skuTable + ".spu_id AND " + skuTable + ".is_deleted = ? AND " + skuTable + ".sku_status = ?"
+)
+
 // ProductRepo 商品表数据层实例
 type ProductRepo struct {
 	DB *gorm.DB
@@ -182,25 +196,6 @@ func (p *ProductRepo) GetSpuByCategory(categoryId int64) (*model.SysProductSpu, 
 	return &spu, nil
 }
 
-// GetProductStatus 查询商品状态(按SPU ID查)
-// 接收值：spuId - 所查询SPU唯一标识
-// 返回值：
-//
-//	string - 商品状态(draft/published/withdrawn)
-//	error - 错误信息
-func (p *ProductRepo) GetProductStatus(spuId int64) (string, error) {
-	var spu model.SysProductSpu
-	if err := p.DB.Where("spu_id = ?", spuId).First(&spu).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil
-		}
-		return "", err
-	}
-
-	return spu.SpuStatus, nil
-
-}
-
 // GetSpuList 分页查询商品SPU列表(含SKU聚合数据：最低/最高售价、总库存、总销量)
 // 接收值：req - 商品查询请求(含分页、筛选、排序参数)
 // 返回值：
@@ -209,9 +204,6 @@ func (p *ProductRepo) GetProductStatus(spuId int64) (string, error) {
 //	int64 - 总条数
 //	error - 错误信息
 func (p *ProductRepo) GetSpuList(req requset.SpuQueryReq) ([]model.SpuWithAgg, int64, error) {
-	spuTable := model.SysProductSpu{}.TableName()
-	skuTable := model.SysProductSku{}.TableName()
-
 	// WHERE 条件使用表前缀，避免 JOIN 后列名歧义
 	baseQuery := p.DB.Table(spuTable).Where(spuTable+".is_deleted = ?", false)
 
@@ -252,12 +244,9 @@ func (p *ProductRepo) GetSpuList(req requset.SpuQueryReq) ([]model.SpuWithAgg, i
 	}
 
 	err := baseQuery.
-		Select(spuTable+`.*,
-			COALESCE(MIN(`+skuTable+`.price), 0)      AS min_price,
-			COALESCE(MAX(`+skuTable+`.price), 0)      AS max_price,
-			COALESCE(SUM(`+skuTable+`.stock), 0)      AS total_stock,
-			COALESCE(SUM(`+skuTable+`.sold_count), 0)  AS total_sold`).
-		Joins("LEFT JOIN "+skuTable+" ON "+spuTable+".spu_id = "+skuTable+".spu_id AND "+skuTable+".is_deleted = ? AND "+skuTable+".sku_status = ?", false, "active").
+		Select(spuTable+".*",
+			skuAggSelect).
+		Joins(skuJoinClause, false, "active").
 		Group(spuTable + ".spu_id").
 		Order(orderClause).
 		Offset(offset).Limit(req.PageSize).
@@ -311,9 +300,6 @@ func (p *ProductRepo) GetSkuForUpdate(skuId int64) (*model.SysProductSku, error)
 func (p *ProductRepo) GetSkuListBySpuId(spuId int64) ([]model.SysProductSku, error) {
 	var skuList []model.SysProductSku
 	if err := p.DB.Where("spu_id = ? AND is_deleted = ?", spuId, false).Find(&skuList).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, model.ProductNotExist
-		}
 		return nil, err
 	}
 	return skuList, nil
@@ -345,6 +331,68 @@ func (p *ProductRepo) GetImageListBySpuId(spuId int64) ([]*model.SysProductSpuIm
 		return nil, err
 	}
 	return imageList, nil
+}
+
+func (p *ProductRepo) GetSpuESDoc(spuId int64) (*model.SpuESDoc, error) {
+	var doc model.SpuESDoc
+
+	err := p.DB.Model(&model.SysProductSpu{}).
+		Where(spuTable+".is_deleted = ? AND "+spuTable+".spu_id = ?", false, spuId).
+		Select([]string{categoryTable + ".category_name",
+			spuTable + ".*",
+			skuAggSelect}).
+		Joins(skuJoinClause, false, "active").
+		Joins("LEFT JOIN " + categoryTable + " ON " + spuTable + ".category_id = " + categoryTable + ".category_id").
+		Group(spuTable + ".spu_id, " + categoryTable + ".category_name").
+		Scan(&doc).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, model.ProductNotExist
+		}
+		return nil, err
+	}
+	return &doc, nil
+}
+
+func (p *ProductRepo) GetAllPublishedSpuEsDocs() ([]model.SpuESDoc, error) {
+	var docs []model.SpuESDoc
+
+	err := p.DB.Model(&model.SysProductSpu{}).
+		Where(spuTable+".is_deleted = ? AND "+spuTable+".spu_status = ? ", false, model.SpuStatusPublished).
+		Select([]string{categoryTable + ".category_name",
+			spuTable + ".*",
+			skuAggSelect}).
+		Joins(skuJoinClause, false, "active").
+		Joins("LEFT JOIN " + categoryTable + " ON " + spuTable + ".category_id = " + categoryTable + ".category_id").
+		Group(spuTable + ".spu_id, " + categoryTable + ".category_name").
+		Scan(&docs).Error
+	if err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
+func (p *ProductRepo) GetChangedSpuEsDocs(since time.Time) ([]model.SpuESDoc, error) {
+	var docs []model.SpuESDoc
+
+	err := p.DB.Model(&model.SysProductSpu{}).
+		Where(spuTable+".is_deleted = ? AND "+spuTable+".spu_status = ?", false, model.SpuStatusPublished).
+		Where("("+spuTable+".updated_at > ? OR EXISTS ("+
+			"SELECT 1 FROM "+skuTable+" sku2 "+
+			"WHERE sku2.spu_id = "+spuTable+".spu_id "+
+			"AND sku2.is_deleted = false "+
+			"AND sku2.updated_at > ?))", since, since).
+		Select([]string{categoryTable + ".category_name",
+			spuTable + ".*",
+			skuAggSelect}).
+		Joins(skuJoinClause, false, "active").
+		Joins("LEFT JOIN " + categoryTable + " ON " + spuTable + ".category_id = " + categoryTable + ".category_id").
+		Group(spuTable + ".spu_id, " + categoryTable + ".category_name").
+		Scan(&docs).Error
+	if err != nil {
+		return nil, err
+	}
+	return docs, nil
 }
 
 // ============================================================

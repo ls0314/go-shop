@@ -21,3 +21,8 @@ redis:
 # 消息队列配置
 rabbitmq:
   dsn: "amqp://demoShop:demoShop@localhost:5672/demoShop"
+
+
+elasticsearch:
+  addresses:
+    - http://localhost:9200

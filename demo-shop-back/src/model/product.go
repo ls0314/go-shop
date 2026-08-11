@@ -122,3 +122,21 @@ type SkuListWithAgg struct {
 	TotalLock  int64 `gorm:"column:total_lock"`
 	TotalSold  int64 `gorm:"column:total_sold"`
 }
+
+type SpuESDoc struct {
+	SpuId        int64     `gorm:"column:spu_id"`
+	SpuName      string    `gorm:"column:spu_name"`
+	Brand        string    `gorm:"column:brand"`
+	Description  string    `gorm:"column:description"`
+	CategoryId   int64     `gorm:"column:category_id"`
+	CategoryName string    `gorm:"column:category_name"`
+	MainImage    string    `gorm:"column:main_image"`
+	TotalStock   int64     `gorm:"column:total_stock"`
+	TotalSold    int64     `gorm:"column:total_sold"`
+	Priority     int64     `gorm:"column:priority"`
+	SpuStatus    string    `gorm:"column:spu_status"`
+	CreatedAt    time.Time `gorm:"column:created_at"`
+	UpdatedAt    time.Time `gorm:"column:updated_at"`
+	MinPrice     float64   `gorm:"column:min_price"`
+	MaxPrice     float64   `gorm:"column:max_price"`
+}

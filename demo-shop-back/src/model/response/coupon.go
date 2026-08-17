@@ -2,10 +2,12 @@ package response
 
 import "time"
 
+// CreateCouponResp 创建优惠券模板响应（接口1）
 type CreateCouponResp struct {
 	TemplateId int64 `json:"template_id"`
 }
 
+// GetCouponList 优惠券模板列表项（接口2，管理端）
 type GetCouponList struct {
 	TemplateId      int64     `gorm:"column:template_id" json:"template_id"`
 	CouponName      string    `gorm:"column:coupon_name" json:"coupon_name"`
@@ -27,11 +29,15 @@ type GetCouponListResp struct {
 	Total    int64           `json:"total"`
 }
 
+// UserReceiveCouponResp 用户领取优惠券响应（接口3）
 type UserReceiveCouponResp struct {
 	UserCouponId int64     `json:"user_coupon_id"`
 	ExpireTime   time.Time `json:"expire_time"`
 }
 
+// UserGetCouponList 用户优惠券列表项（接口4）
+// 由 user_coupon 表 LEFT JOIN coupon_template 组装；
+// OrderNo 为核销时写入的订单号（未使用为空）；UserId 仅内部校验归属用，不返回前端
 type UserGetCouponList struct {
 	UserCouponId    int64     `gorm:"column:user_coupon_id" json:"user_coupon_id"`
 	CouponName      string    `gorm:"column:coupon_name" json:"coupon_name"`
@@ -45,6 +51,7 @@ type UserGetCouponList struct {
 	UserId          int64     `gorm:"column:user_id" json:"-"`
 }
 
+// UserGetCouponListResp 用户优惠券列表响应（接口4，分页）
 type UserGetCouponListResp struct {
 	Total    int64               `json:"total"`
 	Page     int                 `json:"page"`
@@ -52,6 +59,8 @@ type UserGetCouponListResp struct {
 	List     []UserGetCouponList `json:"list"`
 }
 
+// GetAvailableCouponList 结算可用券列表项（接口5）
+// PayAfter 为使用该券后的实付金额（服务端计算），列表已按 PayAfter 升序排列
 type GetAvailableCouponList struct {
 	UserCouponId    int64   `gorm:"column:user_coupon_id" json:"user_coupon_id"`
 	CouponName      string  `gorm:"column:coupon_name" json:"coupon_name"`
@@ -61,6 +70,7 @@ type GetAvailableCouponList struct {
 	PayAfter        float64 `gorm:"column:pay_after" json:"pay_after"`
 }
 
+// GetAvailableCouponResp 结算可用券响应（接口5）
 type GetAvailableCouponResp struct {
 	List []GetAvailableCouponList `json:"list"`
 }

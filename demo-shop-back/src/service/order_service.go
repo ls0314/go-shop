@@ -20,6 +20,7 @@ type OrderService struct {
 	OrderRepo   *repository.OrderRepo
 	AddressRepo *repository.AddressRepo
 	ProductRepo *repository.ProductRepo
+	CouponRepo  *repository.CouponRepo
 	db          *gorm.DB
 	*CartItemService
 	*InventoryService
@@ -32,6 +33,7 @@ func NewOrderService() *OrderService {
 	order := &OrderService{
 		OrderRepo:        repository.NewOrderRepo(),
 		AddressRepo:      repository.NewAddressRepo(),
+		CouponRepo:       repository.NewCouponRepo(),
 		db:               db.DB,
 		CartItemService:  NewCartItemService(),
 		InventoryService: NewInventoryService(),
@@ -147,6 +149,35 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 	err = o.db.Transaction(func(tx *gorm.DB) error {
 		orderTx := o.OrderRepo.WithTx(tx)
 		cartItemTx := o.CartItemRepo.WithTx(tx)
+		couponTx := o.CouponRepo.WithTx(tx)
+
+		if req.UserCouponId != 0 {
+			coupon, err := couponTx.GetUserCoupon(req.UserCouponId)
+			if err != nil {
+				return err
+			}
+			if userId != coupon.UserId {
+				return model.ErrUseCouponNoNoPermission
+			}
+			rowsAffected, err := couponTx.UseCoupon(req.UserCouponId, orderNo)
+			if err != nil {
+				return err
+			}
+			if rowsAffected == 0 {
+				return model.ErrCouponNotExistOrUsed
+			}
+			var payAmount float64
+			if totalAmount >= coupon.ThresholdAmount {
+				if coupon.CouponType == "full_reduction" {
+					payAmount = totalAmount - coupon.DiscountAmount
+				} else {
+					payAmount = totalAmount * coupon.DiscountAmount
+				}
+			} else {
+				return model.ErrCouponThresholdNotMet
+			}
+			order.PayAmount = payAmount
+		}
 
 		// 写入订单主表
 		orderId, err := orderTx.CreateOrder(order)
@@ -199,7 +230,7 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 			OrderId:     orderId,
 			OrderNo:     orderNo,
 			TotalAmount: totalAmount,
-			PayAmount:   totalAmount,
+			PayAmount:   order.PayAmount,
 			OrderStatus: model.OrderPendingPay,
 			PayExpireAt: time.Now().Add(15 * time.Minute),
 			CreatedAt:   time.Now(),
@@ -325,7 +356,6 @@ func (o *OrderService) CancelOrder(orderId, userId int64, userName string) (*res
 	if userId != order.UserId {
 		return nil, model.ErrOrderNoPermission
 	}
-
 	// 状态更改校验 - 只有pending_pay才能被取消
 	if order.OrderStatus != model.OrderPendingPay {
 		return nil, model.ErrOrderCannotCancel
@@ -336,6 +366,21 @@ func (o *OrderService) CancelOrder(orderId, userId int64, userName string) (*res
 	// 开启事务
 	err = o.db.Transaction(func(tx *gorm.DB) error {
 		orderTx := o.OrderRepo.WithTx(tx)
+		couponTx := o.CouponRepo.WithTx(tx)
+
+		if order.PayAmount != order.TotalAmount {
+			coupon, err := couponTx.GetUserCouponByOrderNo(order.OrderNo)
+			if err != nil {
+				return err
+			}
+			rowsAffected, err := couponTx.RefundCoupon(coupon.UserCouponId)
+			if err != nil {
+				return err
+			}
+			if rowsAffected == 0 {
+				return model.ErrCannotCancelCoupon
+			}
+		}
 
 		// 调用数据层事务取消订单
 		if err := orderTx.CancelOrder(orderId); err != nil {

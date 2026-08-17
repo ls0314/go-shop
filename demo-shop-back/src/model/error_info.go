@@ -77,12 +77,6 @@ var (
 	UserNotSetAddress = errors.New("用户越权修改地址")
 	ReceiverNotNull   = errors.New("收货人姓名或手机号码不能为空")
 )
-var (
-	StatusIdNotExist          = "ID不存在"
-	StatusInternalServerError = "服务器错误"
-	StatusBadRequest          = "请求参数错误"
-	StatusNotExistRequest     = "请求内容不存在"
-)
 
 // 库存模块错误码 7001-7005
 var (
@@ -124,4 +118,19 @@ var (
 	ErrPayRecordNoNoPermission = errors.New("无权查看该支付记录")
 	ErrPayStatusMisTake        = errors.New("支付状态不正确（非pending，回调幂等）")
 	ErrPayAmountMisTake        = errors.New("支付金额与订单金额不匹配")
+)
+
+// 优惠券模块错误码 11001-11009
+var (
+	ErrCouponTemplateNotExist   = errors.New("优惠券模板不存在")                  // 11001
+	ErrCouponSoldOut            = errors.New("优惠券已领完")                    // 11002
+	ErrCouponLimitExceeded      = errors.New("已达领取上限")                    // 11003
+	ErrCouponNotExistOrUsed     = errors.New("优惠券不存在或已使用")                // 11004
+	ErrCouponThresholdNotMet    = errors.New("优惠券不满足使用门槛")                // 11005
+	ErrCouponExpired            = errors.New("优惠券已过期")                    // 11006
+	ErrCouponParamInvalid       = errors.New("参数非法（类型/金额/数量校验失败）")        // 11007
+	ErrCouponValidityInvalid    = errors.New("有效期配置非法（两种有效期方式均未配置或同时配置）") // 11008
+	ErrCouponOrderAmountInvalid = errors.New("订单金额参数非法（小于 0）")            // 11009
+	ErrUseCouponNoNoPermission  = errors.New("无权使用该优惠卷")
+	ErrCannotCancelCoupon       = errors.New("返还优惠卷失败")
 )

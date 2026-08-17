@@ -1,6 +1,13 @@
 package model
 
 const (
+	StatusIdNotExist          = "ID不存在"
+	StatusInternalServerError = "服务器错误"
+	StatusBadRequest          = "请求参数错误"
+	StatusNotExistRequest     = "请求内容不存在"
+)
+
+const (
 	CartItemMinQuantity = 1
 	CartItemMaxQuantity = 999
 	CartMaxItemCount    = 100
@@ -47,6 +54,9 @@ const (
 	PayMethodMock   = "mock"
 	PayMethodWechat = "wechat"
 	PayMethodAlipay = "alipay"
+)
+const (
+	CouponUnused = "unused"
 )
 
 // 操作日志模块名（OperationLogMiddleware 挂载参数）

@@ -107,6 +107,10 @@ func InitRoutes() *gin.Engine {
 	InitOperationLogModule()
 	// ========== 注册操作日志管理路由 ==========
 	RegisterOperationLogRoutes(r)
+	// ========== 优惠卷管理模块初始化 ==========
+	InitCouponModule()
+	// ========== 注册优惠卷管理路由 ==========
+	RegisterCouponRoutes(r)
 
 	// 静态文件服务 - 上传文件访问
 	r.Static("/uploads", "./uploads")

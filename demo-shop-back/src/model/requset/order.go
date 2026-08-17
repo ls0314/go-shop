@@ -6,6 +6,7 @@ type CreatOrderReq struct {
 	AddressId     int64  `json:"address_id"`
 	IdempotentKey string `json:"idempotent_key"`
 	BuyerRemark   string `json:"buyer_remark"`
+	UserCouponId  int64  `json:"user_coupon_id"`
 }
 
 type UserGetOrderListReq struct {

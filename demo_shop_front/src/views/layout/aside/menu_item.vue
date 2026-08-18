@@ -4,11 +4,26 @@
     <div v-if="hasChildren">
       <button
           type="button"
-          class="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm transition hover:bg-white/10 hover:text-white"
-          :class="isActive ? 'bg-white text-slate-900' : 'text-slate-400'"
+          class="group relative flex h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium transition-all duration-200 hover:bg-white/5 hover:text-white"
+          :class="[
+            isActive
+              ? 'bg-gradient-to-r from-indigo-500/20 to-transparent text-white'
+              : 'text-slate-400',
+            collapsed ? 'justify-center px-0' : ''
+          ]"
           @click="toggleOpen"
       >
-        <span class="w-6 shrink-0 text-center text-base">
+        <!-- 激活指示条 -->
+        <span
+            v-if="isActive"
+            class="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-sm shadow-indigo-400/50"
+        />
+
+        <!-- 图标容器 -->
+        <span
+            class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/5 text-base transition-colors group-hover:bg-white/10"
+            :class="isActive ? 'bg-indigo-500/25' : ''"
+        >
           {{ showIcon }}
         </span>
 
@@ -19,17 +34,26 @@
           {{ item.menu_name }}
         </span>
 
-        <span
+        <!-- 展开箭头：SVG chevron + 旋转动画 -->
+        <svg
             v-show="!collapsed"
-            class="text-xs"
+            class="h-3.5 w-3.5 text-slate-500 transition-transform duration-200 group-hover:text-slate-300"
+            :class="open ? 'rotate-180' : ''"
+            viewBox="0 0 20 20"
+            fill="currentColor"
         >
-          {{ open ? '⌃' : '⌄' }}
-        </span>
+          <path
+              fill-rule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+              clip-rule="evenodd"
+          />
+        </svg>
       </button>
 
+      <!-- 子菜单：左侧引导线 -->
       <div
           v-show="open && !collapsed"
-          class="mt-2 space-y-1 pl-4"
+          class="relative ml-3 mt-1 space-y-1 border-l border-white/10 pl-3"
       >
         <AsideMenuItem
             v-for="child in visibleChildren"
@@ -45,11 +69,26 @@
     <button
         v-else
         type="button"
-        class="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm transition hover:bg-white/10 hover:text-white"
-        :class="isActive ? 'bg-white text-slate-900' : 'text-slate-400'"
+        class="group relative flex h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium transition-all duration-200 hover:bg-white/5 hover:text-white"
+        :class="[
+          isActive
+            ? 'bg-gradient-to-r from-indigo-500/20 to-transparent text-white'
+            : 'text-slate-400',
+          collapsed ? 'justify-center px-0' : ''
+        ]"
         @click="handleClick"
     >
-      <span class="w-6 shrink-0 text-center text-base">
+      <!-- 激活指示条 -->
+      <span
+          v-if="isActive"
+          class="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-sm shadow-indigo-400/50"
+      />
+
+      <!-- 图标容器 -->
+      <span
+          class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/5 text-base transition-colors group-hover:bg-white/10"
+          :class="isActive ? 'bg-indigo-500/25' : ''"
+      >
         {{ showIcon }}
       </span>
 

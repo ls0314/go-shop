@@ -81,6 +81,10 @@ const menus = [
     title: '全部商品',
     path: '/shop/product/list'
   },
+  {
+    title: '领券中心',
+    path: '/shop/coupon'
+  },
 ]
 
 const isActive = (path: string) => {

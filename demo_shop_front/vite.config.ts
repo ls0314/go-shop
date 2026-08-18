@@ -49,7 +49,8 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
-      minify: 'terser',
+      // 使用 vite 内置 esbuild 压缩(无需额外安装 terser 可选依赖)
+      minify: 'esbuild',
       sourcemap: mode === 'development'
     }
   }

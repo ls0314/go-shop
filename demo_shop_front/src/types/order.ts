@@ -6,6 +6,7 @@ export interface CreateOrderReq {
     address_id: number
     idempotent_key: string
     buyer_remark?: string
+    user_coupon_id?: number
 }
 
 export interface CreateOrderResp {

@@ -36,6 +36,32 @@
           </div>
         </div>
 
+        <!-- 优惠券选择 -->
+        <div class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold text-slate-800 dark:text-white">优惠券</h3>
+            <el-button
+              link
+              type="primary"
+              :disabled="availableCoupons.length === 0"
+              class="text-sm"
+              @click="couponDrawerVisible = true"
+            >
+              <template v-if="selectedCoupon">
+                <span style="color: #ff6700">-¥{{ discountAmount.toFixed(2) }}</span>
+                <el-icon class="ml-1"><ArrowRight /></el-icon>
+              </template>
+              <template v-else>
+                {{ availableCoupons.length > 0 ? `${availableCoupons.length} 张可用` : '暂无可用' }}
+                <el-icon class="ml-1"><ArrowRight /></el-icon>
+              </template>
+            </el-button>
+          </div>
+          <p v-if="selectedCoupon" class="mt-1 text-xs text-slate-400">
+            已选：{{ selectedCoupon.coupon_name }}
+          </p>
+        </div>
+
         <!-- 商品列表 -->
         <div class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
           <h3 class="text-base font-semibold text-slate-800 dark:text-white">商品明细</h3>
@@ -69,7 +95,8 @@
         </div>
         <div class="flex items-center gap-3">
           <span class="text-sm text-slate-600 dark:text-slate-300">合计：</span>
-          <span class="text-2xl font-bold" style="color: #ff6700">¥{{ totalAmount.toFixed(2) }}</span>
+          <span v-if="selectedCoupon" class="text-sm text-slate-400 line-through">¥{{ totalAmount.toFixed(2) }}</span>
+          <span class="text-2xl font-bold" style="color: #ff6700">¥{{ payAmount.toFixed(2) }}</span>
           <el-button
             type="primary"
             size="large"
@@ -108,6 +135,53 @@
         <el-button type="primary" class="h-9 rounded-xl" style="background:#ff6700;border-color:#ff6700" @click="$router.push('/shop/home')">继续购物</el-button>
       </template>
     </el-dialog>
+
+    <!-- 优惠券选择抽屉 -->
+    <el-drawer
+      v-model="couponDrawerVisible"
+      title="选择优惠券"
+      size="400px"
+      :append-to-body="true"
+    >
+      <div class="space-y-3">
+        <!-- 不使用优惠券 -->
+        <div
+          class="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 p-4 dark:border-slate-700"
+          :class="!selectedCoupon ? 'border-orange-400 bg-orange-50 dark:border-orange-500 dark:bg-orange-900/20' : ''"
+          @click="handleSelectCoupon(null)"
+        >
+          <div>
+            <p class="text-sm font-medium text-slate-800 dark:text-white">不使用优惠券</p>
+            <p class="mt-1 text-xs text-slate-400">按原价 ¥{{ totalAmount.toFixed(2) }} 结算</p>
+          </div>
+          <el-icon v-if="!selectedCoupon" style="color: #ff6700"><CircleCheckFilled /></el-icon>
+        </div>
+
+        <!-- 可用券列表 -->
+        <div
+          v-for="coupon in availableCoupons"
+          :key="coupon.user_coupon_id"
+          class="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 p-4 dark:border-slate-700"
+          :class="selectedCoupon?.user_coupon_id === coupon.user_coupon_id
+            ? 'border-orange-400 bg-orange-50 dark:border-orange-500 dark:bg-orange-900/20'
+            : ''"
+          @click="handleSelectCoupon(coupon)"
+        >
+          <div>
+            <p class="text-sm font-medium text-slate-800 dark:text-white">{{ coupon.coupon_name }}</p>
+            <p class="mt-1 text-xs text-slate-400">
+              {{ coupon.threshold_amount > 0 ? `满 ¥${coupon.threshold_amount} 可用` : '无门槛使用' }}
+            </p>
+            <p class="mt-1 text-xs" style="color: #ff6700">用后实付 ¥{{ coupon.pay_after.toFixed(2) }}</p>
+          </div>
+          <el-icon v-if="selectedCoupon?.user_coupon_id === coupon.user_coupon_id" style="color: #ff6700"><CircleCheckFilled /></el-icon>
+        </div>
+
+        <div v-if="availableCoupons.length === 0" class="py-10 text-center text-sm text-slate-400">
+          暂无可用优惠券
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -115,14 +189,18 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Picture, Loading } from '@element-plus/icons-vue'
+import { Picture, Loading, ArrowRight, CircleCheckFilled } from '@element-plus/icons-vue'
 import { useCartStore } from '@/pinia/modules/cart'
 import { useAddressStore } from '@/pinia/modules/address'
 import { useOrderStore } from '@/pinia/modules/order'
+import { useUserStore } from '@/pinia/modules/user'
+import { GetAvailableCouponApi } from '@/api/coupon'
+import type { AvailableCouponItem } from '@/types/coupon'
 
 const cartStore = useCartStore()
 const addressStore = useAddressStore()
 const orderStore = useOrderStore()
+const userStore = useUserStore()
 const router = useRouter()
 
 const loading = ref(false)
@@ -136,6 +214,37 @@ const items = ref<any[]>([])
 
 const totalQuantity = computed(() => items.value.reduce((s, i) => s + i.quantity, 0))
 const totalAmount = computed(() => items.value.reduce((s, i) => s + i.price * i.quantity, 0))
+
+// ==================== 优惠券 ====================
+const couponDrawerVisible = ref(false)
+const availableCoupons = ref<AvailableCouponItem[]>([])
+const selectedCoupon = ref<AvailableCouponItem | null>(null)
+
+// 抵扣金额 = 原价 - 用券后实付
+const discountAmount = computed(() => {
+  if (!selectedCoupon.value) return 0
+  return totalAmount.value - selectedCoupon.value.pay_after
+})
+// 实际支付金额:选券则用 pay_after(服务端已算好),否则原价
+const payAmount = computed(() => {
+  return selectedCoupon.value ? selectedCoupon.value.pay_after : totalAmount.value
+})
+
+const fetchAvailableCoupons = async () => {
+  // 仅登录时请求(接口需 JWT;未登录时下单会被拦截,优惠券区显示暂无)
+  if (!userStore.userToken.access_token) return
+  try {
+    const res = await GetAvailableCouponApi(totalAmount.value)
+    availableCoupons.value = res.data.data?.list || []
+  } catch (error) {
+    console.error('获取可用优惠券失败:', error)
+  }
+}
+
+const handleSelectCoupon = (coupon: AvailableCouponItem | null) => {
+  selectedCoupon.value = coupon
+  couponDrawerVisible.value = false
+}
 
 const addresses = computed(() => addressStore.addressList)
 
@@ -153,7 +262,10 @@ async function fetchData() {
     // 默认选中默认地址
     const defaultAddr = addresses.value.find(a => a.is_default)
     if (defaultAddr) selectedAddressId.value = defaultAddr.address_id
-    else if (addresses.value.length > 0) selectedAddressId.value = addresses.value[0].address_id
+    else if (addresses.value.length > 0 && addresses.value[0]) selectedAddressId.value = addresses.value[0].address_id
+
+    // 加载可用优惠券(需要商品金额计算完成后)
+    await fetchAvailableCoupons()
   } finally {
     loading.value = false
   }
@@ -179,6 +291,7 @@ async function handleSubmit() {
     const result = await orderStore.CreateOrder({
       address_id: selectedAddressId.value,
       idempotent_key: generateUUID(),
+      user_coupon_id: selectedCoupon.value?.user_coupon_id,
     })
     if (result) {
       createdOrderId.value = result.order_id

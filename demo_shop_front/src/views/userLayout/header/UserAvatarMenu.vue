@@ -41,6 +41,13 @@
         <button
             type="button"
             class="block w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
+            @click="handleCoupon"
+        >
+          我的优惠券
+        </button>
+        <button
+            type="button"
+            class="block w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
             @click="handleProfile"
         >
           个人信息
@@ -109,6 +116,12 @@ const closeMenu = () => {
 const handleOrder = () => {
   closeMenu()
   router.push('/shop/order/list')
+}
+
+const handleCoupon = () => {
+  closeMenu()
+  // tab=mine 直达"我的卡券"页签
+  router.push('/shop/coupon?tab=mine')
 }
 
 const handleAddress = () => {

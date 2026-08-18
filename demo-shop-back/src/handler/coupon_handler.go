@@ -114,6 +114,31 @@ func (ch *CouponHandler) ReceiveCoupon(c *gin.Context) {
 	utils.Success(c, resp)
 }
 
+// GetReceiveCouponList 领券中心模板列表接口
+// 路由映射：GET /api/v1/users/platform/coupons/templates
+// 鉴权：JWT（AuthMiddleware 注入用户信息）
+// 功能：从上下文获取当前用户ID（计算 held_count 用），分页查询可领取的券模板
+// 错误：上下文无用户信息返回 500（UserInfoError）
+func (ch *CouponHandler) GetReceiveCouponList(c *gin.Context) {
+	var req requset.UserGetTemplateListReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		utils.Fail(c, 400, model.StatusBadRequest)
+		return
+	}
+
+	userId, _, err := GetUserInfoByContext(c)
+	if err != nil {
+		utils.Fail(c, 500, model.UserInfoError.Error())
+		return
+	}
+	resp, err := ch.CouponService.GetReceiveCouponList(userId, req)
+	if err != nil {
+		utils.Fail(c, 500, err.Error())
+		return
+	}
+	utils.Success(c, resp)
+}
+
 // GetAvailableCouponList 结算可用优惠券接口
 // 路由映射：GET /api/v1/users/platform/coupons/available?order_amount=xxx
 // 鉴权：JWT（AuthMiddleware 注入用户信息）

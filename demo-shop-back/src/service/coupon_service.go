@@ -224,6 +224,37 @@ func (c *CouponService) ReceiveCoupon(userId, templateId int64) (*response.UserR
 	return &resp, nil
 }
 
+// GetReceiveCouponList 领券中心模板列表（用户端可见可领取的券）
+// 路由映射：GET /api/v1/users/platform/coupons/templates
+// 鉴权：JWT（userId 从上下文获取）
+// 接收值：userId - 当前登录用户ID；req - 分页参数
+// 返回值：*response.UserCouponTemplateListResp - 模板列表（含当前用户已领数/剩余数）
+//
+// 说明：① 复用 repo.UserGetTemplateList 独立查询（过滤已结束的固定有效期券）;
+//
+//	② 空列表是正常业务状态（前端展示"暂无可用券"），不返回错误
+func (c *CouponService) GetReceiveCouponList(userId int64, req requset.UserGetTemplateListReq) (*response.UserCouponTemplateListResp, error) {
+	// 防止参数越界
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PageSize <= 0 || req.PageSize > 100 {
+		req.PageSize = 10
+	}
+
+	list, total, err := c.CouponRepo.UserGetTemplateList(userId, req.Page, req.PageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return &response.UserCouponTemplateListResp{
+		List:     list,
+		Total:    total,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}, nil
+}
+
 // GetAvailableCouponList 结算时查询可用优惠券（接口5）—— 按实付金额升序
 // 路由映射：GET /api/v1/users/platform/coupons/available?order_amount=xxx
 // 鉴权：JWT（userId 从上下文获取）

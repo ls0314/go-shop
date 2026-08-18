@@ -37,6 +37,7 @@ func RegisterCouponRoutes(r *gin.Engine) {
 	userCouponGroup.Use(middleware.AuthMiddleware())
 	{
 		userCouponGroup.GET("", couponCtrl.GetUserCouponList)
+		userCouponGroup.GET("/templates", couponCtrl.GetReceiveCouponList)
 		userCouponGroup.GET("/available", couponCtrl.GetAvailableCouponList)
 		userCouponGroup.POST("/receive/:id", couponCtrl.ReceiveCoupon)
 	}

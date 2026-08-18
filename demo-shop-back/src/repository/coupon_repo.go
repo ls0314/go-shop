@@ -307,6 +307,56 @@ func (c *CouponRepo) GetUserCouponByOrderNo(orderNo string) (*model.UserCoupon, 
 }
 
 // ============================================================
+// 领券中心：用户可见模板列表（用户端独立查询，不复用管理端 GetCouponList）
+// ============================================================
+
+// UserGetTemplateList 领券中心模板分页查询（用户端）
+// 接收值：userId - 当前用户ID（用于子查询计算 held_count）；page/pageSize - 分页
+// 返回值：[]response.UserCouponTemplate - 模板列表；total - 总数；err
+//
+// 过滤条件（与管理端 GetCouponList 的差异）：
+//
+//	① is_deleted = false 同管理端
+//	② 有效期过滤：usable_days > 0（相对有效期，领取后才计时，永不过期）OR end_time > now()（固定有效期未结束）
+//	③ held_count 子查询：与 CountUserCoupon 口径一致（status != 'expired' 不占名额）
+//	④ remaining_count = total_count - received_count 由 SQL 表达式计算
+func (c *CouponRepo) UserGetTemplateList(userId int64, page, pageSize int) ([]response.UserCouponTemplate, int64, error) {
+	var list []response.UserCouponTemplate
+	var total int64
+
+	// 基础过滤：未删除 + 有效期判断（相对有效期不受 end_time 限制）
+	baseQuery := c.db.Model(&model.CouponTemplate{}).
+		Where("is_deleted = ?", false).
+		Where("usable_days > 0 OR end_time > ?", time.Now())
+
+	// 统计总数
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// held_count 子查询：当前用户在该模板下未过期（含未用+已用）的券数，
+	// 与 CountUserCoupon / ReceiveCoupon 的限领口径完全一致
+	heldCountSub := c.db.Model(&model.UserCoupon{}).
+		Select("COUNT(*)").
+		Where("template_id = coupon_template.template_id AND user_id = ? AND status != ?", userId, "expired")
+
+	// 主查询：SELECT 字段 + remaining_count SQL 表达式 + held_count 子查询 + 分页
+	err := baseQuery.
+		Select("template_id, coupon_name, coupon_type, threshold_amount, discount_amount, "+
+			"per_user_limit, usable_days, start_time, end_time, "+
+			"total_count - received_count AS remaining_count, "+
+			"(?) AS held_count", heldCountSub).
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
+		Order("created_at DESC").
+		Scan(&list).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
+}
+
+// ============================================================
 // 券状态迁移（核销 / 归还）—— 全部使用条件 UPDATE + 影响行数（乐观锁）
 // ============================================================
 

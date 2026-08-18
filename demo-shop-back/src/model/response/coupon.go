@@ -74,3 +74,29 @@ type GetAvailableCouponList struct {
 type GetAvailableCouponResp struct {
 	List []GetAvailableCouponList `json:"list"`
 }
+
+// UserCouponTemplate 领券中心模板列表项（用户可见）
+// 相比管理端裁剪了 total_count/received_count 等运营字段；
+// HeldCount 为当前用户在"未过期"口径下已领数量（服务端按 userId 子查询计算），
+// 前端据此判断 held_count >= per_user_limit 时置灰"领取"按钮
+type UserCouponTemplate struct {
+	TemplateId      int64     `gorm:"column:template_id" json:"template_id"`
+	CouponName      string    `gorm:"column:coupon_name" json:"coupon_name"`
+	CouponType      string    `gorm:"column:coupon_type" json:"coupon_type"`
+	ThresholdAmount float64   `gorm:"column:threshold_amount" json:"threshold_amount"`
+	DiscountAmount  float64   `gorm:"column:discount_amount" json:"discount_amount"`
+	PerUserLimit    int64     `gorm:"column:per_user_limit" json:"per_user_limit"`
+	HeldCount       int64     `gorm:"column:held_count" json:"held_count"`
+	RemainingCount  int64     `gorm:"column:remaining_count" json:"remaining_count"`
+	UsableDays      int64     `gorm:"column:usable_days" json:"usable_days"`
+	StartTime       time.Time `gorm:"column:start_time" json:"start_time"`
+	EndTime         time.Time `gorm:"column:end_time" json:"end_time"`
+}
+
+// UserCouponTemplateListResp 领券中心模板列表响应（分页）
+type UserCouponTemplateListResp struct {
+	List     []UserCouponTemplate `json:"list"`
+	Page     int                  `json:"page"`
+	PageSize int                  `json:"page_size"`
+	Total    int64                `json:"total"`
+}

@@ -42,3 +42,10 @@ type UserGetCouponListReq struct {
 type GetAvailableCouponReq struct {
 	OrderAmount float64 `form:"order_amount"`
 }
+
+// UserGetTemplateListReq 领券中心模板列表查询参数
+// 用户端展示可领取的券模板,分页结构与其他列表接口保持一致
+type UserGetTemplateListReq struct {
+	Page     int `form:"page"`
+	PageSize int `form:"page_size"`
+}

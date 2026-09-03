@@ -34,14 +34,14 @@ func RegisterRoleRoutes(r *gin.Engine) {
 	roleGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
 		// 创建角色接口
-		roleGroup.POST("", roleCtrl.CreateRole)
+		roleGroup.POST("", middleware.PermissionMiddleware(), roleCtrl.CreateRole)
 		// 分页获取角色列表接口
-		roleGroup.GET("", roleCtrl.GetRoleList)
+		roleGroup.GET("", middleware.PermissionMiddleware(), roleCtrl.GetRoleList)
 		// 根据ID获取单个角色接口
-		roleGroup.GET("/:id", roleCtrl.GetRole)
+		roleGroup.GET("/:id", middleware.PermissionMiddleware(), roleCtrl.GetRole)
 		// 根据ID更新角色接口
-		roleGroup.PUT("/:id", roleCtrl.UpdateRole)
+		roleGroup.PUT("/:id", middleware.PermissionMiddleware(), roleCtrl.UpdateRole)
 		// 根据ID删除角色接口
-		roleGroup.DELETE("/:id", roleCtrl.DeleteRole)
+		roleGroup.DELETE("/:id", middleware.PermissionMiddleware(), roleCtrl.DeleteRole)
 	}
 }

@@ -158,7 +158,11 @@ func (is *InventoryService) GetStockLogList(req requset.InventoryLogReq) (*respo
 	if req.Page <= 0 {
 		req.Page = 1
 	}
-	if req.PageSize <= 0 || req.PageSize > 50 {
+	// 防参数越界:<=0 用默认 50;>50 封顶 50(而非压成 50,避免大 pageSize 反而返回最少)
+	if req.PageSize <= 0 {
+		req.PageSize = 50
+	}
+	if req.PageSize > 50 {
 		req.PageSize = 50
 	}
 

@@ -51,7 +51,7 @@ func (rp *RolePermRepo) GetRolePermList(roleId int64) ([]int64, error) {
 	var permIds []int64
 	err := rp.DB.Model(&model.SysRolePermission{}).
 		Where("role_id = ?", roleId).
-		Pluck("menu_id", &permIds).Error
+		Pluck("permission_id", &permIds).Error
 	if err != nil {
 		return nil, err
 	}

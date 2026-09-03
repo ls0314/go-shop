@@ -22,10 +22,10 @@ func RegisterRoleMenuRoutes(r *gin.Engine) {
 	roleMenuGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
 		// 批量创建角色菜单关联接口
-		roleMenuGroup.POST("/assign-menu", roleMenuCtrl.CreateRoleMenuRel)
+		roleMenuGroup.POST("/assign-menu", middleware.PermissionMiddleware(), roleMenuCtrl.CreateRoleMenuRel)
 		// 获取某角色全部菜单关联列表接口
-		roleMenuGroup.GET("/:id/menu", roleMenuCtrl.GetRoleMenuRelList)
+		roleMenuGroup.GET("/:id/menu", middleware.PermissionMiddleware(), roleMenuCtrl.GetRoleMenuRelList)
 		// 根据ID删除某角色全部菜单关联接口
-		roleMenuGroup.DELETE("/:id/clear-menu", roleMenuCtrl.DeleteRoleAllMenuRel)
+		roleMenuGroup.DELETE("/:id/clear-menu", middleware.PermissionMiddleware(), roleMenuCtrl.DeleteRoleAllMenuRel)
 	}
 }

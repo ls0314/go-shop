@@ -21,8 +21,12 @@ func (o *OperationLogService) GetOperationLogList(req requset.GetOperationLogLis
 	if req.Page <= 0 {
 		req.Page = 1
 	}
-	if req.PageSize <= 0 || req.PageSize > 100 {
+	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
+	if req.PageSize <= 0 {
 		req.PageSize = 10
+	}
+	if req.PageSize > 100 {
+		req.PageSize = 100
 	}
 
 	operationLogList, total, err := o.OperationLogRepo.GetOperationLogList(req)

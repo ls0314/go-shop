@@ -307,8 +307,12 @@ func (p *PaymentService) GetPaymentList(req requset.GetPaymentListReq) (*respons
 	if req.Page <= 0 {
 		req.Page = 1
 	}
-	if req.PageSize <= 0 || req.PageSize > 100 {
+	// 防参数越界:<=0 用默认 20;>100 封顶 100(而非压成 20,避免大 pageSize 反而返回最少)
+	if req.PageSize <= 0 {
 		req.PageSize = 20
+	}
+	if req.PageSize > 100 {
+		req.PageSize = 100
 	}
 
 	// 调用数据层查询

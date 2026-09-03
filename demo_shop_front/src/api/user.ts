@@ -15,6 +15,14 @@ export const getUserInfoApi = () => {
     })
 }
 
+// 获取当前登录用户的权限码数组(按钮级权限控制)
+export const getPermsApi = () => {
+    return service({
+        url: '/api/v1/user/perms',
+        method: 'get'
+    })
+}
+
 export const registerApi = (data) => {
     return service({
         url: '/api/v1/user/register',

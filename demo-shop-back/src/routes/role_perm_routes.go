@@ -23,10 +23,10 @@ func RegisterRolePermRoutes(r *gin.Engine) {
 	rolePermGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
 		// 批量创建角色权限关联接口
-		rolePermGroup.POST("/assign-perm", rolePermCtrl.CreateRolePermRel)
+		rolePermGroup.POST("/assign-perm", middleware.PermissionMiddleware(), rolePermCtrl.CreateRolePermRel)
 		// 获取某角色全部权限关联列表接口
-		rolePermGroup.GET("/:id/perm", rolePermCtrl.GetRolePermRelList)
+		rolePermGroup.GET("/:id/perm", middleware.PermissionMiddleware(), rolePermCtrl.GetRolePermRelList)
 		// 根据ID删除某角色全部权限关联接口
-		rolePermGroup.DELETE("/:id/clear-perm", rolePermCtrl.DeleteRoleAllPermRelRel)
+		rolePermGroup.DELETE("/:id/clear-perm", middleware.PermissionMiddleware(), rolePermCtrl.DeleteRoleAllPermRelRel)
 	}
 }

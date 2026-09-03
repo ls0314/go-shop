@@ -22,10 +22,10 @@ func RegisterUserDeptRoutes(r *gin.Engine) {
 	userDeptGroup.Use(middleware.OperationLogMiddleware(model.LogModuleUser))
 	{
 		// 批量创建用户部门关联接口
-		userDeptGroup.POST("/assign-dept", userDeptCtrl.CreateUserDeptRel)
+		userDeptGroup.POST("/assign-dept", middleware.PermissionMiddleware(), userDeptCtrl.CreateUserDeptRel)
 		// 获取某用户全部部门关联列表接口
-		userDeptGroup.GET("/:id/dept", userDeptCtrl.GetUserDeptRelList)
+		userDeptGroup.GET("/:id/dept", middleware.PermissionMiddleware(), userDeptCtrl.GetUserDeptRelList)
 		// 根据ID删除某用户全部部门关联接口
-		userDeptGroup.DELETE("/:id/clear-dept", userDeptCtrl.DeleteUserAllDeptRel)
+		userDeptGroup.DELETE("/:id/clear-dept", middleware.PermissionMiddleware(), userDeptCtrl.DeleteUserAllDeptRel)
 	}
 }

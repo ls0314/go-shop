@@ -23,10 +23,10 @@ func RegisterUserRoleRoutes(r *gin.Engine) {
 	userRoleGroup.Use(middleware.OperationLogMiddleware(model.LogModuleUser))
 	{
 		// 批量创建用户角色关联接口
-		userRoleGroup.POST("/assign-role", userRoleCtrl.CreateUserRoleRel)
+		userRoleGroup.POST("/assign-role", middleware.PermissionMiddleware(), userRoleCtrl.CreateUserRoleRel)
 		// 获取某用户全部角色关联列表接口
-		userRoleGroup.GET("/:id/role", userRoleCtrl.GetUserRoleRelList)
+		userRoleGroup.GET("/:id/role", middleware.PermissionMiddleware(), userRoleCtrl.GetUserRoleRelList)
 		// 根据ID删除某用户全部角色关联接口
-		userRoleGroup.DELETE("/:id/clear-role", userRoleCtrl.DeleteUserAllRoleRel)
+		userRoleGroup.DELETE("/:id/clear-role", middleware.PermissionMiddleware(), userRoleCtrl.DeleteUserAllRoleRel)
 	}
 }

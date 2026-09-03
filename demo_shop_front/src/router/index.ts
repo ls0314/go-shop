@@ -179,6 +179,11 @@ router.beforeEach(async (to, from) => {
         return '/shop/home'
     }
 
+    // 刷新后 permCodes 可能为空,进入管理端页面前补拉一次(按钮级权限)
+    if (userStore.permCodes.length === 0) {
+        await userStore.GetPerms()
+    }
+
     // 动态路由已加载但匹配不到 → 404
     if (to.matched.length === 0) {
         return '/404'

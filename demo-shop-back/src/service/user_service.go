@@ -86,8 +86,12 @@ func (u *UserService) GetUserList(page, pageSize int, status string) ([]model.Sy
 	if page <= 0 {
 		page = 1
 	}
-	if pageSize <= 0 || pageSize > 100 {
+	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
+	if pageSize <= 0 {
 		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
 	}
 	return u.UserRepo.GetUserList(page, pageSize, status)
 }

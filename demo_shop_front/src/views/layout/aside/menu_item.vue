@@ -19,12 +19,13 @@
             class="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-sm shadow-indigo-400/50"
         />
 
-        <!-- 图标容器 -->
+        <!-- 图标容器:有图标显示 emoji,无图标显示层级圆点 -->
         <span
             class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/5 text-base transition-colors group-hover:bg-white/10"
             :class="isActive ? 'bg-indigo-500/25' : ''"
         >
-          {{ showIcon }}
+          <span v-if="hasIcon" class="leading-none">{{ showIcon }}</span>
+          <span v-else class="h-1.5 w-1.5 rounded-full bg-current opacity-40" />
         </span>
 
         <span
@@ -84,12 +85,13 @@
           class="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-sm shadow-indigo-400/50"
       />
 
-      <!-- 图标容器 -->
+      <!-- 图标容器:有图标显示 emoji,无图标显示层级圆点 -->
       <span
           class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/5 text-base transition-colors group-hover:bg-white/10"
           :class="isActive ? 'bg-indigo-500/25' : ''"
       >
-        {{ showIcon }}
+        <span v-if="hasIcon" class="leading-none">{{ showIcon }}</span>
+        <span v-else class="h-1.5 w-1.5 rounded-full bg-current opacity-40" />
       </span>
 
       <span
@@ -123,7 +125,9 @@ const emit = defineEmits<{
 const route = useRoute()
 const router = useRouter()
 
-const open = ref(true)
+// 一级菜单(parent_id=0)默认展开,二级及更深默认收起(刷新后只展开顶层骨架);
+// 当前路由的激活菜单链由下方 watch 自动展开
+const open = ref((props.item.parent_id ?? 0) === 0)
 
 const visibleChildren = computed(() => {
   return (props.item.children || [])
@@ -144,18 +148,34 @@ const isActive = computed(() => {
 })
 
 const showIcon = computed(() => {
-  const icon = props.item.meta_info?.icon || props.item.icon
+  const raw = props.item.meta_info?.icon || props.item.icon
+  const icon = (raw || '').toLowerCase()
 
+  // key 统一小写,只映射菜单数据中实际出现的 icon 值
   const iconMap: Record<string, string> = {
-    dashboard: '🏠',
-    system: '⚙️',
-    user: '👤',
-    role: '🔐',
-    menu: '📋'
+    // 后台管理(admin)
+    dashboard: '🏠', // 后台管理
+    system: '⚙️',    // 系统管理
+    user: '👤',       // 用户管理
+    role: '🔐',       // 角色管理
+    menu: '📋',       // 菜单管理
+    lock: '🔒',       // 权限管理 / 数据权限
+    office: '🏢',     // 部门管理
+    // 平台管理(platform)
+    setting: '🛠️',    // 平台管理
+    list: '🗂️',       // 类目管理
+    product: '📦',    // 商品管理
+    inventory: '📊',  // 库存管理
+    document: '🧾',   // 订单管理
+    money: '💰',      // 支付管理
+    ticket: '🎟️',     // 优惠券管理
   }
 
-  return iconMap[icon || ''] || '📄'
+  return iconMap[icon] || ''
 })
+
+// 是否为有图标项(决定容器里显示 emoji 还是占位圆点)
+const hasIcon = computed(() => !!showIcon.value)
 
 watch(
     () => route.path,

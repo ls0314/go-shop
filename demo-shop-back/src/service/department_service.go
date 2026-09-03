@@ -134,8 +134,12 @@ func (d *DeptService) GetDeptList(page, pageSize int, deptType string) ([]model.
 	if page <= 0 {
 		page = 1
 	}
-	if pageSize <= 0 || pageSize > 100 {
+	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
+	if pageSize <= 0 {
 		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
 	}
 	// 调用数据层返回分页数据
 	return d.DepartmentRepo.GetDeptList(page, pageSize, deptType)

@@ -312,8 +312,12 @@ func (p *ProductService) GetProductSpuList(req requset.SpuQueryReq) (*response.G
 	if req.Page <= 0 {
 		req.Page = 1
 	}
-	if req.PageSize <= 0 || req.PageSize > 100 {
+	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
+	if req.PageSize <= 0 {
 		req.PageSize = 10
+	}
+	if req.PageSize > 100 {
+		req.PageSize = 100
 	}
 	// 调用数据层获取完整的spu分页列表信息
 	rows, total, err := p.ProductRepo.GetSpuList(req)
@@ -425,8 +429,12 @@ func (p *ProductService) getProductSpuListByDB(req requset.SpuQueryReq) (*respon
 	if req.Page <= 0 {
 		req.Page = 1
 	}
-	if req.PageSize <= 0 || req.PageSize > 50 {
+	// 防参数越界:<=0 用默认 10;>50 封顶 50(而非压成 10,避免大 pageSize 反而返回最少)
+	if req.PageSize <= 0 {
 		req.PageSize = 10
+	}
+	if req.PageSize > 50 {
+		req.PageSize = 50
 	}
 
 	// 用户端只展示已上架商品

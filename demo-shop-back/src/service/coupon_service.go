@@ -101,8 +101,12 @@ func (c *CouponService) GetCouponList(req requset.GetCouponListReq) (*response.G
 	if req.Page <= 0 {
 		req.Page = 1
 	}
-	if req.PageSize <= 0 || req.PageSize > 100 {
+	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
+	if req.PageSize <= 0 {
 		req.PageSize = 10
+	}
+	if req.PageSize > 100 {
+		req.PageSize = 100
 	}
 
 	couponList, total, err := c.CouponRepo.GetCouponList(&req)
@@ -129,8 +133,12 @@ func (c *CouponService) UserGetCouponList(userId int64, req requset.UserGetCoupo
 	if req.Page <= 0 {
 		req.Page = 1
 	}
-	if req.PageSize <= 0 || req.PageSize > 100 {
+	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
+	if req.PageSize <= 0 {
 		req.PageSize = 10
+	}
+	if req.PageSize > 100 {
+		req.PageSize = 100
 	}
 
 	couponList, total, err := c.CouponRepo.UserGetCouponList(userId, &req)
@@ -238,8 +246,12 @@ func (c *CouponService) GetReceiveCouponList(userId int64, req requset.UserGetTe
 	if req.Page <= 0 {
 		req.Page = 1
 	}
-	if req.PageSize <= 0 || req.PageSize > 100 {
+	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
+	if req.PageSize <= 0 {
 		req.PageSize = 10
+	}
+	if req.PageSize > 100 {
+		req.PageSize = 100
 	}
 
 	list, total, err := c.CouponRepo.UserGetTemplateList(userId, req.Page, req.PageSize)

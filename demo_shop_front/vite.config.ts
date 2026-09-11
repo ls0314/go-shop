@@ -34,17 +34,16 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       open: true,
-      proxy: {
-        '/api': {
-          target: env.VITE_APP_API_BASE_URL,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
-        },
-        '/uploads': {
-          target: `${env.VITE_BASE_PATH}:${env.VITE_SERVER_PORT}`,
-          changeOrigin: true,
+        proxy: {
+            '/api': {
+                target: `${env.VITE_BASE_PATH}:${env.VITE_SERVER_PORT}`,
+                changeOrigin: true,
+            },
+            '/uploads': {
+                target: `${env.VITE_BASE_PATH}:${env.VITE_SERVER_PORT}`,
+                changeOrigin: true,
+            }
         }
-      }
     },
     build: {
       outDir: 'dist',

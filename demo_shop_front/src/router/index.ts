@@ -99,13 +99,13 @@ const routes = [
     {
         path: '/register',
         name: 'Register',
-        component: () => import('@/views/register.vue'),
+        component: () => import('@/views/Register.vue'),
         meta: { hideNav: true },
     },
     {
         path: '/login',
         name: 'Login',
-        component: () => import('@/views/login.vue'),
+        component: () => import('@/views/Login.vue'),
         meta: { hideNav: true },
     },
     {

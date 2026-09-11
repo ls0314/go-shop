@@ -4,7 +4,7 @@ import type { CreatePaymentReq, AdminPaymentQuery } from '@/types/payment'
 // 发起支付
 export const CreatePaymentApi = (orderId: number, data: CreatePaymentReq) => {
     return service({
-        url: `/api/v1/users/pay/order/${orderId}`,
+        url: `/users/pay/order/${orderId}`,
         method: 'post',
         data,
     })
@@ -13,7 +13,7 @@ export const CreatePaymentApi = (orderId: number, data: CreatePaymentReq) => {
 // 查询支付状态
 export const GetPaymentApi = (payNo: string) => {
     return service({
-        url: `/api/v1/users/pay/${payNo}`,
+        url: `/users/pay/${payNo}`,
         method: 'get',
     })
 }
@@ -21,7 +21,7 @@ export const GetPaymentApi = (payNo: string) => {
 // mock 支付回调
 export const MockPayCallbackApi = (payNo: string) => {
     return service({
-        url: '/api/v1/pay/callback/mock',
+        url: '/pay/callback/mock',
         method: 'post',
         data: { pay_no: payNo },
     })
@@ -32,7 +32,7 @@ export const MockPayCallbackApi = (payNo: string) => {
 // 管理端支付列表
 export const GetPaymentListApi = (params: AdminPaymentQuery = {}) => {
     return service({
-        url: '/api/v1/admin/pay/list',
+        url: '/admin/pay/list',
         method: 'get',
         params,
     })

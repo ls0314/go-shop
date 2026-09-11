@@ -35,179 +35,179 @@ export async function fetchAll<T>(
 
 // 用户列表
 export const GetUserListApi = (params: PageQuery = {}) => {
-    return service({ url: '/api/v1/user', method: 'get', params })
+    return service({ url: '/user', method: 'get', params })
 }
 
 // 用户详情
 export const GetUserApi = (id: number) => {
-    return service({ url: `/api/v1/user/${id}`, method: 'get' })
+    return service({ url: `/user/${id}`, method: 'get' })
 }
 
 // 新增用户
 export const CreateUserApi = (data: CreateUserReq) => {
-    return service({ url: '/api/v1/user', method: 'post', data })
+    return service({ url: '/user', method: 'post', data })
 }
 
 // 编辑用户
 export const UpdateUserApi = (id: number, data: UpdateUserReq) => {
-    return service({ url: `/api/v1/user/${id}`, method: 'put', data })
+    return service({ url: `/user/${id}`, method: 'put', data })
 }
 
 // 删除用户
 export const DeleteUserApi = (id: number) => {
-    return service({ url: `/api/v1/user/${id}`, method: 'delete' })
+    return service({ url: `/user/${id}`, method: 'delete' })
 }
 
 // 获取当前登录用户权限码(按钮级权限)
 export const GetUserPermsApi = () => {
-    return service({ url: '/api/v1/user/perms', method: 'get' })
+    return service({ url: '/user/perms', method: 'get' })
 }
 
 // ==================== 用户-角色关联 ====================
 
 // 分配用户角色
 export const AssignUserRolesApi = (user_id: number, role_ids: number[]) => {
-    return service({ url: '/api/v1/user/assign-role', method: 'post', data: { user_id, role_ids } })
+    return service({ url: '/user/assign-role', method: 'post', data: { user_id, role_ids } })
 }
 
 // 查询用户已有角色ID列表
 export const GetUserRoleIdsApi = (userId: number) => {
-    return service({ url: `/api/v1/user/${userId}/role`, method: 'get' })
+    return service({ url: `/user/${userId}/role`, method: 'get' })
 }
 
 // 清空用户角色
 export const ClearUserRolesApi = (userId: number) => {
-    return service({ url: `/api/v1/user/${userId}/clear-role`, method: 'delete' })
+    return service({ url: `/user/${userId}/clear-role`, method: 'delete' })
 }
 
 // ==================== 角色管理 ====================
 
 export const GetRoleListApi = (params: PageQuery = {}) => {
-    return service({ url: '/api/v1/role', method: 'get', params })
+    return service({ url: '/role', method: 'get', params })
 }
 
 export const GetRoleApi = (id: number) => {
-    return service({ url: `/api/v1/role/${id}`, method: 'get' })
+    return service({ url: `/role/${id}`, method: 'get' })
 }
 
 export const CreateRoleApi = (data: CreateRoleReq) => {
-    return service({ url: '/api/v1/role', method: 'post', data })
+    return service({ url: '/role', method: 'post', data })
 }
 
 export const UpdateRoleApi = (id: number, data: Partial<CreateRoleReq>) => {
-    return service({ url: `/api/v1/role/${id}`, method: 'put', data })
+    return service({ url: `/role/${id}`, method: 'put', data })
 }
 
 export const DeleteRoleApi = (id: number) => {
-    return service({ url: `/api/v1/role/${id}`, method: 'delete' })
+    return service({ url: `/role/${id}`, method: 'delete' })
 }
 
 // ==================== 角色-菜单/权限关联 ====================
 
 // 分配角色菜单
 export const AssignRoleMenusApi = (role_id: number, menu_ids: number[]) => {
-    return service({ url: '/api/v1/role/assign-menu', method: 'post', data: { role_id, menu_ids } })
+    return service({ url: '/role/assign-menu', method: 'post', data: { role_id, menu_ids } })
 }
 
 // 查询角色已有菜单ID列表
 export const GetRoleMenuIdsApi = (roleId: number) => {
-    return service({ url: `/api/v1/role/${roleId}/menu`, method: 'get' })
+    return service({ url: `/role/${roleId}/menu`, method: 'get' })
 }
 
 // 分配角色权限
 export const AssignRolePermsApi = (role_id: number, perm_ids: number[]) => {
-    return service({ url: '/api/v1/role/assign-perm', method: 'post', data: { role_id, perm_ids } })
+    return service({ url: '/role/assign-perm', method: 'post', data: { role_id, perm_ids } })
 }
 
 // 查询角色已有权限ID列表
 export const GetRolePermIdsApi = (roleId: number) => {
-    return service({ url: `/api/v1/role/${roleId}/perm`, method: 'get' })
+    return service({ url: `/role/${roleId}/perm`, method: 'get' })
 }
 
 // ==================== 权限管理 ====================
 
 export const GetPermissionListApi = (params: PageQuery = {}) => {
-    return service({ url: '/api/v1/permissions', method: 'get', params })
+    return service({ url: '/permissions', method: 'get', params })
 }
 
 export const GetPermissionApi = (id: number) => {
-    return service({ url: `/api/v1/permissions/${id}`, method: 'get' })
+    return service({ url: `/permissions/${id}`, method: 'get' })
 }
 
 export const CreatePermissionApi = (data: CreatePermissionReq) => {
-    return service({ url: '/api/v1/permissions', method: 'post', data })
+    return service({ url: '/permissions', method: 'post', data })
 }
 
 export const UpdatePermissionApi = (id: number, data: Partial<CreatePermissionReq>) => {
-    return service({ url: `/api/v1/permissions/${id}`, method: 'put', data })
+    return service({ url: `/permissions/${id}`, method: 'put', data })
 }
 
 export const DeletePermissionApi = (id: number) => {
-    return service({ url: `/api/v1/permissions/${id}`, method: 'delete' })
+    return service({ url: `/permissions/${id}`, method: 'delete' })
 }
 
 // ==================== 菜单管理 ====================
 
 export const GetMenuListApi = (params: PageQuery = {}) => {
-    return service({ url: '/api/v1/menu', method: 'get', params })
+    return service({ url: '/menu', method: 'get', params })
 }
 
 export const GetMenuApi = (id: number) => {
-    return service({ url: `/api/v1/menu/${id}`, method: 'get' })
+    return service({ url: `/menu/${id}`, method: 'get' })
 }
 
 export const CreateMenuApi = (data: CreateMenuReq) => {
-    return service({ url: '/api/v1/menu', method: 'post', data })
+    return service({ url: '/menu', method: 'post', data })
 }
 
 export const UpdateMenuApi = (id: number, data: Partial<CreateMenuReq>) => {
-    return service({ url: `/api/v1/menu/${id}`, method: 'put', data })
+    return service({ url: `/menu/${id}`, method: 'put', data })
 }
 
 export const DeleteMenuApi = (id: number) => {
-    return service({ url: `/api/v1/menu/${id}`, method: 'delete' })
+    return service({ url: `/menu/${id}`, method: 'delete' })
 }
 
 // ==================== 部门管理 ====================
 
 export const GetDeptListApi = (params: PageQuery = {}) => {
-    return service({ url: '/api/v1/dept', method: 'get', params })
+    return service({ url: '/dept', method: 'get', params })
 }
 
 export const GetDeptApi = (id: number) => {
-    return service({ url: `/api/v1/dept/${id}`, method: 'get' })
+    return service({ url: `/dept/${id}`, method: 'get' })
 }
 
 export const CreateDeptApi = (data: CreateDeptReq) => {
-    return service({ url: '/api/v1/dept', method: 'post', data })
+    return service({ url: '/dept', method: 'post', data })
 }
 
 export const UpdateDeptApi = (id: number, data: Partial<CreateDeptReq>) => {
-    return service({ url: `/api/v1/dept/${id}`, method: 'put', data })
+    return service({ url: `/dept/${id}`, method: 'put', data })
 }
 
 export const DeleteDeptApi = (id: number) => {
-    return service({ url: `/api/v1/dept/${id}`, method: 'delete' })
+    return service({ url: `/dept/${id}`, method: 'delete' })
 }
 
 // ==================== 数据权限 scope ====================
 
 export const GetScopeListApi = (params: PageQuery = {}) => {
-    return service({ url: '/api/v1/scope', method: 'get', params })
+    return service({ url: '/scope', method: 'get', params })
 }
 
 export const GetScopeApi = (id: number) => {
-    return service({ url: `/api/v1/scope/${id}`, method: 'get' })
+    return service({ url: `/scope/${id}`, method: 'get' })
 }
 
 export const CreateScopeApi = (data: CreateScopeReq) => {
-    return service({ url: '/api/v1/scope', method: 'post', data })
+    return service({ url: '/scope', method: 'post', data })
 }
 
 export const UpdateScopeApi = (id: number, data: Partial<CreateScopeReq>) => {
-    return service({ url: `/api/v1/scope/${id}`, method: 'put', data })
+    return service({ url: `/scope/${id}`, method: 'put', data })
 }
 
 export const DeleteScopeApi = (id: number) => {
-    return service({ url: `/api/v1/scope/${id}`, method: 'delete' })
+    return service({ url: `/scope/${id}`, method: 'delete' })
 }

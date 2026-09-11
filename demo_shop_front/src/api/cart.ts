@@ -4,7 +4,7 @@ import type { AddCartReq, UpdateCartReq, SelectAllReq } from '@/types/cart'
 // 加入购物车
 export const AddCartApi = (data: AddCartReq) => {
     return service({
-        url: '/api/v1/users/cart',
+        url: '/users/cart',
         method: 'post',
         data,
     })
@@ -13,7 +13,7 @@ export const AddCartApi = (data: AddCartReq) => {
 // 获取购物车列表
 export const GetCartListApi = () => {
     return service({
-        url: '/api/v1/users/cart',
+        url: '/users/cart',
         method: 'get',
     })
 }
@@ -21,7 +21,7 @@ export const GetCartListApi = () => {
 // 获取购物车总数量（角标用）
 export const GetCartCountApi = () => {
     return service({
-        url: '/api/v1/users/cart/count',
+        url: '/users/cart/count',
         method: 'get',
     })
 }
@@ -29,7 +29,7 @@ export const GetCartCountApi = () => {
 // 选中项结算预览
 export const GetCartPreviewApi = () => {
     return service({
-        url: '/api/v1/users/cart/preview',
+        url: '/users/cart/preview',
         method: 'get',
     })
 }
@@ -37,7 +37,7 @@ export const GetCartPreviewApi = () => {
 // 更新购物车项（数量/选中）
 export const UpdateCartApi = (id: number, data: UpdateCartReq) => {
     return service({
-        url: `/api/v1/users/cart/${id}`,
+        url: `/users/cart/${id}`,
         method: 'put',
         data,
     })
@@ -46,7 +46,7 @@ export const UpdateCartApi = (id: number, data: UpdateCartReq) => {
 // 全选/取消全选
 export const SelectAllCartApi = (data: SelectAllReq) => {
     return service({
-        url: '/api/v1/users/cart/select-all',
+        url: '/users/cart/select-all',
         method: 'put',
         data,
     })
@@ -55,7 +55,7 @@ export const SelectAllCartApi = (data: SelectAllReq) => {
 // 删除购物车项
 export const DeleteCartApi = (id: number) => {
     return service({
-        url: `/api/v1/users/cart/${id}`,
+        url: `/users/cart/${id}`,
         method: 'delete',
     })
 }

@@ -24,7 +24,7 @@ export function uploadFile(file: File): Promise<string> {
             formData.append('file', file)
 
             service({
-                url: '/api/v1/upload/chunk',
+                url: '/upload/chunk',
                 method: 'post',
                 data: formData,
                 headers: { 'Content-Type': 'multipart/form-data' },

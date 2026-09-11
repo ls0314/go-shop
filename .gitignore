@@ -1,0 +1,18 @@
+# IDE / 工具目录
+.idea/
+.vscode/
+.claude/
+.zcode/
+.reasonix/
+
+# 求职素材(不入公开仓库)
+简历-项目介绍.md
+
+# Go 运行时产物
+*.exe
+demo-shop-back/uploads/
+demo-shop-back/temp/
+
+# 系统杂项
+Thumbs.db
+.DS_Store

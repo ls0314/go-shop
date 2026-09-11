@@ -118,6 +118,9 @@ func InitRoutes() *gin.Engine {
 	r.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "Hello World")
 	})
+	r.GET("/api/v1/healthz", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
 
 	return r
 }

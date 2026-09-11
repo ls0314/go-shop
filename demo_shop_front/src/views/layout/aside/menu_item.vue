@@ -107,14 +107,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { MenuItem } from '@/types/menu'
+import type { SysMenu } from '@/types/rbac'
 
 defineOptions({
   name: 'AsideMenuItem'
 })
 
 const props = defineProps<{
-  item: MenuItem
+  item: SysMenu
   collapsed: boolean
 }>()
 

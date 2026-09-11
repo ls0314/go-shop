@@ -5,16 +5,15 @@
 --   migrations/  → DDL + 系统数据（菜单树、权限点、内置角色），所有环境执行
 --   seeds/       → 演示数据（测试账号、测试角色及绑定），仅开发/测试库显式加载
 --
--- 加载方式（仅开发实例的 demo_shop 库）：
---   docker exec -i postgres psql -U postgres -d demo_shop < db/seeds/seed.sql
---   或在 Go 侧调用 db.RunSeedFile("db/seeds/seed.sql")
--- 测试实例（demo-shop-test）不加载本文件：测试数据由各测试用 factory 自建。
+-- 加载方式（仅开发/演示实例）：
+--   由 db.RunSeeds 按版本账本(sys_seed_history)执行:文件名即版本号,
+--   已记账的文件自动跳过;事务由 Runner 统一管理,文件内不得包含 BEGIN/COMMIT。
+-- 测试实例（demo_shop_test）不加载本文件：测试数据由各测试用 factory 自建。
 --
 -- 幂等：全部使用 ON CONFLICT DO NOTHING / DO UPDATE，可重复执行。
 -- 注意：测试角色不指定主键（迁移创建的系统角色已占用 1/2/3），
 --       所有关联一律按 username / role_name / route_path 关联，与主键无关。
 -- ============================================================
-BEGIN;
 
 -- ------------------------------
 -- 1. 演示用户（原 000003 / 000004 拆出）
@@ -117,4 +116,3 @@ SELECT setval(
                TRUE
        );
 
-COMMIT;

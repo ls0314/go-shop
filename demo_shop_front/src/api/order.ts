@@ -11,7 +11,7 @@ import type {
 // 创建订单
 export const CreateOrderApi = (data: CreateOrderReq) => {
     return service({
-        url: '/api/v1/users/platform/orders',
+        url: '/users/platform/orders',
         method: 'post',
         data,
     })
@@ -20,7 +20,7 @@ export const CreateOrderApi = (data: CreateOrderReq) => {
 // 用户订单列表
 export const GetUserOrderListApi = (params: OrderQueryReq = {}) => {
     return service({
-        url: '/api/v1/users/platform/orders',
+        url: '/users/platform/orders',
         method: 'get',
         params,
     })
@@ -29,7 +29,7 @@ export const GetUserOrderListApi = (params: OrderQueryReq = {}) => {
 // 用户订单详情
 export const GetUserOrderDetailApi = (id: number) => {
     return service({
-        url: `/api/v1/users/platform/orders/${id}`,
+        url: `/users/platform/orders/${id}`,
         method: 'get',
     })
 }
@@ -37,7 +37,7 @@ export const GetUserOrderDetailApi = (id: number) => {
 // 取消订单
 export const CancelOrderApi = (id: number) => {
     return service({
-        url: `/api/v1/users/platform/orders/${id}/cancel`,
+        url: `/users/platform/orders/${id}/cancel`,
         method: 'put',
     })
 }
@@ -45,7 +45,7 @@ export const CancelOrderApi = (id: number) => {
 // 确认收货
 export const ConfirmOrderApi = (id: number) => {
     return service({
-        url: `/api/v1/users/platform/orders/${id}/confirm`,
+        url: `/users/platform/orders/${id}/confirm`,
         method: 'put',
     })
 }
@@ -55,7 +55,7 @@ export const ConfirmOrderApi = (id: number) => {
 // 管理端订单列表
 export const GetAdminOrderListApi = (params: AdminOrderQueryReq = {}) => {
     return service({
-        url: '/api/v1/platform/orders',
+        url: '/platform/orders',
         method: 'get',
         params,
     })
@@ -64,7 +64,7 @@ export const GetAdminOrderListApi = (params: AdminOrderQueryReq = {}) => {
 // 管理端订单详情
 export const GetAdminOrderDetailApi = (id: number) => {
     return service({
-        url: `/api/v1/platform/orders/${id}`,
+        url: `/platform/orders/${id}`,
         method: 'get',
     })
 }
@@ -72,7 +72,7 @@ export const GetAdminOrderDetailApi = (id: number) => {
 // 发货
 export const ShipOrderApi = (id: number, data: OrderShipReq) => {
     return service({
-        url: `/api/v1/platform/orders/${id}/ship`,
+        url: `/platform/orders/${id}/ship`,
         method: 'put',
         data,
     })

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -67,6 +68,7 @@ func LoadConfig(configPath string) error {
 		return fmt.Errorf("解析配置文件失败: %v", err)
 	}
 
+	applyEnvOverrides()
 	return nil
 }
 
@@ -74,4 +76,32 @@ func LoadConfig(configPath string) error {
 func (db *DatabaseConfig) GetDSN() string {
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		db.Host, db.Port, db.User, db.Password, db.Dbname, db.Sslmode)
+}
+
+func applyEnvOverrides() {
+	GlobalConfig.Server.Port = getEnv("DEMO_SHOP_SERVER_PORT", GlobalConfig.Server.Port)
+
+	GlobalConfig.Database.Host = getEnv("DEMO_SHOP_DB_HOST", GlobalConfig.Database.Host)
+	GlobalConfig.Database.Port = getEnv("DEMO_SHOP_DB_PORT", GlobalConfig.Database.Port)
+	GlobalConfig.Database.User = getEnv("DEMO_SHOP_DB_USER", GlobalConfig.Database.User)
+	GlobalConfig.Database.Password = getEnv("DEMO_SHOP_DB_PASSWORD", GlobalConfig.Database.Password)
+	GlobalConfig.Database.Dbname = getEnv("DEMO_SHOP_DB_NAME", GlobalConfig.Database.Dbname)
+	GlobalConfig.Database.Sslmode = getEnv("DEMO_SHOP_DB_SSLMODE", GlobalConfig.Database.Sslmode)
+
+	GlobalConfig.Redis.Addr = getEnv("DEMO_SHOP_REDIS_ADDR", GlobalConfig.Redis.Addr)
+	GlobalConfig.Redis.Password = getEnv("DEMO_SHOP_REDIS_PASSWORD", GlobalConfig.Redis.Password)
+
+	GlobalConfig.RabbitMQ.DSN = getEnv("DEMO_SHOP_RABBITMQ_DSN", GlobalConfig.RabbitMQ.DSN)
+
+	// ES 地址是列表,env 用逗号分隔:DEMO_SHOP_ES_ADDRESSES=http://es:9200,http://es2:9200
+	if es := os.Getenv("DEMO_SHOP_ES_ADDRESSES"); es != "" {
+		GlobalConfig.ES.Addresses = strings.Split(es, ",")
+	}
+}
+
+func getEnv(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
 }

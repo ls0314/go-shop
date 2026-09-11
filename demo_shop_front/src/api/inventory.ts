@@ -4,7 +4,7 @@ import type { InventoryLogQuery, InventoryAdjustReq, InventoryWarnQuery } from '
 // 查询单个SKU库存
 export const GetSkuStockApi = (skuId: number) => {
     return service({
-        url: `/api/v1/admin/inventory/sku/${skuId}`,
+        url: `/admin/inventory/sku/${skuId}`,
         method: 'get',
     })
 }
@@ -12,7 +12,7 @@ export const GetSkuStockApi = (skuId: number) => {
 // 查询SPU下所有SKU库存
 export const GetSkuListBySpuApi = (spuId: number) => {
     return service({
-        url: `/api/v1/admin/inventory/spu/${spuId}`,
+        url: `/admin/inventory/spu/${spuId}`,
         method: 'get',
     })
 }
@@ -20,7 +20,7 @@ export const GetSkuListBySpuApi = (spuId: number) => {
 // 手动调整库存
 export const AdjustStockApi = (data: InventoryAdjustReq) => {
     return service({
-        url: '/api/v1/admin/inventory/adjust',
+        url: '/admin/inventory/adjust',
         method: 'post',
         data,
     })
@@ -29,7 +29,7 @@ export const AdjustStockApi = (data: InventoryAdjustReq) => {
 // 查询库存变更日志
 export const GetStockLogApi = (params: InventoryLogQuery = {}) => {
     return service({
-        url: '/api/v1/admin/inventory/log',
+        url: '/admin/inventory/log',
         method: 'get',
         params,
     })
@@ -38,7 +38,7 @@ export const GetStockLogApi = (params: InventoryLogQuery = {}) => {
 // 查询低库存预警列表
 export const GetWarnStockApi = (params: InventoryWarnQuery = {}) => {
     return service({
-        url: '/api/v1/admin/inventory/warning',
+        url: '/admin/inventory/warning',
         method: 'get',
         params,
     })

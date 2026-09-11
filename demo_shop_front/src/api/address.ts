@@ -4,7 +4,7 @@ import type { AddressFormData } from '@/types/address'
 // 新增收货地址
 export const CreateAddressApi = (data: AddressFormData) => {
     return service({
-        url: '/api/v1/users/addresses',
+        url: '/users/addresses',
         method: 'post',
         data,
     })
@@ -13,7 +13,7 @@ export const CreateAddressApi = (data: AddressFormData) => {
 // 获取地址列表
 export const GetAddressListApi = () => {
     return service({
-        url: '/api/v1/users/addresses',
+        url: '/users/addresses',
         method: 'get',
     })
 }
@@ -21,7 +21,7 @@ export const GetAddressListApi = () => {
 // 获取单个地址详情
 export const GetAddressApi = (id: number) => {
     return service({
-        url: `/api/v1/users/addresses/${id}`,
+        url: `/users/addresses/${id}`,
         method: 'get',
     })
 }
@@ -29,7 +29,7 @@ export const GetAddressApi = (id: number) => {
 // 更新收货地址
 export const UpdateAddressApi = (id: number, data: Partial<AddressFormData>) => {
     return service({
-        url: `/api/v1/users/addresses/${id}`,
+        url: `/users/addresses/${id}`,
         method: 'put',
         data,
     })
@@ -38,7 +38,7 @@ export const UpdateAddressApi = (id: number, data: Partial<AddressFormData>) => 
 // 删除收货地址
 export const DeleteAddressApi = (id: number) => {
     return service({
-        url: `/api/v1/users/addresses/${id}`,
+        url: `/users/addresses/${id}`,
         method: 'delete',
     })
 }
@@ -46,7 +46,7 @@ export const DeleteAddressApi = (id: number) => {
 // 设为默认地址
 export const SetDefaultAddressApi = (id: number) => {
     return service({
-        url: `/api/v1/users/addresses/${id}/default`,
+        url: `/users/addresses/${id}/default`,
         method: 'put',
     })
 }

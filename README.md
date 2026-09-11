@@ -11,6 +11,7 @@
 ![Elasticsearch](https://img.shields.io/badge/Elasticsearch-7.17-005571?logo=elasticsearch&logoColor=white)
 ![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue)
+[![CI](https://github.com/Zhaokun-2026/demo-shop/actions/workflows/ci.yml/badge.svg)](https://github.com/Zhaokun-2026/demo-shop/actions/workflows/ci.yml)
 
 覆盖「用户端购买 + 管理端运营」完整业务链路：RBAC 权限体系、高并发安全控制、订单状态机、消息队列、全文检索、支付抽象在真实业务场景中的工程化落地。每个核心设计均可在代码中定位实现。
 
@@ -31,20 +32,7 @@
 
 ---
 
-## 📸 界面速览
-
-> **TODO（截图占位）**：启动项目后按下表截图，保存到 `docs/screenshots/` 对应文件名，然后取消本节末尾代码块中的注释即可展示。截图建议使用浏览器无痕模式（1800×900 以上分辨率，保证界面干净）。
-
-| # | 建议截图内容 | 文件名 |
-|---|---|---|
-| 1 | 用户端首页：商品列表 + 顶部类目/搜索 | `shop-home.png` |
-| 2 | 用户端商品详情：SKU 选择 + 加入购物车 | `shop-product.png` |
-| 3 | 用户端购物车 / 结算页：勾选、选券核销 | `shop-checkout.png` |
-| 4 | 用户端订单详情：状态流转时间线 | `shop-order.png` |
-| 5 | 管理端订单管理：状态流转 / 发货操作 | `admin-order.png` |
-| 6 | 管理端 RBAC：角色-权限分配页面 | `admin-rbac.png` |
-
-<!-- 截图补充完成后，取消下面的注释
+##  界面速览
 
 | 用户端 · 首页 | 用户端 · 商品详情 | 用户端 · 购物车/结算 |
 |:---:|:---:|:---:|
@@ -52,11 +40,9 @@
 | **用户端 · 订单详情** | **管理端 · 订单管理** | **管理端 · RBAC 权限** |
 | ![订单详情](docs/screenshots/shop-order.png) | ![订单管理](docs/screenshots/admin-order.png) | ![RBAC](docs/screenshots/admin-rbac.png) |
 
--->
-
 ---
 
-## ✨ 核心技术亮点
+##  核心技术亮点
 
 ### 1. 优惠券领取并发控制 —— 悲观锁 + 乐观锁「双防线」
 
@@ -77,7 +63,7 @@ WHERE template_id = ? AND received_count < total_count;
 - 核销 / 归还均走条件 UPDATE（`WHERE status = 'unused'` / `WHERE status = 'used'`），并发下同一张券只有一个事务能成功，**天然幂等防 MQ 重复消费**
 - 完整覆盖优惠券「领取 → 核销 → 归还」状态机
 
-📄 实现：[coupon_service.go](demo-shop-back/src/service/coupon_service.go) · [coupon_repo.go](demo-shop-back/src/repository/coupon_repo.go)
+ 实现：[coupon_service.go](demo-shop-back/src/service/coupon_service.go) · [coupon_repo.go](demo-shop-back/src/repository/coupon_repo.go)
 
 ### 2. 库存一致性 —— 两段式模型 + 流水台账 + 操作幂等
 
@@ -85,7 +71,7 @@ WHERE template_id = ? AND received_count < total_count;
 - 每次变更都是 `SELECT ... FOR UPDATE` 锁 SKU 行 → 校验可用量 → 条件 UPDATE 挪锁存量，配合 `CHECK (stock >= 0 AND lock_stock >= 0)` 数据库兜底防负数
 - **库存流水台账**（`sys_product_stock_log`）：每次变更写一条流水，CHECK 约束枚举变更类型；写前检查「订单 + 变更类型」是否已存在，**同一订单同一操作只执行一次**，防 MQ 重复消费 / 回调重放导致库存重复变动
 
-📄 实现：[inventory_service.go](demo-shop-back/src/service/inventory_service.go)
+ 实现：[inventory_service.go](demo-shop-back/src/service/inventory_service.go)
 
 ### 3. 订单超时自动取消 —— RabbitMQ TTL + 死信队列模拟延迟消息
 
@@ -111,7 +97,7 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 - 消费侧：**订单状态机前置校验天然幂等**，重复投递不会重复取消；解析失败 Ack 丢弃防无限重投递
 - 解耦设计：MQ 包不依赖业务层，通过 `OrderCanceller` 接口由订单服务反向注册，接口倒置
 
-📄 实现：[rabbitmq.go](demo-shop-back/src/infra/mq/rabbitmq.go) · [order_delay.go](demo-shop-back/src/infra/mq/order_delay.go) · [consumer.go](demo-shop-back/src/infra/mq/consumer.go)
+ 实现：[rabbitmq.go](demo-shop-back/src/infra/mq/rabbitmq.go) · [order_delay.go](demo-shop-back/src/infra/mq/order_delay.go) · [consumer.go](demo-shop-back/src/infra/mq/consumer.go)
 
 ### 4. 幂等下单 + 雪花算法分布式 ID
 
@@ -119,7 +105,7 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 - 自研**雪花算法**：标准 64 位划分（41 时间戳 / 10 workerId / 12 序列号），处理**同毫秒序列溢出自旋**与**时钟回拨回退**；订单号 = `"DS" + 雪花 ID 转 36 进制`
 - 最大事务将「核销优惠券 → 写订单主表 → 写明细 → 逐项锁库存 → 删购物车 → 写订单日志」六类操作原子完成，repo 层通过 `WithTx(tx)` 绑定事务实例
 
-📄 实现：[order_service.go](demo-shop-back/src/service/order_service.go) · [snowflake.go](demo-shop-back/src/utils/snowflake.go)
+ 实现：[order_service.go](demo-shop-back/src/service/order_service.go) · [snowflake.go](demo-shop-back/src/utils/snowflake.go)
 
 ### 5. Redis 缓存体系 —— 一致性策略 + 版本号失效 + 弱依赖降级
 
@@ -135,7 +121,7 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 - **版本号批量失效**：接口权限缓存键带版本号，权限变更时 `INCR api:perm:version` 一次失效全部接口缓存，避免逐 key 删除
 - **弱依赖降级**：Redis 不可用时打 WARN 后业务直查 DB，缓存层全部判空处理，**不阻塞主流程**
 
-📄 实现：[cache.go](demo-shop-back/src/infra/cache/cache.go) · [product_service.go](demo-shop-back/src/service/product_service.go) · [permission_service.go](demo-shop-back/src/service/permission_service.go)
+ 实现：[cache.go](demo-shop-back/src/infra/cache/cache.go) · [product_service.go](demo-shop-back/src/service/product_service.go) · [permission_service.go](demo-shop-back/src/service/permission_service.go)
 
 ### 6. Elasticsearch 商品搜索 —— 增量 + 全量双周期对账
 
@@ -143,14 +129,14 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 - **增量对账（5 分钟）**：基于 Redis 时间水位（RFC3339）拉取变更商品重新索引，**水位在写入成功后才推进**（否则漏数据）
 - **全量对账（12 小时）**：全量比对 DB 与 ES 的 SPU ID 差集，重建缺失文档、清理孤儿文档
 
-📄 实现：[es.go](demo-shop-back/src/infra/es/es.go) · [reconcile.go](demo-shop-back/src/task/reconcile.go)
+ 实现：[es.go](demo-shop-back/src/infra/es/es.go) · [reconcile.go](demo-shop-back/src/task/reconcile.go)
 
 ### 7. 支付网关抽象 —— 策略模式 + 回调多重校验
 
 - 定义 `PayGateway` 接口（创建支付 / 解析回调 / 主动查询）+ 注册中心，业务层只依赖接口；当前 Mock 实现已跑通支付闭环，接入微信/支付宝零业务改动
 - 支付回调安全链：**签名验证（真实网关）→ 幂等检查（已 success 直接返回）→ 金额双重校验（回调金额 = 支付单金额 = 订单应付）→ 状态机校验（仅待支付可支付）→ 单事务落库**（更新支付单 → 更新订单 → 写日志 → 逐项扣减库存）
 
-📄 实现：[gateway.go](demo-shop-back/src/infra/pay/gateway.go) · [mock_gateway.go](demo-shop-back/src/infra/pay/mock_gateway.go) · [payment_service.go](demo-shop-back/src/service/payment_service.go)
+ 实现：[gateway.go](demo-shop-back/src/infra/pay/gateway.go) · [mock_gateway.go](demo-shop-back/src/infra/pay/mock_gateway.go) · [payment_service.go](demo-shop-back/src/service/payment_service.go)
 
 ### 8. RBAC 权限体系 —— 六维数据模型 + 三级权限控制
 
@@ -159,7 +145,7 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 - **菜单驱动动态路由**：后端返回菜单树，前端动态生成路由与侧边栏；页面按权限码控制按钮显隐，前后端双重校验
 - **两级缓存**：用户权限码与接口权限点分别缓存，权限变更走版本号批量失效（见亮点 5）
 
-📄 实现：[auth.go](demo-shop-back/src/middleware/auth.go) · [permission_service.go](demo-shop-back/src/service/permission_service.go)
+ 实现：[auth.go](demo-shop-back/src/middleware/auth.go) · [permission_service.go](demo-shop-back/src/service/permission_service.go)
 
 ### 9. 工程化与代码质量
 
@@ -169,11 +155,11 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 - **文件分片上传**：1MB 分片 + MD5 标识 + 断点续传（分片存在性检查），`sync.Map` 按文件粒度互斥防并发合并
 - 分层架构 routes → middleware → handler → service → repository，22 个业务模块同构；全局统一响应 / 错误码；JWT 双令牌（access 30min / refresh 24h）；后台定时任务（ES 对账）
 
-📄 实现：[operation_log.go](demo-shop-back/src/middleware/operation_log.go) · [file_upload.go](demo-shop-back/src/utils/file_upload.go) · [db/migrations](demo-shop-back/db/migrations)
+ 实现：[operation_log.go](demo-shop-back/src/middleware/operation_log.go) · [file_upload.go](demo-shop-back/src/utils/file_upload.go) · [db/migrations](demo-shop-back/db/migrations)
 
 ---
 
-## 🔁 核心链路设计
+##  核心链路设计
 
 **领券并发控制**（详见[亮点 1](#1-优惠券领取并发控制--悲观锁--乐观锁双防线)）：
 
@@ -212,7 +198,7 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 
 ## 功能特性
 
-### 🛒 用户端
+###  用户端
 
 | 模块 | 说明 |
 |------|------|
@@ -223,7 +209,7 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 | 优惠券 | 领券中心、我的卡券、结算选券核销、取消订单自动归还 |
 | 用户 | 登录注册、JWT 鉴权 + 刷新令牌、收货地址管理 |
 
-### 🔧 管理端
+###  管理端
 
 | 模块 | 说明 |
 |------|------|
@@ -250,19 +236,19 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 ## 系统架构
 
 ```
-┌─────────────────────────────┐       ┌─────────────────────────────┐
-│       用户端 (Vue3)          │       │       管理端 (Vue3)          │
-│   商品 / 购物车 / 下单/支付    │       │  商品/订单运营 + RBAC 管理    │
-│   优惠券 / 地址 / 个人中心     │       │  菜单驱动动态路由 + 按钮权限   │
-└──────────────┬──────────────┘       └──────────────┬──────────────┘
-               │            JWT · RESTful · 统一响应 / 错误码              │
+┌─────────────────────────────┐               ┌─────────────────────────────┐
+│       用户端 (Vue3)          │               │       管理端 (Vue3)         │
+│   商品 / 购物车 / 下单/支付   │               │  商品/订单运营 + RBAC 管理   │
+│   优惠券 / 地址 / 个人中心     │              │  菜单驱动动态路由 + 按钮权限  │
+└──────────────┬──────────────┘                └──────────────┬──────────────┘
+               │            JWT · RESTful · 统一响应 / 错误码  │
                └───────────────────────┬──────────────────────┘
                                        ▼
 ┌────────────────────────────────────────────────────────────────┐
 │                后端 (Go + Gin · 严格分层)                       │
 │   routes → middleware → handler → service → repository → model │
 ├────────────────────────────────────────────────────────────────┤
-│  Redis(缓存) │ RabbitMQ(订单超时/异步) │ ES(商品搜索)             │
+│  Redis(缓存) │ RabbitMQ(订单超时/异步) │ ES(商品搜索)            │
 │  PostgreSQL(业务库 · 26 张表 · 12 个版本化迁移)                  │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -311,7 +297,7 @@ demo-shop/
 
 ---
 
-## 🚀 快速开始
+## 快速开始
 
 ### 前置条件
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)（启动 PostgreSQL / Redis / RabbitMQ / Elasticsearch / Kibana）

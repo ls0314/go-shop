@@ -148,10 +148,10 @@ func (il *InventoryLogRepo) CreateInventoryLog(inventoryLog *model.SysProductSto
 // CheckOrderLogExists 幂等检查：同一订单+变更类型是否已存在日志
 // 接收值：orderId - 订单ID, changeType - 变更类型
 // 返回值：bool - 是否已存在, error - 错误信息
-func (il *InventoryLogRepo) CheckOrderLogExists(orderId int64, changeType string) (bool, error) {
+func (il *InventoryLogRepo) CheckOrderLogExists(skuId, orderId int64, changeType string) (bool, error) {
 	var count int64
 	err := il.db.Model(&model.SysProductStockLog{}).
-		Where("order_id = ? AND change_type = ?", orderId, changeType).
+		Where("sku_id = ? AND order_id = ? AND change_type = ?", skuId, orderId, changeType).
 		Count(&count).Error
 	return count > 0, err
 }

@@ -13,10 +13,9 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// RunMigrations 执行数据库迁移
-func RunMigrations() error {
-	// 获取数据库配置
-	dbConfig := config.GlobalConfig.Database
+const defaultMigrationsURL = "file://db//migrations"
+
+func RunMigrationsWith(dbConfig config.DatabaseConfig, sourceURL string) error {
 
 	// 构建数据库连接字符串（不带数据库名，用于创建数据库）
 	dsnWithoutDB := fmt.Sprintf("host=%s port=%s user=%s password=%s sslmode=%s",
@@ -36,7 +35,7 @@ func RunMigrations() error {
 	time.Sleep(1 * time.Second)
 
 	// 初始化数据库连接
-	if err := InitDB(); err != nil {
+	if err := InitDBWith(dbConfig); err != nil {
 		return fmt.Errorf("初始化数据库连接失败: %v", err)
 	}
 
@@ -53,7 +52,7 @@ func RunMigrations() error {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://db/migrations",
+		sourceURL,
 		"postgres",
 		driver,
 	)
@@ -73,6 +72,11 @@ func RunMigrations() error {
 	}
 
 	return nil
+}
+
+// RunMigrations 执行数据库迁移
+func RunMigrations() error {
+	return RunMigrationsWith(config.GlobalConfig.Database, defaultMigrationsURL)
 }
 
 // createDatabaseIfNotExists 创建数据库（如果不存在）

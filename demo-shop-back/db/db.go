@@ -14,10 +14,7 @@ import (
 // DB 全局数据库连接实例
 var DB *gorm.DB
 
-// InitDB 初始化数据库连接
-func InitDB() error {
-	// 获取数据库配置
-	dbConfig := config.GlobalConfig.Database
+func InitDBWith(dbConfig config.DatabaseConfig) error {
 
 	// 获取数据库连接字符串
 	dsn := dbConfig.GetDSN()
@@ -52,12 +49,17 @@ func InitDB() error {
 	}
 
 	// 设置连接池参数
-	sqlDB.SetMaxIdleConns(10)           // 最大空闲连接数
-	sqlDB.SetMaxOpenConns(100)          // 最大打开连接数
+	sqlDB.SetMaxIdleConns(80)           // 最大空闲连接数
+	sqlDB.SetMaxOpenConns(80)           // 最大打开连接数
 	sqlDB.SetConnMaxLifetime(time.Hour) // 连接最大生命周期
 
 	log.Println("数据库连接成功")
 	return nil
+}
+
+// InitDB 初始化数据库连接
+func InitDB() error {
+	return InitDBWith(config.GlobalConfig.Database)
 }
 
 // GetDB 获取数据库连接实例

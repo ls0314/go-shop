@@ -41,38 +41,7 @@ CREATE INDEX IF NOT EXISTS idx_category_path ON sys_category (category_path);
 -- 按层级排序展示
 CREATE INDEX IF NOT EXISTS idx_level_sort ON sys_category (category_level, sort_order);
 
--- 创建用户：username = platformUser，password = 4545.aaa
-INSERT INTO sys_user (
-    username,
-    password_hash,
-    email,
-    phone,
-    status,
-    failed_attempts,
-    lock_until,
-    created_at,
-    updated_at
-) VALUES (
-     'platformUser',
-     crypt('4545.aaa', gen_salt('bf')),
-     'platformUser@example.com',
-     '15944167679',
-     'active',
-     0,
-     NULL,
-     CURRENT_TIMESTAMP,
-     CURRENT_TIMESTAMP
-         )
-ON CONFLICT (user_id) DO UPDATE SET
-    username = EXCLUDED.username,
-    password_hash = EXCLUDED.password_hash,
-    email = EXCLUDED.email,
-    phone = EXCLUDED.phone,
-    status = EXCLUDED.status,
-    failed_attempts = 0,
-    lock_until = NULL,
-    updated_at = CURRENT_TIMESTAMP;
-
+-- 演示账号 platformUser 及其角色绑定已拆分至 db/seeds/seed.sql
 
 -- 创建系统角色
 INSERT INTO sys_role (
@@ -447,16 +416,6 @@ FROM category_list_menu c
               ON p.permission_code = bpm.permission_code
 WHERE m.menu_type = 'F'
 ON CONFLICT (menu_id, permission_id) DO NOTHING;
-
--- ====================== 用户-角色关联 ======================
--- 将 platformUser 用户绑定为平台超级管理员
-INSERT INTO sys_user_role (user_id, role_id)
-SELECT u.user_id, r.role_id
-FROM sys_user u
-         CROSS JOIN sys_role r
-WHERE u.username = 'platformUser'
-  AND r.role_name = '平台超级管理员'
-ON CONFLICT (user_id, role_id) DO NOTHING;
 
 -- ====================== 角色-菜单关联 ======================
 -- 平台超级管理员：拥有所有平台管理相关菜单

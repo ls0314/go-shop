@@ -296,7 +296,7 @@ func (is *InventoryService) LockStockWithTx(tx *gorm.DB, skuId, qty, orderId int
 		logTx := is.InventoryLogRepo.WithTx(innerTx)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(orderId, model.StockOrderLock)
+		idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockOrderLock)
 		if err != nil {
 			return err
 		}
@@ -379,7 +379,7 @@ func (is *InventoryService) DeductStockWithTx(tx *gorm.DB, skuId, qty, orderId i
 		logTx := is.InventoryLogRepo.WithTx(innerTx)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(orderId, model.StockPayDeduct)
+		idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockPayDeduct)
 		if err != nil {
 			return err
 		}
@@ -458,12 +458,12 @@ func (is *InventoryService) ReleaseStockWithTx(tx *gorm.DB, skuId, qty, orderId 
 	if tx == nil {
 		tx = is.db
 	}
-	err := is.db.Transaction(func(tx *gorm.DB) error {
-		productTx := is.ProductRepo.WithTx(tx)
-		logTx := is.InventoryLogRepo.WithTx(tx)
+	err := is.db.Transaction(func(inner *gorm.DB) error {
+		productTx := is.ProductRepo.WithTx(inner)
+		logTx := is.InventoryLogRepo.WithTx(inner)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(orderId, model.StockOrderRelease)
+		idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockOrderRelease)
 		if err != nil {
 			return err
 		}
@@ -529,7 +529,7 @@ func (is *InventoryService) RefundStock(skuId, qty, orderId int64) error {
 		logTx := is.InventoryLogRepo.WithTx(tx)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(orderId, model.StockRefundRelease)
+		idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockRefundRelease)
 		if err != nil {
 			return err
 		}

@@ -63,6 +63,8 @@ ALTER TABLE coupon_template ADD CONSTRAINT ck_threshold_amount CHECK (threshold_
 ALTER TABLE user_coupon ADD CONSTRAINT ck_coupon_status CHECK (status IN ('unused','used','expired'));
 ALTER TABLE coupon_template ADD CONSTRAINT ck_coupon_type CHECK (coupon_type IN ('full_reduction','direct_discount'));
 
+ALTER TABLE user_coupon ADD CONSTRAINT fk_coupon_user_id FOREIGN KEY (user_id) REFERENCES sys_user (user_id) ON DELETE RESTRICT  ON UPDATE CASCADE;
+
 -- 创建系统权限
 INSERT INTO sys_permission (
     permission_code,

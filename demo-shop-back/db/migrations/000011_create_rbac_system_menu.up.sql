@@ -207,14 +207,9 @@ ON CONFLICT (menu_id, permission_id) DO NOTHING;
 -- ------------------------------------------------------------
 -- 五、角色-权限分配(sys_role_permission)
 -- 平台超级管理员:全部 system:* 权限
--- 测试角色 role01/role02:保留其旧菜单可读,补 user/role 的 view 权限
+-- （测试角色 role01/role02 的 view 绑定已拆分至 db/seeds/seed.sql，
+--   迁移执行时种子尚未加载，无法按角色名绑定测试角色）
 -- ------------------------------------------------------------
-INSERT INTO sys_role_permission (role_id, permission_id)
-SELECT r.role_id, p.permission_id
-FROM sys_role r
-         JOIN sys_permission p ON p.permission_code LIKE 'system:%'
-WHERE r.role_name = '平台超级管理员'
-ON CONFLICT (role_id, permission_id) DO NOTHING;
 
 -- 测试角色 role01(菜单含用户管理)、role02(菜单含用户/角色管理):补 view,保持可进入
 INSERT INTO sys_role_permission (role_id, permission_id)

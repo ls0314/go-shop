@@ -17,7 +17,7 @@ func TestMain(m *testing.M) {
 		Port:     getenv("TEST_PG_PORT", "5432"),
 		User:     getenv("TEST_PG_USER", "postgres"),
 		Password: getenv("TEST_PG_PASSWORD", "postgres"),
-		Dbname:   "demo-shop-test",
+		Dbname:   "demo_shop_test",
 		Sslmode:  "disable",
 	}
 

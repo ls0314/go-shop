@@ -96,8 +96,9 @@ func createDatabaseIfNotExists(dsn string, dbName string) error {
 	}
 
 	// 如果数据库不存在，则创建
+	// 标识符加双引号:库名含连字符/大写等特殊字符时,裸标识符会直接语法错误
 	if err == sql.ErrNoRows {
-		_, err = db.Exec(fmt.Sprintf("CREATE DATABASE %s WITH ENCODING 'UTF8' LC_COLLATE='en_US.utf8' LC_CTYPE='en_US.utf8'", dbName))
+		_, err = db.Exec(fmt.Sprintf(`CREATE DATABASE "%s" WITH ENCODING 'UTF8' LC_COLLATE='en_US.utf8' LC_CTYPE='en_US.utf8'`, dbName))
 		if err != nil {
 			return err
 		}

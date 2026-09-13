@@ -11,7 +11,7 @@
 ![Elasticsearch](https://img.shields.io/badge/Elasticsearch-7.17-005571?logo=elasticsearch&logoColor=white)
 ![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue)
-[![CI](https://github.com/Zhaokun-2026/demo-shop/actions/workflows/ci.yml/badge.svg)](https://github.com/Zhaokun-2026/demo-shop/actions/workflows/ci.yml)
+[![CI](https://github.com/ls0314/go-shop/actions/workflows/ci.yml/badge.svg)](https://github.com/ls0314/go-shop/actions/workflows/ci.yml)
 
 覆盖「用户端购买 + 管理端运营」完整业务链路：RBAC 权限体系、高并发安全控制、订单状态机、消息队列、全文检索、支付抽象在真实业务场景中的工程化落地。每个核心设计均可在代码中定位实现。
 

@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"demo-shop-back/src/infra/metrics"
+
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
@@ -164,6 +166,11 @@ func isExempt(c *gin.Context) bool {
 // 这里给保守的 1 秒(精确值需计算下一个令牌到期时刻,业务上秒级粒度足够;
 // 响应体沿用全局统一格式,HTTP 状态码才是探针契约)
 func reject(c *gin.Context) {
+	route := c.FullPath()
+	if route == "" {
+		route = "UNMATCHED"
+	}
+	metrics.RateLimitRejectedTotal.WithLabelValues(route).Inc()
 	c.Header("Retry-After", "1")
 	c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 		"code":    429,

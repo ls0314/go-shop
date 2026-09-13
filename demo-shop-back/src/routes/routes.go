@@ -11,6 +11,9 @@ import (
 func InitRoutes() *gin.Engine {
 	r := gin.Default()
 
+	// HTTP 层指标(DS-A-22):第一个业务中间件,保证所有请求(含404/预检)被计量
+	r.Use(middleware.HTTPMetrics())
+
 	// 配置CORS中间件
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")

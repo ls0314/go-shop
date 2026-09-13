@@ -1,6 +1,7 @@
 package mq
 
 import (
+	"demo-shop-back/src/infra/metrics"
 	"demo-shop-back/src/model/response"
 	"log"
 	"strconv"
@@ -81,6 +82,10 @@ func (r *RabbitMQ) handleOrderExpired(msg amqp091.Delivery, canceller OrderCance
 	_, err = canceller.CancelOrder(orderId, 4, "系统")
 	if err != nil {
 		log.Printf("[MQ] 自动取消订单失败 orderId=%d err=%v", orderId, err)
+		metrics.OrderTimeoutCancelTotal.WithLabelValues("failed").Inc()
+	} else {
+		// processed = 消费链路成功走完(含"已支付/已取消自动跳过"的幂等路径)
+		metrics.OrderTimeoutCancelTotal.WithLabelValues("processed").Inc()
 	}
 	msg.Ack(false)
 }

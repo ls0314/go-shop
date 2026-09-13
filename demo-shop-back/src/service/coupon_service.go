@@ -180,7 +180,7 @@ func (c *CouponService) UserGetCouponList(userId int64, req requset.UserGetCoupo
 //	   锁内校验限领（CountUserCoupon）与插入成为原子操作——防每人超领
 //	② 乐观锁：UPDATE ... WHERE received_count < total_count 条件扣减，
 //	   影响行数 0 即售罄——防总量超发
-func (c *CouponService) ReceiveCoupon(userId, templateId int64) (*response.UserReceiveCouponResp, error) {
+func (c *CouponService) receiveCoupon(userId, templateId int64) (*response.UserReceiveCouponResp, error) {
 	var resp response.UserReceiveCouponResp
 
 	gatePassed := false

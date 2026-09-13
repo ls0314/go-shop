@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/db"
 	"demo-shop-back/src/config"
 	"demo-shop-back/src/infra"
+	"demo-shop-back/src/infra/metrics"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/routes"
 	"demo-shop-back/src/task"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -73,6 +75,10 @@ func main() {
 
 	// 对账任务初始化
 	task.Init()
+
+	// 可观测性(DS-A-22):独立内部端口暴露 /metrics + DB 连接池水位采样
+	metrics.StartMetricsServer()
+	metrics.StartDBPoolSampler(30 * time.Second)
 
 	// 操作日志初始化
 	middleware.InitLogWorker()

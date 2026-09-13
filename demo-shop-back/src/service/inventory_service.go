@@ -287,7 +287,7 @@ func (is *InventoryService) LockStock(skuId, qty, orderId int64) error {
 //	orderId - 关联订单ID
 //
 // 返回值: error - 错误信息
-func (is *InventoryService) LockStockWithTx(tx *gorm.DB, skuId, qty, orderId int64) error {
+func (is *InventoryService) lockStockWithTx(tx *gorm.DB, skuId, qty, orderId int64) error {
 	if tx == nil {
 		tx = is.db
 	}

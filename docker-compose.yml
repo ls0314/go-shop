@@ -111,6 +111,25 @@ services:
     networks: [demo-shop-network]
     restart: always
 
+  # 可观测性(DS-A-22):指标抓取 + 可视化面板
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    ports: ["9090:9090"]
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks: [demo-shop-network]
+    restart: always
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes: [grafana-data:/var/lib/grafana]
+    depends_on: [prometheus]
+    networks: [demo-shop-network]
+    restart: always
+
 networks:
   demo-shop-network:
     driver: bridge
@@ -121,3 +140,4 @@ volumes:
   rabbitmq-data:
   elasticsearch-data:
   uploads-data:
+  grafana-data:

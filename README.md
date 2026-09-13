@@ -21,14 +21,14 @@
 
 ## 目录
 
-- [界面速览](#-界面速览)
-- [核心技术亮点](#-核心技术亮点)
-- [核心链路设计](#-核心链路设计)
-- [功能特性](#-功能特性)
-- [技术栈](#-技术栈)
-- [系统架构](#-系统架构)
-- [项目结构](#-项目结构)
-- [快速开始](#-快速开始)
+- [界面速览](#界面速览)
+- [核心技术亮点](#核心技术亮点)
+- [核心链路设计](#核心链路设计)
+- [功能特性](#功能特性)
+- [技术栈](#技术栈)
+- [系统架构](#系统架构)
+- [项目结构](#项目结构)
+- [快速开始](#快速开始)
 
 ---
 
@@ -149,13 +149,43 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 
 ### 9. 工程化与代码质量
 
-- **版本化数据库迁移**：golang-migrate 管理 12 个版本（up/down 可回滚），表结构、约束、索引、权限 seed 全部落在 SQL 中，seed 幂等（`ON CONFLICT DO NOTHING`）
+- **版本化数据库迁移**：golang-migrate 管理 14 个版本（up/down 可回滚），表结构、约束、索引全部落在 SQL；**种子与迁移分离**——演示数据走版本账本（`sys_seed_history`），事务化记账、可重入、崩溃自动续跑
 - **PostgreSQL 特性利用**：部分唯一索引（`WHERE is_deleted = FALSE`，软删除不占唯一约束）、CHECK 约束防脏数据、幂等键唯一索引
 - **操作日志异步审计**：请求 Body 读后回填复用；密码/token 等敏感字段**递归脱敏**；按 rune 截断防切坏中文；经有界 channel（容量 1024）由 2 个 goroutine 异步入库，队列满丢弃告警不阻塞请求
 - **文件分片上传**：1MB 分片 + MD5 标识 + 断点续传（分片存在性检查），`sync.Map` 按文件粒度互斥防并发合并
 - 分层架构 routes → middleware → handler → service → repository，22 个业务模块同构；全局统一响应 / 错误码；JWT 双令牌（access 30min / refresh 24h）；后台定时任务（ES 对账）
+- **容器化与 CI**：前后端多阶段构建镜像（后端 ~1GB 工具链产物 → ~30MB 运行镜像）；`docker compose up -d --build` 一键起全栈（中间件 healthcheck 门禁 → 自动建库/迁移/种子 → nginx 前端）；GitHub Actions 门禁（vet / build / `go test -race`）
 
- 实现：[operation_log.go](demo-shop-back/src/middleware/operation_log.go) · [file_upload.go](demo-shop-back/src/utils/file_upload.go) · [db/migrations](demo-shop-back/db/migrations)
+ 实现：[operation_log.go](demo-shop-back/src/middleware/operation_log.go) · [file_upload.go](demo-shop-back/src/utils/file_upload.go) · [db/migrations](demo-shop-back/db/migrations) · [seed.go](demo-shop-back/db/seed.go)
+
+### 10. 并发正确性验证 —— 真实 PG 并发测试 + race 检测 + CI 门禁
+
+- **8 个并发/幂等用例**（[tests/](demo-shop-back/tests)）：300 并发抢 100 张券**恰好发出 100 张**（发放计数 / 账本行数 / 响应数三方复核）、同用户限领、库存防超卖、按「订单 + SKU + 操作类型」流水幂等、多 SKU 同订单回归
+- 断言精确到数字并**回查数据库账本**，不只看返回值；发令枪（barrier）保证竞争窗口重叠；测试基建自带独立测试库引导与数据工厂
+- `go test -race` 全绿，由 GitHub Actions 在 Linux 上强制执行
+- 测试驱动出真实缺陷：幂等键未含 SKU 导致多 SKU 订单绕过库存校验——已修复，并有回归用例钉死
+
+ 实现：[tests/](demo-shop-back/tests) · [CI](.github/workflows/ci.yml)
+
+### 11. 热点路径 Redis 预扣闸门 —— Lua 原子预扣 + 对账收敛（压测 10×）
+
+在领券/扣库存入口增加 Redis Lua 预扣闸门：**闸门挡量，DB 账本保真**。
+
+- **O(1) 拒绝无效流量**：Lua 脚本原子完成「查余量-校验-扣减」，售罄/超限请求不触碰数据库；DB 悲观锁+条件 UPDATE 双防线原样保留为正确性锚点
+- **失败补偿**：DB 事务失败时 Lua 补偿脚本归还闸门额度，`gatePassed` 标记区分「扣了没还」与「没扣就还」
+- **对账收敛**：定时任务以 DB 为准单向修正闸门计数（SETNX 回填 + 偏差强制对齐），闸门允许瞬时偏差、最终一致
+- **一键熔断**：`DEMO_SHOP_GATE_ENABLED` 运行时开关，Redis 故障时自动降级直走 DB，不重启实例
+
+**压测对比**（200 并发，售罄拒绝场景，3 轮中位）：
+
+| 指标 | 纯 DB 双防线 | Redis 闸门态 | 提升 |
+|---|---|---|---|
+| QPS | 707 | **7135** | **10.1×** |
+| p50 / p99 | 237ms / 927ms | **22.9ms / 93.9ms** | 10.3× / 9.9× |
+
+> 放行路径刻意设计为持平（发放 2000 张：23.2s → 24.9s）——闸门的价值是挡量而非加速放行，放行仍受 DB 事务约束保证正确性。压测后 SQL 三方复核（发放计数=账本行数=成功响应数）0 超发 0 漏发。
+
+📄 实现：[deduct.go](demo-shop-back/src/infra/cache/deduct.go) · [stock_reconcile.go](demo-shop-back/src/task/stock_reconcile.go) · [loadgen 压测工具](demo-shop-back/cmd/loadgen/main.go)
 
 ---
 
@@ -226,10 +256,10 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 | 端 | 技术 |
 |----|------|
 | 后端 | [Go 1.25](https://go.dev) · [Gin](https://github.com/gin-gonic/gin) · [GORM](https://gorm.io) · [golang-migrate](https://github.com/golang-migrate/migrate) |
-| 数据层 | PostgreSQL 14（26 张业务表）· Redis 6 · Elasticsearch 7.17 · RabbitMQ 3.13 |
+| 数据层 | PostgreSQL 14（27 张业务表）· Redis 6 · Elasticsearch 7.17 · RabbitMQ 3.13 |
 | 中间件 | JWT 鉴权 · Redis 缓存 · MQ 延迟消息 · ES 全文检索 |
 | 前端 | [Vue 3](https://vuejs.org) `<script setup>` · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vitejs.dev) · [Element Plus](https://element-plus.org) · [Pinia](https://pinia.vuejs.org) · Tailwind CSS |
-| 基础设施 | Docker Compose 一键启动全套中间件 |
+| 基础设施 | Docker 多阶段构建 · docker compose 一键全栈 · GitHub Actions CI |
 
 ---
 
@@ -249,7 +279,7 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 │   routes → middleware → handler → service → repository → model │
 ├────────────────────────────────────────────────────────────────┤
 │  Redis(缓存) │ RabbitMQ(订单超时/异步) │ ES(商品搜索)            │
-│  PostgreSQL(业务库 · 26 张表 · 12 个版本化迁移)                  │
+│  PostgreSQL(业务库 · 27 张表 · 14 个版本化迁移)                  │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -270,9 +300,13 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 ```
 demo-shop/
 ├── demo-shop-back/                 # Go 后端
-│   ├── main.go                     # 入口：自动迁移 → 初始化基建 → 注册路由
-│   ├── db/migrations/              # 12 个 golang-migrate 版本化迁移(up/down)
-│   ├── resource/application.yaml   # 配置(端口 / 数据库 / Redis / MQ / ES)
+│   ├── main.go                     # 入口：自动迁移 → 种子账本 → 初始化基建 → 注册路由
+│   ├── db/migrations/              # 14 个 golang-migrate 版本化迁移(up/down)
+│   ├── db/seeds/                   # 演示种子(版本账本 sys_seed_history 管理)
+│   ├── tests/                      # 并发/幂等集成测试(真实 PG + 数据工厂)
+│   ├── cmd/loadgen/                # 自研压测工具(QPS / 延迟分位数)
+│   ├── Dockerfile                  # 多阶段构建(builder → alpine 运行)
+│   ├── resource/application.yaml   # 配置默认值(容器内由 DEMO_SHOP_* 环境变量覆盖)
 │   └── src/
 │       ├── routes/                 # 22 个模块路由注册(统一挂载鉴权)
 │       ├── middleware/             # Auth / Permission / OperationLog

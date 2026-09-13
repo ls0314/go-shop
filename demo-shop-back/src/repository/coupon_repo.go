@@ -93,6 +93,26 @@ func (c *CouponRepo) GetCouponList(req *requset.GetCouponListReq) ([]response.Ge
 	return coupons, total, nil
 }
 
+// GetTemplateById 普通读取模板(无锁、无事务要求)
+func (c *CouponRepo) GetTemplateById(templateId int64) (*model.CouponTemplate, error) {
+	var tpl model.CouponTemplate
+	err := c.db.Where("template_id = ?", templateId).First(&tpl).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, model.ErrCouponTemplateNotExist
+		}
+		return nil, err
+	}
+	return &tpl, nil
+}
+
+// GetAllActiveTemplates 全量读取未删除模板
+func (c *CouponRepo) GetAllActiveTemplates() ([]model.CouponTemplate, error) {
+	var templateList []model.CouponTemplate
+	err := c.db.Where("is_deleted = ?", false).Find(&templateList).Error
+	return templateList, err
+}
+
 // LockTemplateByID 事务内以 FOR UPDATE 锁定模板行，并读取锁内最新数据
 // 接收值：templateId - 优惠券模板ID
 // 返回值：*model.CouponTemplate - 锁内读取的模板最新数据

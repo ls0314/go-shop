@@ -1,11 +1,16 @@
 package service
 
 import (
+	"context"
 	"demo-shop-back/db"
+	"demo-shop-back/src/infra"
+	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
 	"demo-shop-back/src/repository"
+	"fmt"
+	"log"
 	"sort"
 	"time"
 
@@ -15,6 +20,7 @@ import (
 type CouponService struct {
 	CouponRepo *repository.CouponRepo
 	db         *gorm.DB
+	cache      *cache.RedisService
 }
 
 // NewCouponService 新建优惠券模块服务层实例
@@ -24,7 +30,14 @@ func NewCouponService() *CouponService {
 	return &CouponService{
 		CouponRepo: repository.NewCouponRepo(),
 		db:         db.DB,
+		cache:      infra.GetGateCache(),
 	}
+}
+
+func NewCouponServiceWithCache(c *cache.RedisService) *CouponService {
+	svc := NewCouponService()
+	svc.cache = c
+	return svc
 }
 
 // CreateCoupon 创建优惠券模板（接口1）
@@ -170,6 +183,32 @@ func (c *CouponService) UserGetCouponList(userId int64, req requset.UserGetCoupo
 func (c *CouponService) ReceiveCoupon(userId, templateId int64) (*response.UserReceiveCouponResp, error) {
 	var resp response.UserReceiveCouponResp
 
+	gatePassed := false
+	if c.cache != nil {
+		ctx := context.Background()
+		code, err := c.cache.DeductCouponReceive(ctx, templateId, userId)
+		if err != nil {
+			log.Printf("[WARN] 领券闸门异常,降级直走 DB: templateId=%d err=%v", templateId, err)
+		} else {
+			if code == cache.GateBackfill {
+				if c.backfillCouponGate(ctx, templateId) {
+					code, err = c.cache.DeductCouponReceive(ctx, templateId, userId)
+				}
+			}
+			if err == nil {
+				switch {
+				case code > 0:
+					gatePassed = true
+				case code == cache.GateSoldOut:
+					return nil, model.ErrCouponSoldOut
+				case code == cache.GateLimitExceeded:
+					return nil, model.ErrCouponLimitExceeded
+				}
+				// code 仍为 Backfill(回填失败),落到下方照常走 DB(降级语义)
+			}
+		}
+	}
+
 	err := c.db.Transaction(func(tx *gorm.DB) error {
 		couponTx := c.CouponRepo.WithTx(tx)
 
@@ -226,10 +265,45 @@ func (c *CouponService) ReceiveCoupon(userId, templateId int64) (*response.UserR
 		}
 		return nil //commit:锁释放,下一个排队的领取事务开始执行
 	})
+	// 闸门补偿，若DB失败说明本次领取并未发生，所以把阀门扣减的归还
 	if err != nil {
+		if gatePassed && c.cache != nil {
+			if cErr := c.cache.CompensateCouponReceive(context.Background(), templateId, userId); cErr != nil {
+				log.Printf("[WARN] 领券闸门补偿失败(等待对账收敛): templateId=%d err=%v", templateId, cErr)
+			}
+		}
 		return nil, err
 	}
 	return &resp, nil
+}
+
+func (c *CouponService) backfillCouponGate(ctx context.Context, templateId int64) bool {
+	tpl, err := c.CouponRepo.GetTemplateById(templateId)
+	if err != nil {
+		return false
+	}
+	remaining := tpl.TotalCount - tpl.ReceivedCount
+	if remaining < 0 {
+		remaining = 0
+	}
+	ttl := getTTL(tpl)
+	c.cache.FillGateCounter(ctx, fmt.Sprintf("coupon:stock:%d", templateId), remaining, ttl)
+	c.cache.FillGateCounter(ctx, fmt.Sprintf("coupon:limit:%d", templateId), tpl.PerUserLimit, ttl)
+	return true
+}
+
+// gateTTL 闸门键存活时间 = 模板剩余有效期 + 1 天缓冲,下限 1 小时。
+func getTTL(tpl *model.CouponTemplate) time.Duration {
+	var d time.Duration
+	if tpl.UsableDays > 0 {
+		d = time.Duration(tpl.UsableDays)*24*time.Hour + 24*time.Hour
+	} else if !tpl.EndTime.IsZero() {
+		d = time.Until(tpl.EndTime) + 24*time.Hour
+	}
+	if d < time.Hour {
+		d = time.Hour
+	}
+	return d
 }
 
 // GetReceiveCouponList 领券中心模板列表（用户端可见可领取的券）

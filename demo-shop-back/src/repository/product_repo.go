@@ -395,6 +395,15 @@ func (p *ProductRepo) GetChangedSpuEsDocs(since time.Time) ([]model.SpuESDoc, er
 	return docs, nil
 }
 
+// GetAllActiveSkuStock 闸门对账用:全部在售 SKU 的 (sku_id, stock)。
+func (p *ProductRepo) GetAllActiveSkuStock() ([]model.SysProductSku, error) {
+	var list []model.SysProductSku
+	err := p.DB.Select("sku_id", "stock").
+		Where("is_deleted = ? AND sku_status = ?", false, model.SkuStatusActive).
+		Find(&list).Error
+	return list, err
+}
+
 // ============================================================
 // 更新商品相关信息
 // ============================================================

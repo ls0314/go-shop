@@ -12,7 +12,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func main() {
@@ -72,8 +71,8 @@ func main() {
 	}
 	defer infra.Shutdown()
 
-	reconcile := task.NewReconcileService()
-	go reconcile.Start(5*time.Minute, 12*time.Hour)
+	// 对账任务初始化
+	task.Init()
 
 	// 操作日志初始化
 	middleware.InitLogWorker()

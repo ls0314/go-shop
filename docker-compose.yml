@@ -79,6 +79,8 @@ services:
       DEMO_SHOP_SNOWFLAKE_WORKER_ID: "1"
       DEMO_SHOP_TRUSTED_PROXIES: 172.16.0.0/12
       DEMO_SHOP_SEED_DIR: /app/db/seeds
+      # 预扣闸门一键开关(压测 A/B 与生产熔断):false=闸门旁路,全量走 DB 双防线
+      DEMO_SHOP_GATE_ENABLED: "true"
     depends_on:
       postgres:      { condition: service_healthy }
       redis:         { condition: service_healthy }

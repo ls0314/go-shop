@@ -1,8 +1,10 @@
 package service
 
 import (
+	"context"
 	"demo-shop-back/db"
 	"demo-shop-back/src/infra"
+	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/infra/mq"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
@@ -10,6 +12,8 @@ import (
 	"demo-shop-back/src/repository"
 	"demo-shop-back/src/utils"
 	"encoding/json"
+	"fmt"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -130,6 +134,52 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 		}
 	}
 
+	// 库存阀门预扣
+	//gateDeducted 收集本请求已预扣的 (skuId, qty):事务失败时逐项补偿
+	type skuDeduction struct {
+		skuId, qty int64
+	}
+	var gateDeducted []skuDeduction
+	cacheSvc := infra.GetGateCache()
+	if cacheSvc != nil {
+		ctx := context.Background()
+		gateBroken := false // 中途 Redis 异常:还掉已扣的,本单整体降级为无闸门走 DB
+		for _, item := range cartItemList {
+			code, err := cacheSvc.DeductSkuStock(ctx, item.SkuId, item.Quantity)
+			if err != nil {
+				gateBroken = true
+				log.Printf("[WARN] 库存闸门异常,本单降级直走 DB: skuId=%d err=%v", item.SkuId, err)
+				break
+			}
+			if code == cache.GateBackfill {
+				// 回填值直接用购物车查询带出的 item.Stock(与 DB 同源,允许瞬时偏差):
+				// 复用既有查询结果,回填路径不新增 DB 查询
+				cacheSvc.FillGateCounter(ctx, fmt.Sprintf("sku:stock:%d", item.SkuId), item.Stock, 30*time.Second)
+				code, err = cacheSvc.DeductSkuStock(ctx, item.SkuId, item.Quantity)
+				if err != nil {
+					gateBroken = true
+					break
+				}
+			}
+			switch {
+			case code > 0:
+				gateDeducted = append(gateDeducted, skuDeduction{item.SkuId, item.Quantity})
+			case code == cache.GateSoldOut:
+				// 任一 SKU 不足:还掉已扣的再快速失败 —— 此时还没触碰 DB 行锁,
+				// 拒绝成本是一次 Redis 往返 + N 次 Redis 补偿,对比原方案(打到行锁排队)近乎免费
+				for _, d := range gateDeducted {
+					_ = cacheSvc.CompensateSkuStock(ctx, d.skuId, d.qty)
+				}
+				return nil, model.ErrStockNotEnough
+			}
+		}
+		if gateBroken {
+			for _, d := range gateDeducted {
+				_ = cacheSvc.CompensateSkuStock(ctx, d.skuId, d.qty)
+			}
+			gateDeducted = nil // 降级:本单不再视为已过闸门,事务失败后也就无需补偿
+		}
+	}
 	// 构建订单实体
 	order := &model.UserOrder{
 		OrderNo:         orderNo,
@@ -239,6 +289,15 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 		return nil
 	})
 	if err != nil {
+		// 闸门补偿:下单事务失败 → 逐项归还预扣的库存额度(与领券闸门同一补偿语义:
+		// 只还「真的扣过」的;失败不重试,少放行方向安全,对账兜底)
+		if cacheSvc != nil {
+			for _, d := range gateDeducted {
+				if cErr := cacheSvc.CompensateSkuStock(context.Background(), d.skuId, d.qty); cErr != nil {
+					log.Printf("[WARN] 库存闸门补偿失败(等待对账收敛): skuId=%d err=%v", d.skuId, cErr)
+				}
+			}
+		}
 		return nil, err
 	}
 	// 创建订单成功后将订单ID传入消息队列,检查订单超时

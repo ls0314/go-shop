@@ -14,6 +14,7 @@ import (
 	"demo-shop-back/src/infra/pay"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -126,4 +127,11 @@ func Shutdown() {
 			GlobalInfra.Redis.Close()
 		}
 	}
+}
+
+func GetGateCache() *cache.RedisService {
+	if os.Getenv("DEMO_SHOP_GATE_ENABLED") == "false" {
+		return nil
+	}
+	return GetCache()
 }

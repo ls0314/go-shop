@@ -187,6 +187,23 @@ order.dead.exchange ──▶ order.dead.queue ──▶ 消费者 goroutine
 
 📄 实现：[deduct.go](demo-shop-back/src/infra/cache/deduct.go) · [stock_reconcile.go](demo-shop-back/src/task/stock_reconcile.go) · [loadgen 压测工具](demo-shop-back/cmd/loadgen/main.go)
 
+### 12. 限流与定时任务分布式锁 —— 令牌桶 + Redsync
+
+- **两级令牌桶限流**（`x/time/rate`）：全局兜底（200 r/s，保护 DB/下游总容量）+ 登录/注册/领券按 IP 收紧（5 r/s，防爆破），429 携带 `Retry-After`；`sync.Map` 惰性建桶 + 周期清理空闲桶防内存泄漏；`healthz` 探活豁免
+- **定时任务 Redsync 分布式锁**：ES 对账与闸门对账任务跨实例互斥（`WithTries(1)` 抢不到即跳过、Expiry 到期自释放防死锁），Redis 不可用降级进程内互斥不停摆；解锁了 `cache.SetNX` 原语"有封装无调用"的历史
+- 多实例语义诚实声明：进程内限流在多实例下为每实例各限一份，跨实例全局限流是 Redis Lua 的演进方向
+
+📄 实现：[rate_limit.go](demo-shop-back/src/middleware/rate_limit.go) · [distributed_lock.go](demo-shop-back/src/task/distributed_lock.go)
+
+### 13. Prometheus 可观测体系 —— 三层指标 + 抓取编排
+
+- **HTTP 层**（流量/延迟/错误）：`http_server_requests_total`、延迟直方图——route 标签强制使用路由模板（`FullPath`），未匹配请求归入 `UNMATCHED`，杜绝指标基数爆炸
+- **业务层**：领券成败计数（`coupon_receive_total`，gate/db 双路径耗时对比）、库存超卖拒绝率、MQ 超时取消结果、限流命中数
+- **基础设施层**（饱和度）：DB 连接池水位采样（`db_pool_in_use/open/wait_count`，持续增长的等待数即 DS-A-19 分析的雪崩前兆）
+- 指标经**独立内部端口 :9002** 暴露（不映射宿主机、不被限流误伤），compose 编排 Prometheus（9090）+ Grafana（3000）自动抓取
+
+📄 实现：[metrics.go](demo-shop-back/src/infra/metrics/metrics.go) · [metrics 中间件](demo-shop-back/src/middleware/metrics.go) · [prometheus.yml](docker/prometheus.yml)
+
 ---
 
 ##  核心链路设计
@@ -309,14 +326,15 @@ demo-shop/
 │   ├── resource/application.yaml   # 配置默认值(容器内由 DEMO_SHOP_* 环境变量覆盖)
 │   └── src/
 │       ├── routes/                 # 22 个模块路由注册(统一挂载鉴权)
-│       ├── middleware/             # Auth / Permission / OperationLog
+│       ├── middleware/             # Auth / Permission / OperationLog / RateLimit / Metrics
 │       ├── handler/                # 22 个 HTTP 处理器
 │       ├── service/                # 22 个业务服务(事务 / 状态机 / 锁)
 │       ├── repository/             # 数据访问层(行锁 / 条件更新 / JOIN)
 │       ├── model/                  # 实体 / 请求 / 响应 + 统一错误码
-│       ├── infra/                  # 基建封装：cache / es / mq / pay
-│       ├── task/                   # 后台定时任务(ES 双周期对账)
+│       ├── infra/                  # 基建封装：cache(含预扣闸门) / es / mq / pay / metrics
+│       ├── task/                   # 后台定时任务(ES 对账 / 闸门对账,Redsync 分布式锁)
 │       └── utils/                  # JWT / 雪花 ID / 响应包装 / 分片上传
+├── docker/prometheus.yml           # 指标抓取配置(backend:9002)
 ├── demo_shop_front/                # Vue3 前端
 │   └── src/
 │       ├── views/platform/         # 管理端业务页(商品/订单/库存/支付/优惠券)
@@ -355,6 +373,8 @@ docker-compose -f docker-init.yml ps       # 查看状态
 | RabbitMQ 管理台 | http://localhost:15672 | 消息队列 |
 | Elasticsearch | http://localhost:9200 | 商品搜索 |
 | Kibana | http://localhost:5601 | ES 可视化 |
+| Prometheus | http://localhost:9090 | 指标抓取（compose 模式） |
+| Grafana | http://localhost:3000 | 面板可视化（compose 模式，默认账号 admin/admin） |
 
 ### 第 2 步：启动后端
 

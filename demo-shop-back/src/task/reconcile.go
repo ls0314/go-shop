@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"sync"
+
 	"time"
 
 	"demo-shop-back/src/infra"
@@ -27,12 +27,13 @@ const (
 //   - 增量对账(短周期)：把水位后变化过的 published SPU 同步到 ES
 //   - 全量对账(长周期)：清理 ES 中的孤儿文档
 //
-// 防重入：mu 保证同一时刻只有一个对账在跑
+// 防重入：分布式锁(Redsync)保证跨实例同一时刻只有一个对账在跑;
+// Redis 不可用时退化为进程内互斥(单机语义)
 type ReconcileService struct {
 	repo  *repository.ProductRepo
 	es    *es.ESClient
 	cache *cache.RedisService
-	mu    sync.Mutex
+	locks *DistributedLockManager
 }
 
 // NewReconcileService 创建对账服务(依赖从全局 infra 获取)
@@ -41,6 +42,7 @@ func NewReconcileService() *ReconcileService {
 		repo:  repository.NewProductRepo(),
 		es:    infra.GetES(),
 		cache: infra.GetCache(),
+		locks: NewDistributedLockManager(infra.GetCache()),
 	}
 }
 
@@ -78,12 +80,13 @@ func (r *ReconcileService) runIncremental() {
 		log.Println("[WARN] ES 未初始化,跳过对账")
 		return
 	}
-	// 防重入:拿不到锁说明另一个对账在跑,跳过本轮
-	if !r.mu.TryLock() {
+	// 防重入:拿不到锁说明另一个对账(本实例或其他实例)在跑,跳过本轮
+	release, ok := r.locks.TryLock("es:reconcile", 10*time.Minute)
+	if !ok {
 		log.Println("[WARN] 对账任务仍在执行,跳过本轮增量对账")
 		return
 	}
-	defer r.mu.Unlock()
+	defer release()
 
 	ctx := context.Background()
 
@@ -126,11 +129,12 @@ func (r *ReconcileService) runFull() {
 		log.Println("[WARN] ES 未初始化,跳过对账")
 		return
 	}
-	if !r.mu.TryLock() {
+	release, ok := r.locks.TryLock("es:reconcile", 10*time.Minute)
+	if !ok {
 		log.Println("[WARN] 对账任务仍在执行,跳过本轮全量对账")
 		return
 	}
-	defer r.mu.Unlock()
+	defer release()
 
 	ctx := context.Background()
 

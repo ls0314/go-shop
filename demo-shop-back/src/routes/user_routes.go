@@ -17,8 +17,8 @@ func InitUserModule() {
 func RegisterUserRoutes(r *gin.Engine) {
 	userPublic := r.Group("/api/v1/user")
 	{
-		userPublic.POST("/register", userCtrl.CreateUserHandler)
-		userPublic.POST("/login", userCtrl.LoginHandler)
+		userPublic.POST("/register", middleware.PerIPRateLimit(), userCtrl.CreateUserHandler)
+		userPublic.POST("/login", middleware.PerIPRateLimit(), userCtrl.LoginHandler)
 		userPublic.POST("/refresh", userCtrl.RefreshHandler)
 	}
 

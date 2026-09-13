@@ -3,6 +3,8 @@ package routes
 import (
 	"net/http"
 
+	"demo-shop-back/src/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,6 +24,9 @@ func InitRoutes() *gin.Engine {
 		}
 		c.Next()
 	})
+
+	// 全局兜底限流(DS-A-21):保护 DB/下游总容量;healthz 豁免
+	r.Use(middleware.GlobalRateLimit())
 
 	// ========== 用户模块初始化 ==========
 	InitUserModule()

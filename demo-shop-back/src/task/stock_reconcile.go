@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"sync"
+
 	"time"
 )
 
@@ -21,7 +21,7 @@ type StockReconcileService struct {
 	couponRepo  *repository.CouponRepo
 	productRepo *repository.ProductRepo
 	cache       *cache.RedisService
-	mu          sync.Mutex
+	locks       *DistributedLockManager
 }
 
 func NewStockReconcileService() *StockReconcileService {
@@ -29,6 +29,7 @@ func NewStockReconcileService() *StockReconcileService {
 		couponRepo:  repository.NewCouponRepo(),
 		productRepo: repository.NewProductRepo(),
 		cache:       infra.GetCache(),
+		locks:       NewDistributedLockManager(infra.GetCache()),
 	}
 }
 
@@ -39,6 +40,7 @@ func NewStockReconcileServiceWithCache(c *cache.RedisService) *StockReconcileSer
 		couponRepo:  repository.NewCouponRepo(),
 		productRepo: repository.NewProductRepo(),
 		cache:       c,
+		locks:       NewDistributedLockManager(c),
 	}
 }
 
@@ -62,10 +64,12 @@ func (s *StockReconcileService) Start(interval time.Duration) {
 }
 
 func (s *StockReconcileService) run() {
-	if !s.mu.TryLock() { // 单实例防重入;多实例场景由 DS-A-21 的分布式锁接管
+	// 跨实例互斥(Redsync);Redis 不可用降级为进程内互斥
+	release, ok := s.locks.TryLock("stock:reconcile", 5*time.Minute)
+	if !ok {
 		return
 	}
-	defer s.mu.Unlock()
+	defer release()
 
 	ctx := context.Background()
 	s.reconcileCoupons(ctx)

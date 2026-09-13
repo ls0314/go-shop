@@ -39,6 +39,6 @@ func RegisterCouponRoutes(r *gin.Engine) {
 		userCouponGroup.GET("", couponCtrl.GetUserCouponList)
 		userCouponGroup.GET("/templates", couponCtrl.GetReceiveCouponList)
 		userCouponGroup.GET("/available", couponCtrl.GetAvailableCouponList)
-		userCouponGroup.POST("/receive/:id", couponCtrl.ReceiveCoupon)
+		userCouponGroup.POST("/receive/:id", middleware.PerIPRateLimit(), couponCtrl.ReceiveCoupon)
 	}
 }

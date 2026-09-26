@@ -68,3 +68,15 @@ const (
 	LogModulePermission = "权限管理"
 	LogModuleUser       = "用户管理"
 )
+
+// outbox状态
+const (
+	OutboxPending = "pending"
+	OutboxSent    = "sent"
+)
+
+// outbox 事件类型
+const (
+	OutboxAggregateOrder        = "order"            // 聚合根:订单
+	OutboxEventOrderDelayCancel = "OrderDelayCancel" // 订单延迟取消意图
+)

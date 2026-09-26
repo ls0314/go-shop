@@ -116,3 +116,34 @@ SELECT setval(
                TRUE
        );
 
+-- ------------------------------
+-- 7. user02 绑定平台超级管理员,并让该角色持有全部权限与菜单
+--    - 角色为迁移链创建的系统角色,这里只做绑定与授权,全段幂等可重跑
+--    - 全部权限:与 sys_permission 全表做笛卡尔积入库;后续迁移新增权限点后
+--      重跑本段即可补齐(账本已记账的库需手动执行,见文件头加载方式说明)
+--    - 全部菜单:API 权限管接口鉴权,菜单绑定管前端可见性,两者都要给满
+--    - user02 原有的 role01/role02 绑定保留:多角色取权限并集,不冲突
+-- ------------------------------
+INSERT INTO sys_user_role (user_id, role_id)
+SELECT u.user_id, r.role_id
+FROM sys_user u
+         JOIN sys_role r ON r.role_name = '平台超级管理员'
+WHERE u.username = 'user02'
+ON CONFLICT (user_id, role_id) DO NOTHING;
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT r.role_id, p.permission_id
+FROM sys_role r
+         CROSS JOIN sys_permission p
+WHERE r.role_name = '平台超级管理员'
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+INSERT INTO sys_role_menu (role_id, menu_id)
+SELECT r.role_id, m.menu_id
+FROM sys_role r
+         CROSS JOIN sys_menu m
+WHERE r.role_name = '平台超级管理员'
+ON CONFLICT (role_id, menu_id) DO NOTHING;
+
+
+

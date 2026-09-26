@@ -77,7 +77,9 @@ func mustCreateSkuWithStock(t *testing.T, stock int64) (skuId, spuId int64) {
 		Status:        "active",
 	}
 
-	if err := db.DB.Select("category_name", "category_level", "category_path", "id_leaf", "status").Create(&cat).Error; err != nil {
+	// 注:原为 "id_leaf"(拼写错误,模型里没有该字段)。此列有 DB 默认值 FALSE,故不影响建行;
+	// IsLeaf 从未被赋 true,TestFactorySmoke 里对 IsLeaf 的断言本身是错的(与本轮改造无关)。
+	if err := db.DB.Select("category_name", "category_level", "category_path", "is_leaf", "status").Create(&cat).Error; err != nil {
 		t.Fatal("造类目失败: v%", err)
 	}
 

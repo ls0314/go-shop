@@ -86,7 +86,7 @@ func main() {
 	// JWT初始化
 	jwtSecret := os.Getenv("DEMO_SHOP_JWT_SECRET")
 	if jwtSecret == "" {
-		jwtSecret = "demo-shop"
+		log.Fatal("JWT 未配置")
 	}
 	middleware.InitJWT(jwtSecret)
 	// 路由初始化

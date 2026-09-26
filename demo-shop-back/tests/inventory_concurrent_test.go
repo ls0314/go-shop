@@ -111,3 +111,81 @@ func TestLockStock_MultiSku_SameOrder(t *testing.T) {
 		t.Fatalf("同订单应有 2 条 order_lock 流水, 实际 %d", got)
 	}
 }
+
+// I5 并发释放幂等:同订单同 SKU 双 goroutine 并发 ReleaseStock
+// → 两次都返回 nil(一次真实释放 + 一次唯一索引幂等命中),库存只回补一次,release 流水恰 1 条
+func TestReleaseStock_Concurrent_SameOrder(t *testing.T) {
+	const (
+		stock      = int64(10)
+		goroutines = 2
+		qty        = int64(1)
+	)
+	orderID := nextOrderID()
+	skuID, _ := mustCreateSkuWithStock(t, stock)
+	svc := service.NewInventoryService()
+
+	if err := svc.LockStock(skuID, qty, orderID); err != nil {
+		t.Fatalf("前置锁库存失败：%v", err)
+	}
+
+	stats, _ := runConcurrent(t, goroutines, func(i int) (int64, error) {
+		return 0, svc.ReleaseStock(skuID, qty, orderID) // order_id 无外键,可编
+	})
+
+	if stats["success"] != goroutines || stats["other"] != 0 {
+		t.Fatalf("I5 断言失败: %v (期望 success=%d other=0)", stats, goroutines)
+	}
+
+	if got := queryInt64(t, `SELECT stock FROM sys_product_sku WHERE sku_id = ?`, skuID); got != stock {
+		t.Fatalf("stock 应回%d(仅回补一次）， 实际上%d)", got, stock)
+	}
+
+	if got := queryInt64(t, `SELECT lock_stock FROM sys_product_sku WHERE sku_id = ?`, skuID); got != 0 {
+		t.Fatalf("lock_stock 应为 0, 实际 %d", got)
+	}
+	if got := queryInt64(t, `SELECT COUNT(*) FROM sys_product_stock_log WHERE sku_id = ? AND order_id = ? AND change_type = ?`,
+		skuID, orderID, model.StockOrderRelease); got != 1 {
+		t.Fatalf("order_release 流水应为 1 条, 实际 %d", got)
+	}
+}
+
+// I6 多 SKU 并发释放回归:同订单 3 个 SKU 并发各释放一次
+// → 三元组唯一索引不得跨 SKU 误判重(与 I4 同类的粒度缺陷),3 条流水齐全、各自库存正确回补
+func TestReleaseStock_MultiSku_SameOrder_Concurrent(t *testing.T) {
+	const (
+		stock = int64(5)
+		qty   = int64(1)
+	)
+	orderID := nextOrderID()
+	sku1, _ := mustCreateSkuWithStock(t, stock)
+	sku2, _ := mustCreateSkuWithStock(t, stock)
+	sku3, _ := mustCreateSkuWithStock(t, stock)
+	skuIDs := []int64{sku1, sku2, sku3}
+	svc := service.NewInventoryService()
+
+	for _, s := range skuIDs {
+		if err := svc.LockStock(s, qty, orderID); err != nil {
+			t.Fatalf("前置锁定 SKU%d 失败: %v", s, err)
+		}
+	}
+
+	stats, _ := runConcurrent(t, len(skuIDs), func(i int) (int64, error) {
+		return 0, svc.ReleaseStock(skuIDs[i], qty, orderID)
+	})
+
+	if stats["success"] != len(skuIDs) || stats["other"] != 0 {
+		t.Fatalf("I6 断言失败: %v (期望 success=3 other=0)", stats)
+	}
+	for _, s := range skuIDs {
+		if got := queryInt64(t, `SELECT stock FROM sys_product_sku WHERE sku_id = ?`, s); got != stock {
+			t.Fatalf("SKU%d stock 应回 %d, 实际 %d", s, stock, got)
+		}
+		if got := queryInt64(t, `SELECT lock_stock FROM sys_product_sku WHERE sku_id = ?`, s); got != 0 {
+			t.Fatalf("SKU%d lock_stock 应为 0, 实际 %d", s, got)
+		}
+	}
+	if got := queryInt64(t, `SELECT COUNT(*) FROM sys_product_stock_log WHERE order_id = ? AND change_type = ?`,
+		orderID, model.StockOrderRelease); got != 3 {
+		t.Fatalf("同订单应有 3 条 order_release 流水, 实际 %d", got)
+	}
+}

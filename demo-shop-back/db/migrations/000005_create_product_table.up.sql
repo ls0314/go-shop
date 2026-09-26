@@ -172,6 +172,8 @@ CREATE INDEX IF NOT EXISTS idx_stock_log_sku_id ON sys_product_stock_log (sku_id
 CREATE INDEX IF NOT EXISTS idx_stock_log_order_id ON sys_product_stock_log (order_id);
 -- 按时间范围查询
 CREATE INDEX IF NOT EXISTS idx_stock_log_created_at ON sys_product_stock_log (created_at);
+-- 三元组库存流水唯一索引
+CREATE UNIQUE INDEX IF NOT EXISTS uk_stock_log_order ON sys_product_stock_log (order_id, sku_id, change_type) WHERE order_id IS NOT NULL;
 
 -- 库存变更类型枚举约束
 ALTER TABLE sys_product_stock_log ADD CONSTRAINT ck_stock_log_change_type CHECK (change_type IN ('order_lock','pay_deduct','order_release','refund_release','manual_adjust'));

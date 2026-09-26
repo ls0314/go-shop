@@ -275,13 +275,17 @@ func (o *OrderRepo) GetOrderList(req requset.GetOrderListReq) ([]response.GetOrd
 // CancelOrder 取消订单
 // 接收值： orderId - 订单Id
 // 返回值： error - 错误信息
-func (o *OrderRepo) CancelOrder(orderId int64) error {
-	return o.db.Model(model.UserOrder{}).
-		Where("order_id = ? AND order_status = ?", orderId, "pending_pay").
+func (o *OrderRepo) CancelOrder(orderId int64) (int64, error) {
+	res := o.db.Model(model.UserOrder{}).
+		Where("order_id = ? AND order_status = ?", orderId, model.OrderPendingPay).
 		Updates(map[string]interface{}{
-			"order_status": "cancelled",
+			"order_status": model.OrderCancelled,
 			"updated_at":   time.Now(), // 取消订单后更新操作时间
-		}).Error
+		})
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	return res.RowsAffected, nil
 }
 
 // PayOrder 订单支付

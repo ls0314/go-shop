@@ -209,10 +209,26 @@ func (is *InventoryService) AdjustStock(userID int64, req requset.InventoryAdjus
 		productTx := is.ProductRepo.WithTx(tx)
 		logTx := is.InventoryLogRepo.WithTx(tx)
 
-		// 并发安全查询sku信息（当commit后才能对sku进行更新或删除）
+		// 并发安全查询sku信息
 		sku, err := productTx.GetSkuForUpdate(req.SkuId)
 		if err != nil {
 			return err
+		}
+
+		// 优先插入库存变动日志，由于三元组唯一索引的存在，在此次可以充当幂等的作用
+		rowsAffected, err := logTx.CreateInventoryLog(&model.SysProductStockLog{
+			SkuId:       sku.SkuId,
+			ChangeType:  model.StockManualAdjust,
+			ChangeQty:   req.ChangeQty,
+			BeforeStock: sku.Stock,
+			AfterStock:  sku.Stock + req.ChangeQty,
+			BeforeLock:  sku.LockStock,
+			AfterLock:   sku.LockStock,
+			Remark:      req.Remark,
+			CreateBy:    userID,
+		})
+		if rowsAffected == 0 {
+			return nil
 		}
 
 		// 确保库存变动合法
@@ -228,22 +244,6 @@ func (is *InventoryService) AdjustStock(userID int64, req requset.InventoryAdjus
 
 		// 调用数据层用调整信息更新SKU库存信息
 		err = productTx.UpdateStock(req.SkuId, sku.Stock+req.ChangeQty)
-		if err != nil {
-			return err
-		}
-
-		// 新建库存变动日志，写入对应变动信息
-		err = logTx.CreateInventoryLog(&model.SysProductStockLog{
-			SkuId:       sku.SkuId,
-			ChangeType:  model.StockManualAdjust,
-			ChangeQty:   req.ChangeQty,
-			BeforeStock: sku.Stock,
-			AfterStock:  sku.Stock + req.ChangeQty,
-			BeforeLock:  sku.LockStock,
-			AfterLock:   sku.LockStock,
-			Remark:      req.Remark,
-			CreateBy:    userID,
-		})
 		if err != nil {
 			return err
 		}
@@ -296,18 +296,37 @@ func (is *InventoryService) lockStockWithTx(tx *gorm.DB, skuId, qty, orderId int
 		logTx := is.InventoryLogRepo.WithTx(innerTx)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockOrderLock)
-		if err != nil {
-			return err
-		}
-		if idempotent {
-			return nil
-		}
+		//idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockOrderLock)
+		//if err != nil {
+		//	return err
+		//}
+		//if idempotent {
+		//	return nil
+		//}
 
 		// SELECT ... FOR UPDATE 锁定SKU行
 		sku, err := productTx.GetSkuForUpdate(skuId)
 		if err != nil {
 			return err
+		}
+
+		// 更改三元组唯一索引代替，幂等检查
+		rowsAffected, err := logTx.CreateInventoryLog(&model.SysProductStockLog{
+			SkuId:       skuId,
+			ChangeType:  model.StockOrderLock,
+			ChangeQty:   qty,
+			BeforeStock: sku.Stock,
+			AfterStock:  sku.Stock - qty,
+			BeforeLock:  sku.LockStock,
+			AfterLock:   sku.LockStock + qty,
+			OrderId:     orderId,
+		})
+		if err != nil {
+			return err
+		}
+		// 无新插入返回幂等成功，否则执行下述插入操作
+		if rowsAffected == 0 {
+			return nil
 		}
 
 		// 校验SKU状态
@@ -325,17 +344,7 @@ func (is *InventoryService) lockStockWithTx(tx *gorm.DB, skuId, qty, orderId int
 			return err
 		}
 
-		// 写入库存变更日志
-		return logTx.CreateInventoryLog(&model.SysProductStockLog{
-			SkuId:       skuId,
-			ChangeType:  model.StockOrderLock,
-			ChangeQty:   qty,
-			BeforeStock: sku.Stock,
-			AfterStock:  sku.Stock - qty,
-			BeforeLock:  sku.LockStock,
-			AfterLock:   sku.LockStock + qty,
-			OrderId:     orderId,
-		})
+		return nil
 	})
 	// 库存变更后失效缓存(短 TTL 兜底,失效失败最多 30 秒旧值)
 	if cache := infra.GetCache(); cache != nil {
@@ -379,18 +388,38 @@ func (is *InventoryService) DeductStockWithTx(tx *gorm.DB, skuId, qty, orderId i
 		logTx := is.InventoryLogRepo.WithTx(innerTx)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockPayDeduct)
-		if err != nil {
-			return err
-		}
-		if idempotent {
-			return nil
-		}
+		//idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockPayDeduct)
+		//if err != nil {
+		//	return err
+		//}
+		//if idempotent {
+		//	return nil
+		//}
 
 		// SELECT ... FOR UPDATE 锁定SKU行
 		sku, err := productTx.GetSkuForUpdate(skuId)
 		if err != nil {
 			return err
+		}
+
+		// 用唯一索引代替幂等检查
+		rowsAffected, err := logTx.CreateInventoryLog(&model.SysProductStockLog{
+			SkuId:       skuId,
+			ChangeType:  model.StockPayDeduct,
+			ChangeQty:   qty,
+			BeforeStock: sku.Stock,
+			AfterStock:  sku.Stock,
+			BeforeLock:  sku.LockStock,
+			AfterLock:   sku.LockStock - qty,
+			OrderId:     orderId,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		if rowsAffected == 0 {
+			return nil
 		}
 
 		// 校验SKU状态
@@ -409,16 +438,7 @@ func (is *InventoryService) DeductStockWithTx(tx *gorm.DB, skuId, qty, orderId i
 		}
 
 		// 写入库存变更日志
-		return logTx.CreateInventoryLog(&model.SysProductStockLog{
-			SkuId:       skuId,
-			ChangeType:  model.StockPayDeduct,
-			ChangeQty:   qty,
-			BeforeStock: sku.Stock,
-			AfterStock:  sku.Stock,
-			BeforeLock:  sku.LockStock,
-			AfterLock:   sku.LockStock - qty,
-			OrderId:     orderId,
-		})
+		return nil
 
 	})
 	// 库存变更后失效缓存(短 TTL 兜底,失效失败最多 30 秒旧值)
@@ -463,18 +483,38 @@ func (is *InventoryService) ReleaseStockWithTx(tx *gorm.DB, skuId, qty, orderId 
 		logTx := is.InventoryLogRepo.WithTx(inner)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockOrderRelease)
-		if err != nil {
-			return err
-		}
-		if idempotent {
-			return nil
-		}
+		//idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockOrderRelease)
+		//if err != nil {
+		//	return err
+		//}
+		//if idempotent {
+		//	return nil
+		//}
 
 		// SELECT ... FOR UPDATE 锁定SKU行
 		sku, err := productTx.GetSkuForUpdate(skuId)
 		if err != nil {
 			return err
+		}
+
+		// 用唯一索引代替幂等检查
+		rowsAffected, err := logTx.CreateInventoryLog(&model.SysProductStockLog{
+			SkuId:       skuId,
+			ChangeType:  model.StockOrderRelease,
+			ChangeQty:   qty,
+			BeforeStock: sku.Stock,
+			AfterStock:  sku.Stock + qty,
+			BeforeLock:  sku.LockStock,
+			AfterLock:   sku.LockStock - qty,
+			OrderId:     orderId,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		if rowsAffected == 0 {
+			return nil
 		}
 
 		// 校验SKU状态
@@ -493,16 +533,7 @@ func (is *InventoryService) ReleaseStockWithTx(tx *gorm.DB, skuId, qty, orderId 
 		}
 
 		// 写入库存变更日志
-		return logTx.CreateInventoryLog(&model.SysProductStockLog{
-			SkuId:       skuId,
-			ChangeType:  model.StockOrderRelease,
-			ChangeQty:   qty,
-			BeforeStock: sku.Stock,
-			AfterStock:  sku.Stock + qty,
-			BeforeLock:  sku.LockStock,
-			AfterLock:   sku.LockStock - qty,
-			OrderId:     orderId,
-		})
+		return nil
 
 	})
 	// 库存变更后失效缓存(短 TTL 兜底,失效失败最多 30 秒旧值)
@@ -529,18 +560,38 @@ func (is *InventoryService) RefundStock(skuId, qty, orderId int64) error {
 		logTx := is.InventoryLogRepo.WithTx(tx)
 
 		// 幂等检查: 同一订单+同一操作类型已执行过则直接返回成功
-		idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockRefundRelease)
-		if err != nil {
-			return err
-		}
-		if idempotent {
-			return nil
-		}
+		//idempotent, err := logTx.CheckOrderLogExists(skuId, orderId, model.StockRefundRelease)
+		//if err != nil {
+		//	return err
+		//}
+		//if idempotent {
+		//	return nil
+		//}
 
 		// SELECT ... FOR UPDATE 锁定SKU行
 		sku, err := productTx.GetSkuForUpdate(skuId)
 		if err != nil {
 			return err
+		}
+
+		// 用唯一索引代替幂等检查
+		rowsAffected, err := logTx.CreateInventoryLog(&model.SysProductStockLog{
+			SkuId:       skuId,
+			ChangeType:  model.StockRefundRelease,
+			ChangeQty:   qty,
+			BeforeStock: sku.Stock,
+			AfterStock:  sku.Stock + qty,
+			BeforeLock:  sku.LockStock,
+			AfterLock:   sku.LockStock,
+			OrderId:     orderId,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		if rowsAffected == 0 {
+			return nil
 		}
 
 		// 校验SKU状态
@@ -554,16 +605,7 @@ func (is *InventoryService) RefundStock(skuId, qty, orderId int64) error {
 		}
 
 		// 写入库存变更日志
-		return logTx.CreateInventoryLog(&model.SysProductStockLog{
-			SkuId:       skuId,
-			ChangeType:  model.StockRefundRelease,
-			ChangeQty:   qty,
-			BeforeStock: sku.Stock,
-			AfterStock:  sku.Stock + qty,
-			BeforeLock:  sku.LockStock,
-			AfterLock:   sku.LockStock,
-			OrderId:     orderId,
-		})
+		return nil
 
 	})
 	// 库存变更后失效缓存(短 TTL 兜底,失效失败最多 30 秒旧值)

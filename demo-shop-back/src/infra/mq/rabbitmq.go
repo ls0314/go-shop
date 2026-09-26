@@ -51,8 +51,13 @@ func NewRabbitMQ(dsn string) (*RabbitMQ, error) {
 	}, nil
 }
 
-// Close 关闭 RabbitMQ 连接（先 Channel 后 Connection）
+// Close 关闭 RabbitMQ 连接（先闭合退出信号，再 Channel 后 Connection）
 func (r *RabbitMQ) Close() {
+	select {
+	case <-r.closed: // 已闭合过,防 double-close panic
+	default:
+		close(r.closed)
+	}
 	r.Channel.Close()
 	r.Conn.Close()
 }

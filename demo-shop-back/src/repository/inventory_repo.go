@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ============================================================
@@ -141,8 +142,9 @@ func (il *InventoryLogRepo) WithTx(tx *gorm.DB) *InventoryLogRepo {
 // CreateInventoryLog 创建库存更改日志
 // 接收值：inventoryLog - 库存日志对象指针
 // 返回值：error - 错误信息
-func (il *InventoryLogRepo) CreateInventoryLog(inventoryLog *model.SysProductStockLog) error {
-	return il.db.Create(&inventoryLog).Error
+func (il *InventoryLogRepo) CreateInventoryLog(inventoryLog *model.SysProductStockLog) (int64, error) {
+	err := il.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&inventoryLog)
+	return err.RowsAffected, err.Error
 }
 
 // CheckOrderLogExists 幂等检查：同一订单+变更类型是否已存在日志

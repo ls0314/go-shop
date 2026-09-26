@@ -20,14 +20,14 @@ func RegisterCanceller(c OrderCanceller) {
 
 // OrderCanceller 订单取消能力接口——由 service.OrderService 隐式实现
 type OrderCanceller interface {
-	CancelOrder(orderId, userId int64, userName string) (*response.OrderStatusResp, error)
+	CancelOrderBySystem(orderId int64, operator string) (*response.OrderStatusResp, error)
 }
 
 // StartOrderConsumer 启动死信队列消费者（goroutine）——阻塞等待超时消息
 //
 // 消息处理流程：
 //
-//	收到消息 → 解析 orderId → 调用 CancelOrder → 状态机校验
+//	收到消息 → 解析 orderId → 调用 CancelOrderBySystem → 状态机校验
 //	  → pending_pay 则取消并释放库存
 //	  → 非 pending_pay（已支付/已取消）则跳过
 //
@@ -78,8 +78,7 @@ func (r *RabbitMQ) handleOrderExpired(msg amqp091.Delivery, canceller OrderCance
 	}
 
 	// CancelOrder 内部有状态机校验：仅 pending_pay 可取消，其他状态自动跳过
-	// 无论取消失败与否都 Ack，避免无限重试
-	_, err = canceller.CancelOrder(orderId, 4, "系统")
+	_, err = canceller.CancelOrderBySystem(orderId, "系统")
 	if err != nil {
 		log.Printf("[MQ] 自动取消订单失败 orderId=%d err=%v", orderId, err)
 		metrics.OrderTimeoutCancelTotal.WithLabelValues("failed").Inc()

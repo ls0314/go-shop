@@ -104,6 +104,7 @@ var (
 	ErrOrderNotExist         = errors.New("订单不存在")
 	ErrOrderNoPermission     = errors.New("无权查看/操作该订单")
 	ErrOrderCannotCancel     = errors.New("订单状态不允许取消（仅待支付可取消）")
+	ErrOrderAlreadyCancelled = errors.New("订单已被处理（已取消或已支付），无需重复取消")
 	ErrOrderCannotShip       = errors.New("订单状态不允许发货（仅已支付可发货）")
 	ErrExpressIncomplete     = errors.New("快递信息不完整")
 	ErrOrderCannotConfirm    = errors.New("订单状态不允许确认收货（仅已发货可确认）")

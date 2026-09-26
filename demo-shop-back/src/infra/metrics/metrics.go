@@ -61,6 +61,16 @@ var (
 		Help: "限流拒绝计数(按路由模板)",
 	}, []string{"route"})
 
+	OutboxDispatchTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "outbox_dispatch_total",
+		Help: "outbox 投递结果计数",
+	}, []string{"result"}) // sent / failed / lock_skipped(锁被其他实例持有,本轮跳过)
+
+	OutboxPendingGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "outbox_pending_gauge",
+		Help: "outbox 待投递积压条数(持续增长 = MQ 不可用或投递器卡死,需告警)",
+	})
+
 	// ---- 基础设施层(Four Golden Signals: 饱和度) ----
 	dbPoolInUse = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "db_pool_in_use",

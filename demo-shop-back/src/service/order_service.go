@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"gorm.io/gorm"
@@ -21,11 +22,12 @@ import (
 
 // OrderService 订单模块服务层实例
 type OrderService struct {
-	OrderRepo   *repository.OrderRepo
-	AddressRepo *repository.AddressRepo
-	ProductRepo *repository.ProductRepo
-	CouponRepo  *repository.CouponRepo
-	db          *gorm.DB
+	OrderRepo         *repository.OrderRepo
+	AddressRepo       *repository.AddressRepo
+	ProductRepo       *repository.ProductRepo
+	CouponRepo        *repository.CouponRepo
+	OutboxMessageRepo *repository.OutboxMessageRepo
+	db                *gorm.DB
 	*CartItemService
 	*InventoryService
 }
@@ -35,12 +37,13 @@ type OrderService struct {
 // 返回值：*OrderService - 订单服务层实例指针
 func NewOrderService() *OrderService {
 	order := &OrderService{
-		OrderRepo:        repository.NewOrderRepo(),
-		AddressRepo:      repository.NewAddressRepo(),
-		CouponRepo:       repository.NewCouponRepo(),
-		db:               db.DB,
-		CartItemService:  NewCartItemService(),
-		InventoryService: NewInventoryService(),
+		OrderRepo:         repository.NewOrderRepo(),
+		AddressRepo:       repository.NewAddressRepo(),
+		CouponRepo:        repository.NewCouponRepo(),
+		OutboxMessageRepo: repository.NewOutboxMessage(),
+		db:                db.DB,
+		CartItemService:   NewCartItemService(),
+		InventoryService:  NewInventoryService(),
 	}
 	mq.RegisterCanceller(order)
 	return order
@@ -200,7 +203,9 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 		orderTx := o.OrderRepo.WithTx(tx)
 		cartItemTx := o.CartItemRepo.WithTx(tx)
 		couponTx := o.CouponRepo.WithTx(tx)
+		outBoxTx := o.OutboxMessageRepo.WithTx(tx)
 
+		// 使用优惠券
 		if req.UserCouponId != 0 {
 			coupon, err := couponTx.GetUserCoupon(req.UserCouponId)
 			if err != nil {
@@ -275,6 +280,19 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 			return err
 		}
 
+		if err := outBoxTx.CreateOutbox(model.OutBoxMessage{
+			MessageId:     fmt.Sprintf("delay:%d", orderId),
+			AggregateType: model.OutboxAggregateOrder,
+			AggregateId:   strconv.FormatInt(orderId, 10),
+			EventType:     model.OutboxEventOrderDelayCancel,
+			Exchange:      "",
+			RoutingKey:    mq.QueueOrderDelay,
+			PayLoad:       strconv.FormatInt(orderId, 10),
+			Status:        model.OutboxPending,
+		}); err != nil {
+			return err
+		}
+
 		// 构建响应
 		resp = response.CreateOrderResp{
 			OrderId:     orderId,
@@ -299,10 +317,6 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 			}
 		}
 		return nil, err
-	}
-	// 创建订单成功后将订单ID传入消息队列,检查订单超时
-	if MQ := infra.GetMQ(); MQ != nil {
-		_ = MQ.PublishOrderDelay(resp.OrderId)
 	}
 	return &resp, nil
 }
@@ -398,7 +412,7 @@ func (o *OrderService) GetUserOrder(orderId, userId int64) (*response.UserGetOrd
 	return &resp, nil
 }
 
-// CancelOrder 取消订单
+// CancelOrder 取消订单(用户主动取消路径,带归属校验)
 // 接收值：
 //
 //	orderId - 查询订单ID
@@ -424,12 +438,38 @@ func (o *OrderService) CancelOrder(orderId, userId int64, userName string) (*res
 		return nil, model.ErrOrderCannotCancel
 	}
 
-	var resp response.OrderStatusResp
+	return o.cancel(order, userName)
+}
 
-	// 开启事务
-	err = o.db.Transaction(func(tx *gorm.DB) error {
+// CancelOrderBySystem 系统自动取消(MQ 超时消费者 / 定时扫描任务)
+func (o *OrderService) CancelOrderBySystem(orderId int64, operator string) (*response.OrderStatusResp, error) {
+	order, err := o.OrderRepo.GetOrder(orderId)
+	if err != nil {
+		return nil, err
+	}
+	if order.OrderStatus != model.OrderPendingPay {
+		return nil, model.ErrOrderCannotCancel
+	}
+	return o.cancel(order, operator)
+}
+
+// cancel 取消订单的共享事务体(不做归属校验、不做状态校验,调用方必须先校验)
+// 接收值:order - 已加载的订单主表信息;operator - 操作人(用户名或"系统")
+func (o *OrderService) cancel(order *model.UserOrder, operator string) (*response.OrderStatusResp, error) {
+	orderId := order.OrderId
+	var resp response.OrderStatusResp
+	err := o.db.Transaction(func(tx *gorm.DB) error {
 		orderTx := o.OrderRepo.WithTx(tx)
 		couponTx := o.CouponRepo.WithTx(tx)
+
+		// 调用数据层事务取消订单
+		rows, err := orderTx.CancelOrder(orderId)
+		if err != nil {
+			return err
+		}
+		if rows == 0 {
+			return model.ErrOrderAlreadyCancelled
+		}
 
 		if order.PayAmount != order.TotalAmount {
 			coupon, err := couponTx.GetUserCouponByOrderNo(order.OrderNo)
@@ -445,17 +485,12 @@ func (o *OrderService) CancelOrder(orderId, userId int64, userName string) (*res
 			}
 		}
 
-		// 调用数据层事务取消订单
-		if err := orderTx.CancelOrder(orderId); err != nil {
-			return err
-		}
-
 		// 操作写入订单日志
-		err := orderTx.CreateOrderLog(model.UserOrderLog{
+		err = orderTx.CreateOrderLog(model.UserOrderLog{
 			OrderId:     orderId,
 			OrderStatus: model.OrderCancelled,
 			Action:      model.OrderCancel,
-			Operator:    userName,
+			Operator:    operator,
 		})
 		if err != nil {
 			return err
@@ -480,6 +515,9 @@ func (o *OrderService) CancelOrder(orderId, userId int64, userName string) (*res
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 	return &resp, nil
 }
 

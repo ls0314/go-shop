@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"demo-shop-back/db"
 	"demo-shop-back/src/infra/pay"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
@@ -28,14 +27,14 @@ type PaymentService struct {
 }
 
 // NewPaymentService 创建支付模块服务层实例
-// 接收值：使用全局 repository 初始化
+// 接收值：deps - 服务层依赖（由 composition root 注入）
 // 返回值：*PaymentService - 支付模块服务层实例指针
-func NewPaymentService() *PaymentService {
+func NewPaymentService(deps ServiceDeps) *PaymentService {
 	return &PaymentService{
-		PaymentRepo:      repository.NewPaymentRepo(db.DB),
-		OrderRepo:        repository.NewOrderRepo(db.DB),
-		db:               db.DB,
-		InventoryService: NewInventoryService(),
+		PaymentRepo:      repository.NewPaymentRepo(deps.DB),
+		OrderRepo:        repository.NewOrderRepo(deps.DB),
+		db:               deps.DB,
+		InventoryService: NewInventoryService(deps),
 	}
 }
 

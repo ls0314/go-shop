@@ -18,9 +18,9 @@ type PaymentHandler struct {
 // NewPaymentHandler 创建支付管理handler层实例
 // 接收值：无接收值，全局实例化
 // 返回值：*PaymentHandler - 支付handler指针
-func NewPaymentHandler() *PaymentHandler {
+func NewPaymentHandler(deps service.ServiceDeps) *PaymentHandler {
 	return &PaymentHandler{
-		PaymentService: service.NewPaymentService(),
+		PaymentService: service.NewPaymentService(deps),
 	}
 }
 

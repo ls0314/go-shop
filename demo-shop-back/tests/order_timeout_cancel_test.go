@@ -96,7 +96,7 @@ func mustCreateOrderReadyToCancel(t *testing.T, userId, skuId, qty int64) int64 
 
 	orderID := mustCreatePendingOrder(t, userId, skuId, qty)
 	mustCreateOrderDetail(t, orderID, skuId, qty)
-	if err := service.NewInventoryService().LockStock(skuId, qty, orderID); err != nil {
+	if err := service.NewInventoryService(testDeps()).LockStock(skuId, qty, orderID); err != nil {
 		t.Fatalf("前置锁库存失败: %v", err)
 	}
 	return orderID
@@ -114,7 +114,7 @@ func TestCancelOrderBySystem_AnyUser_Succeeds(t *testing.T) {
 	const qty = int64(2)
 	orderID := mustCreateOrderReadyToCancel(t, userID, skuID, qty)
 
-	svc := service.NewOrderService()
+	svc := service.NewOrderService(testDeps())
 	resp, err := svc.CancelOrderBySystem(orderID, "系统")
 	if err != nil {
 		t.Fatalf("系统取消应当成功(订单属于 user_id=%d,与旧代码写死的 4 无关), 实际报错: %v",
@@ -158,7 +158,7 @@ func TestCancelOrderBySystem_Idempotent(t *testing.T) {
 	const qty = int64(3)
 	orderID := mustCreateOrderReadyToCancel(t, userID, skuID, qty)
 
-	svc := service.NewOrderService()
+	svc := service.NewOrderService(testDeps())
 	if _, err := svc.CancelOrderBySystem(orderID, "系统"); err != nil {
 		t.Fatalf("首次系统取消失败: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestCancelOrderBySystem_PaidOrder_Rejected(t *testing.T) {
 		t.Fatalf("模拟支付失败: %v", err)
 	}
 
-	svc := service.NewOrderService()
+	svc := service.NewOrderService(testDeps())
 	if _, err := svc.CancelOrderBySystem(orderID, "系统"); !errors.Is(err, model.ErrOrderCannotCancel) {
 		t.Fatalf("已支付订单不得被系统取消,期望 ErrOrderCannotCancel, 实际: %v", err)
 	}
@@ -219,7 +219,7 @@ func TestCancelOrder_UserPath_OwnershipStillEnforced(t *testing.T) {
 
 	orderID := mustCreateOrderReadyToCancel(t, ownerID, skuID, 1)
 
-	svc := service.NewOrderService()
+	svc := service.NewOrderService(testDeps())
 	// 别人来取消 → 必须被拒(旧代码里消费者伪造 userId=4 绕过校验的做法,在用户路径上依然无效)
 	if _, err := svc.CancelOrder(orderID, otherID, "冒名者"); !errors.Is(err, model.ErrOrderNoPermission) {
 		t.Fatalf("非订单归属人取消应返回 ErrOrderNoPermission, 实际: %v", err)

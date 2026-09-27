@@ -17,9 +17,9 @@ type RolePermHandler struct {
 // NewRolePermHandler 新建角色权限关联表的HTTP handler实例
 // 接收值：无接收值
 // 返回值：*RolePermHandler - 角色权限关联handler指针
-func NewRolePermHandler() *RolePermHandler {
+func NewRolePermHandler(deps service.ServiceDeps) *RolePermHandler {
 	return &RolePermHandler{
-		RolePermService: service.NewRolePermService(),
+		RolePermService: service.NewRolePermService(deps),
 	}
 }
 

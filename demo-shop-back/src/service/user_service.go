@@ -1,7 +1,6 @@
 package service
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
@@ -42,13 +41,18 @@ func ValidatePhone(phone string) bool {
 
 // recordLoginLog 记录用户登录日志
 // 接收值：userID - 用户ID, ip - 登录IP, device - 登录设备, status - 登录状态, reason - 失败原因
-func recordLoginLog(userID int64, ip string, device string, status string, reason string) {
-	// 执行SQL插入登录日志
-	db.DB.Exec(`
-	INSERT INTO user_login_log
-	(user_id, login_ip, login_device, login_status, failure_reason)
-	VALUES (?, ?, ?, ?, ?)
-	`, userID, ip, device, status, reason)
+//
+// 行为约定:登录日志是旁路审计,写入失败**不影响登录主流程** ——
+// 与原实现(裸 SQL 且忽略返回值)保持一致,不因为落库失败而拒绝用户登录。
+// 需要可观测时在这里补计数指标即可。
+func (u *UserService) recordLoginLog(userID int64, ip, device, status, reason string) {
+	_ = u.UserRepo.InsertLoginLog(&model.UserLoginLog{
+		UserId:        userID,
+		LoginIp:       ip,
+		LoginDevice:   device,
+		LoginStatus:   status,
+		FailureReason: reason,
+	})
 }
 
 // UserService 用户服务层实例
@@ -61,11 +65,11 @@ type UserService struct {
 // NewUserService 创建用户服务层实例
 // 接收值：conn - 数据库连接（由调用方注入）
 // 返回值：*UserService - 用户服务层指针
-func NewUserService() *UserService {
+func NewUserService(deps ServiceDeps) *UserService {
 	return &UserService{
-		UserRepo:     repository.NewUserRepo(db.DB),
-		UserInfoRepo: repository.NewUserProfileRepo(db.DB),
-		db:           db.DB,
+		UserRepo:     repository.NewUserRepo(deps.DB),
+		UserInfoRepo: repository.NewUserProfileRepo(deps.DB),
+		db:           deps.DB,
 	}
 }
 
@@ -263,14 +267,14 @@ func (u *UserService) Login(user *model.LoginRequest, ip string, device string) 
 	if user.Username != "" {
 		userExist, err = u.UserRepo.GetUserByName(user.Username)
 		if err != nil || userExist == nil {
-			recordLoginLog(0, ip, device, "fail", "user not found")
+			u.recordLoginLog(0, ip, device, "fail", "user not found")
 			return nil, model.UserNotExist
 		}
 	} else if user.Phone != "" {
 		// 根据手机号查询用户
 		userExist, err = u.UserRepo.GetUserByPhone(user.Phone)
 		if err != nil || userExist == nil {
-			recordLoginLog(0, ip, device, "fail", "user not found")
+			u.recordLoginLog(0, ip, device, "fail", "user not found")
 			return nil, model.UserNotExist
 		}
 	}
@@ -282,7 +286,7 @@ func (u *UserService) Login(user *model.LoginRequest, ip string, device string) 
 	}
 
 	// 记录登录成功日志
-	recordLoginLog(userExist.UserID, ip, device, "success", "")
+	u.recordLoginLog(userExist.UserID, ip, device, "success", "")
 
 	// 生成JWT令牌
 	jwtService := middleware.GetJWTService()

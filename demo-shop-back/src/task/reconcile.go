@@ -3,16 +3,14 @@ package task
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"log"
-
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/infra/es"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
+	"demo-shop-back/src/service"
+	"errors"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -36,13 +34,14 @@ type ReconcileService struct {
 	locks *DistributedLockManager
 }
 
-// NewReconcileService 创建对账服务(依赖从全局 infra 获取)
-func NewReconcileService() *ReconcileService {
+// NewReconcileService 创建对账服务
+// 接收值：deps - 服务层依赖（由 composition root 注入）
+func NewReconcileService(deps service.ServiceDeps) *ReconcileService {
 	return &ReconcileService{
-		repo:  repository.NewProductRepo(db.DB),
-		es:    infra.GetES(),
-		cache: infra.GetCache(),
-		locks: NewDistributedLockManager(infra.GetCache()),
+		repo:  repository.NewProductRepo(deps.DB),
+		es:    deps.ES,
+		cache: deps.Cache,
+		locks: NewDistributedLockManager(deps.Cache),
 	}
 }
 

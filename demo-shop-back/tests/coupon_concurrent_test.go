@@ -16,7 +16,7 @@ func TestReceiveCoupon_Concurrent_NoOversell(t *testing.T) {
 	)
 	templateID := createTemplate(t, total, 1)
 	userIDs := mustCreateUsers(t, goroutines)
-	svc := service.NewCouponService()
+	svc := service.NewCouponService(testDeps())
 
 	stats, _ := runConcurrent(t, goroutines, func(i int) (int64, error) {
 		_, err := svc.ReceiveCoupon(userIDs[i], templateID)
@@ -43,7 +43,7 @@ func TestReceiveCoupon_Concurrent_PerUserLimit(t *testing.T) {
 	templateID := createTemplate(t, 100, limit)
 	userID := mustCreateUser(t)
 
-	svc := service.NewCouponService()
+	svc := service.NewCouponService(testDeps())
 	stats, _ := runConcurrent(t, goroutines, func(i int) (int64, error) {
 		_, err := svc.ReceiveCoupon(userID, templateID)
 		return 0, err
@@ -70,7 +70,7 @@ func TestReceiveCoupon_WithGate_NoOversell(t *testing.T) {
 	templateID := createTemplate(t, 10, 1)
 	flushGateKeys(t, rdb, templateID) // 清除跨轮残留/跨环境串台的闸门键(见 harness 注释)
 	userIDs := mustCreateUsers(t, 50)
-	svc := service.NewCouponServiceWithCache(rdb)
+	svc := service.NewCouponServiceWithCache(testDepsWithCache(rdb), rdb)
 
 	stats, _ := runConcurrent(t, 50, func(i int) (int64, error) {
 		_, err := svc.ReceiveCoupon(userIDs[i], templateID)
@@ -88,7 +88,7 @@ func TestReceiveCoupon_WithGate_NoOversell(t *testing.T) {
 	}
 
 	// ---- 阶段二:对账收敛 ----
-	task.NewStockReconcileServiceWithCache(rdb).ReconcileOnce()
+	task.NewStockReconcileServiceWithCache(testDepsWithCache(rdb), rdb).ReconcileOnce()
 	extra := 10 - int(received) // 突发期被闸门误拦的余量
 	if extra > 0 {
 		ids := mustCreateUsers(t, extra)
@@ -112,7 +112,7 @@ func TestReceiveCoupon_GateRejectsWithoutDB(t *testing.T) {
 	templateID := createTemplate(t, 100, 1)
 	flushGateKeys(t, rdb, templateID) // 同上:先清残留,再人为置 0 才有"DB 有量而闸门无"的语义
 	userIDs := mustCreateUsers(t, 30)
-	svc := service.NewCouponServiceWithCache(rdb)
+	svc := service.NewCouponServiceWithCache(testDepsWithCache(rdb), rdb)
 
 	ctx := context.Background()
 	ttl := time.Hour

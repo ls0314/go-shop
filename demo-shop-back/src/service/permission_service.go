@@ -2,8 +2,7 @@ package service
 
 import (
 	"context"
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
+	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
@@ -17,17 +16,19 @@ type PermissionService struct {
 	UserRoleRepo *repository.UserRoleRepo
 	RolePermRepo *repository.RolePermRepo
 	db           *gorm.DB
+	cache        *cache.RedisService // 权限缓存失效用;nil = Redis 未配置
 }
 
 // NewPermissionService 创建权限表服务层实例
-// 接收值：permRepo - 权限表数据层实例
+// 接收值：deps - 服务层依赖（由 composition root 注入）
 // 返回值：*PermissionService - 权限表服务层实例指针
-func NewPermissionService() *PermissionService {
+func NewPermissionService(deps ServiceDeps) *PermissionService {
 	return &PermissionService{
-		PermRepo:     repository.NewPermissionRepo(db.DB),
-		UserRoleRepo: repository.NewUserRoleRepo(db.DB),
-		RolePermRepo: repository.NewRolePermRepo(db.DB),
-		db:           db.DB,
+		PermRepo:     repository.NewPermissionRepo(deps.DB),
+		UserRoleRepo: repository.NewUserRoleRepo(deps.DB),
+		RolePermRepo: repository.NewRolePermRepo(deps.DB),
+		db:           deps.DB,
+		cache:        deps.Cache,
 	}
 }
 
@@ -54,8 +55,8 @@ func (p *PermissionService) CreatePermission(perm *model.SysPermission) error {
 		return err
 	}
 	// 权限映射变更：版本号+1，使所有 api:perm 缓存即时失效
-	if cache := infra.GetCache(); cache != nil {
-		_, _ = cache.Incr(context.Background(), "api:perm:version")
+	if p.cache != nil {
+		_, _ = p.cache.Incr(context.Background(), "api:perm:version")
 	}
 	return nil
 
@@ -171,8 +172,8 @@ func (p *PermissionService) UpdatePermission(permID int64, updatePerm map[string
 		return err
 	}
 	// 权限映射变更：版本号+1，使所有 api:perm 缓存即时失效
-	if cache := infra.GetCache(); cache != nil {
-		_, _ = cache.Incr(context.Background(), "api:perm:version")
+	if p.cache != nil {
+		_, _ = p.cache.Incr(context.Background(), "api:perm:version")
 	}
 	return nil
 
@@ -224,8 +225,8 @@ func (p *PermissionService) DeletePermission(id int64) error {
 		return err
 	}
 	// 权限映射变更：版本号+1，使所有 api:perm 缓存即时失效
-	if cache := infra.GetCache(); cache != nil {
-		_, _ = cache.Incr(context.Background(), "api:perm:version")
+	if p.cache != nil {
+		_, _ = p.cache.Incr(context.Background(), "api:perm:version")
 	}
 	return nil
 }

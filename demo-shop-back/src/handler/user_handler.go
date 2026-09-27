@@ -18,9 +18,9 @@ type UserHandler struct {
 // NewUserHandler 新建用户表的HTTP handler实例
 // 接收值：无接收值
 // 返回值：*UserHandler - 用户handler指针
-func NewUserHandler() *UserHandler {
+func NewUserHandler(deps service.ServiceDeps) *UserHandler {
 	return &UserHandler{
-		UserService: service.NewUserService(),
+		UserService: service.NewUserService(deps),
 	}
 }
 

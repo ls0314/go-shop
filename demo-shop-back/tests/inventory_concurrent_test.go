@@ -15,7 +15,7 @@ func TestLockStock_Concurrent_NoOversell(t *testing.T) {
 		qty        = int64(1)
 	)
 	skuID, _ := mustCreateSkuWithStock(t, stock)
-	svc := service.NewInventoryService()
+	svc := service.NewInventoryService(testDeps())
 
 	stats, _ := runConcurrent(t, goroutines, func(i int) (int64, error) {
 		return 0, svc.LockStock(skuID, qty, int64(700000+i)) // order_id 无外键,可编
@@ -40,7 +40,7 @@ func TestLockStock_Idempotent_SameOrder(t *testing.T) {
 	qty := int64(3)
 	orderID := nextOrderID() // ← 跨运行唯一,不再命中历史流水(替换原 const)
 	skuID, _ := mustCreateSkuWithStock(t, 10)
-	svc := service.NewInventoryService()
+	svc := service.NewInventoryService(testDeps())
 
 	if err := svc.LockStock(skuID, qty, orderID); err != nil {
 		t.Fatalf("首次锁定失败: %v", err)
@@ -63,7 +63,7 @@ func TestReleaseStock_Idempotent(t *testing.T) {
 	qty := int64(3)
 	orderID := nextOrderID() // ← 跨运行唯一,不再命中历史流水(替换原 const)
 	skuID, _ := mustCreateSkuWithStock(t, 10)
-	svc := service.NewInventoryService()
+	svc := service.NewInventoryService(testDeps())
 
 	if err := svc.LockStock(skuID, qty, orderID); err != nil {
 		t.Fatalf("前置锁定失败: %v", err)
@@ -93,7 +93,7 @@ func TestLockStock_MultiSku_SameOrder(t *testing.T) {
 	orderID := nextOrderID()
 	sku1, _ := mustCreateSkuWithStock(t, 5)
 	sku2, _ := mustCreateSkuWithStock(t, 5)
-	svc := service.NewInventoryService()
+	svc := service.NewInventoryService(testDeps())
 
 	if err := svc.LockStock(sku1, 2, orderID); err != nil {
 		t.Fatalf("锁 SKU1 失败: %v", err)
@@ -122,7 +122,7 @@ func TestReleaseStock_Concurrent_SameOrder(t *testing.T) {
 	)
 	orderID := nextOrderID()
 	skuID, _ := mustCreateSkuWithStock(t, stock)
-	svc := service.NewInventoryService()
+	svc := service.NewInventoryService(testDeps())
 
 	if err := svc.LockStock(skuID, qty, orderID); err != nil {
 		t.Fatalf("前置锁库存失败：%v", err)
@@ -161,7 +161,7 @@ func TestReleaseStock_MultiSku_SameOrder_Concurrent(t *testing.T) {
 	sku2, _ := mustCreateSkuWithStock(t, stock)
 	sku3, _ := mustCreateSkuWithStock(t, stock)
 	skuIDs := []int64{sku1, sku2, sku3}
-	svc := service.NewInventoryService()
+	svc := service.NewInventoryService(testDeps())
 
 	for _, s := range skuIDs {
 		if err := svc.LockStock(s, qty, orderID); err != nil {

@@ -66,3 +66,19 @@ type UserLoginInfo struct {
 	Username     string
 	PasswordHash string
 }
+
+// UserLoginLog 登录日志(B0 去全局化时从 service 里的裸 SQL 收敛为模型)。
+//
+// 只声明写入路径需要的字段:login_time / login_type / location / created_at
+// 均由 DB 默认值填充(见 000001 迁移),无需在 Go 侧赋值 —— 这样也避免了
+// "Go 侧零值覆盖 DB 默认值"的问题。
+type UserLoginLog struct {
+	Id            int64  `gorm:"column:id;primary_key" json:"id"`
+	UserId        int64  `gorm:"column:user_id" json:"user_id"`
+	LoginIp       string `gorm:"column:login_ip" json:"login_ip"`
+	LoginDevice   string `gorm:"column:login_device" json:"login_device"`
+	LoginStatus   string `gorm:"column:login_status" json:"login_status"`
+	FailureReason string `gorm:"column:failure_reason" json:"failure_reason"`
+}
+
+func (UserLoginLog) TableName() string { return "user_login_log" }

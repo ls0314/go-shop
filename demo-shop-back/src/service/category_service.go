@@ -2,8 +2,7 @@ package service
 
 import (
 	"context"
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
+	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/response"
 	"demo-shop-back/src/repository"
@@ -19,17 +18,19 @@ import (
 type CategoryService struct {
 	CategoryRepo *repository.CategoryRepo // 类目表数据层实例
 	ProductRepo  *repository.ProductRepo
+	cache        *cache.RedisService
 	db           *gorm.DB
 }
 
 // NewCategoryService 创建类目表服务层实例
 // 接收值：注入的数据库连接（由 composition root 提供）
 // 返回值：*CategoryService - 类目表服务层实例指针
-func NewCategoryService() *CategoryService {
+func NewCategoryService(deps ServiceDeps) *CategoryService {
 	return &CategoryService{
-		CategoryRepo: repository.NewCategoryRepo(db.DB),
-		ProductRepo:  repository.NewProductRepo(db.DB),
-		db:           db.DB,
+		CategoryRepo: repository.NewCategoryRepo(deps.DB),
+		ProductRepo:  repository.NewProductRepo(deps.DB),
+		cache:        deps.Cache,
+		db:           deps.DB,
 	}
 }
 
@@ -393,10 +394,8 @@ func (c *CategoryService) UpdateCategory(categoryId int64, updateCategory map[st
 	if err != nil {
 		return model.SysCategory{}, err
 	}
-	// 类目变更后失效缓存
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(), fmt.Sprintf("category:%d", categoryId))
-	}
+	//类目变更后失效缓存
+	c.cache.Del(context.Background(), fmt.Sprintf("category:%d", categoryId))
 	// 返回更新后的类目信息
 	return updatedCategory, nil
 }
@@ -459,8 +458,6 @@ func (c *CategoryService) DeleteCategory(categoryId int64) error {
 		return err
 	}
 	// 类目变更后失效缓存
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(), fmt.Sprintf("category:%d", categoryId))
-	}
+	c.cache.Del(context.Background(), fmt.Sprintf("category:%d", categoryId))
 	return nil
 }

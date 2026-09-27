@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/infra/es"
 	"demo-shop-back/src/model"
@@ -20,6 +18,28 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"gorm.io/gorm"
 )
+
+// ProductService 商品服务层实例
+type ProductService struct {
+	ProductRepo  *repository.ProductRepo  // 商品数据层实例
+	CategoryRepo *repository.CategoryRepo // 类目数据层实例
+	cache        *cache.RedisService
+	es           *es.ESClient
+	db           *gorm.DB
+}
+
+// NewProductService 创建商品服务层实例
+// 接收值：注入的数据库连接（由 composition root 提供）
+// 返回值：*ProductService - 商品服务层实例指针
+func NewProductService(deps ServiceDeps) *ProductService {
+	return &ProductService{
+		ProductRepo:  repository.NewProductRepo(deps.DB),
+		CategoryRepo: repository.NewCategoryRepo(deps.DB),
+		cache:        deps.Cache,
+		es:           deps.ES,
+		db:           deps.DB,
+	}
+}
 
 // specItem 规格模板中的单条规格
 type specItem struct {
@@ -117,14 +137,22 @@ func contains(slice []string, target string) bool {
 }
 
 // fillSkuStock 用 sku:stock 缓存覆盖每个 SKU 的实时库存;miss 查 DB 回填
-func (p *ProductService) fillSkuStock(cache *cache.RedisService, resp *response.UserGetProductResp) {
+func (p *ProductService) fillSkuStock(resp *response.UserGetProductResp) {
 	if resp.SkuList == nil {
+		return
+	}
+	// Redis 未配置(=nil)时直接返回:保留 DB 读到的库存值,不做实时覆盖。
+	// 修复说明(B0 去全局化时由 wiring 冒烟测试暴露):
+	// 原实现直接 p.cache.Get(...),在 Cache 为 nil 时**空指针 panic** ——
+	// 此前一直被"环境里 Redis 总是配置好的"掩盖,一旦 Redis 不可用,
+	// 商品详情接口就会 500 而不是降级。此处与该方法其他分支同属弱依赖降级语义。
+	if p.cache == nil {
 		return
 	}
 	for i := range *resp.SkuList {
 		skuId := (*resp.SkuList)[i].SkuId
 		stockKey := fmt.Sprintf("sku:stock:%d", skuId)
-		val, err := cache.Get(context.Background(), stockKey)
+		val, err := p.cache.Get(context.Background(), stockKey)
 		if err == nil {
 			if stock, perr := strconv.ParseInt(val, 10, 64); perr == nil {
 				(*resp.SkuList)[i].Stock = stock
@@ -136,17 +164,16 @@ func (p *ProductService) fillSkuStock(cache *cache.RedisService, resp *response.
 		if err != nil || sku == nil {
 			continue
 		}
-		_ = cache.Set(context.Background(), stockKey, strconv.FormatInt(sku.Stock, 10), 30*time.Second)
+		p.cache.Set(context.Background(), stockKey, strconv.FormatInt(sku.Stock, 10), 30*time.Second)
 	}
 }
 
 // getCategory 获取类目信息：缓存(category:{id})优先，miss 查 DB 回写；仅用于展示读，写路径校验请直查 DB
 func (p *ProductService) getCategory(categoryId int64) (*model.SysCategory, error) {
-	cache := infra.GetCache()
 	key := fmt.Sprintf("category:%d", categoryId)
-	if cache != nil {
+	if p.cache != nil {
 		var cat model.SysCategory
-		hit, err := cache.GetJSON(context.Background(), key, &cat)
+		hit, err := p.cache.GetJSON(context.Background(), key, &cat)
 		if err == nil && hit {
 			return &cat, nil
 		}
@@ -155,15 +182,15 @@ func (p *ProductService) getCategory(categoryId int64) (*model.SysCategory, erro
 	if err != nil || cat == nil {
 		return cat, err
 	}
-	if cache != nil {
-		_ = cache.SetJSON(context.Background(), key, cat, time.Hour)
+	if p.cache != nil { // 弱依赖降级:Redis 未配置时跳过回写,不影响返回
+		p.cache.SetJSON(context.Background(), key, cat, time.Hour)
 	}
+
 	return cat, nil
 }
 
 func (p *ProductService) syncProductToES(spuId int64) {
-	esClient := infra.GetES()
-	if esClient == nil {
+	if p.es == nil {
 		return // ES 未初始化,静默跳过(降级)
 	}
 	doc, err := p.ProductRepo.GetSpuESDoc(spuId)
@@ -171,17 +198,16 @@ func (p *ProductService) syncProductToES(spuId int64) {
 		log.Printf("[WARN] 查询 ES 文档数据失败 spuId=%d: %v", spuId, err)
 		return
 	}
-	if err := esClient.IndexProduct(context.Background(), toESProduct(doc)); err != nil {
+	if err := p.es.IndexProduct(context.Background(), toESProduct(doc)); err != nil {
 		log.Printf("[WARN] ES 索引失败 spuId=%d: %v", spuId, err)
 	}
 }
 
 func (p *ProductService) removeProductFromES(spuId int64) {
-	esClient := infra.GetES()
-	if esClient == nil {
+	if p.es == nil {
 		return
 	}
-	if err := esClient.DeleteProduct(context.Background(), spuId); err != nil {
+	if err := p.es.DeleteProduct(context.Background(), spuId); err != nil {
 		log.Printf("[WARN] ES 删除失败 spuId=%d: %v", spuId, err)
 	}
 }
@@ -203,24 +229,6 @@ func toESProduct(doc *model.SpuESDoc) *es.ESProduct {
 		UpdatedAt:    doc.UpdatedAt,
 		MinPrice:     doc.MinPrice,
 		MaxPrice:     doc.MaxPrice,
-	}
-}
-
-// ProductService 商品服务层实例
-type ProductService struct {
-	ProductRepo  *repository.ProductRepo  // 商品数据层实例
-	CategoryRepo *repository.CategoryRepo // 类目数据层实例
-	db           *gorm.DB
-}
-
-// NewProductService 创建商品服务层实例
-// 接收值：注入的数据库连接（由 composition root 提供）
-// 返回值：*ProductService - 商品服务层实例指针
-func NewProductService() *ProductService {
-	return &ProductService{
-		ProductRepo:  repository.NewProductRepo(db.DB),
-		CategoryRepo: repository.NewCategoryRepo(db.DB),
-		db:           db.DB,
 	}
 }
 
@@ -365,7 +373,7 @@ func (p *ProductService) GetProductSpuList(req requset.SpuQueryReq) (*response.G
 }
 
 func (p *ProductService) UserGetProductSpuList(req requset.SpuQueryReq) (*response.UserGetProductListResp, error) {
-	if req.SpuName != "" && infra.GetES() != nil {
+	if req.SpuName != "" && p.es != nil {
 		resp, err := p.getProductListByES(req)
 		if err == nil {
 			return resp, nil
@@ -375,7 +383,7 @@ func (p *ProductService) UserGetProductSpuList(req requset.SpuQueryReq) (*respon
 }
 
 func (p *ProductService) getProductListByES(req requset.SpuQueryReq) (*response.UserGetProductListResp, error) {
-	esClient := infra.GetES()
+	esClient := p.es
 
 	var categoryId int64
 	if req.CategoryId != nil {
@@ -483,11 +491,10 @@ func (p *ProductService) getProductSpuListByDB(req requset.SpuQueryReq) (*respon
 //
 //	error - 错误信息
 func (p *ProductService) GetProduct(spuId int64) (*response.GetProductResp, error) {
-	cache := infra.GetCache()
 	key := fmt.Sprintf("product:detail:admin:%d", spuId)
-	if cache != nil {
+	if p.cache != nil {
 		var cached response.GetProductResp
-		hit, err := cache.GetJSON(context.Background(), key, &cached)
+		hit, err := p.cache.GetJSON(context.Background(), key, &cached)
 		if err == nil && hit {
 			return &cached, nil
 		}
@@ -573,8 +580,8 @@ func (p *ProductService) GetProduct(spuId int64) (*response.GetProductResp, erro
 		CreatedAt:    spu.CreatedAt,
 		UpdatedAt:    spu.UpdatedAt,
 	}
-	if cache != nil {
-		_ = cache.SetJSON(context.Background(), key, &spuResp, 10*time.Minute)
+	if p.cache != nil { // 弱依赖降级:Redis 未配置时跳过回写,不影响返回
+		p.cache.SetJSON(context.Background(), key, &spuResp, 10*time.Minute)
 	}
 	return &spuResp, nil
 }
@@ -586,13 +593,12 @@ func (p *ProductService) GetProduct(spuId int64) (*response.GetProductResp, erro
 //
 //	error - 错误信息
 func (p *ProductService) UserGetProduct(spuId int64) (*response.UserGetProductResp, error) {
-	cache := infra.GetCache()
 	key := fmt.Sprintf("product:detail:user:%d", spuId)
-	if cache != nil {
+	if p.cache != nil {
 		var cached response.UserGetProductResp
-		hit, err := cache.GetJSON(context.Background(), key, &cached)
+		hit, err := p.cache.GetJSON(context.Background(), key, &cached)
 		if err == nil && hit {
-			p.fillSkuStock(cache, &cached)
+			p.fillSkuStock(&cached)
 			return &cached, nil
 		}
 	}
@@ -676,8 +682,8 @@ func (p *ProductService) UserGetProduct(spuId int64) (*response.UserGetProductRe
 		UpdatedAt:    spu.UpdatedAt,
 	}
 
-	if cache != nil {
-		_ = cache.SetJSON(context.Background(), key, &spuResp, 10*time.Minute)
+	if p.cache != nil { // 弱依赖降级:Redis 未配置时跳过回写,不影响返回
+		p.cache.SetJSON(context.Background(), key, &spuResp, 10*time.Minute)
 	}
 	return &spuResp, nil
 }
@@ -753,8 +759,8 @@ func (p *ProductService) UpdateProduct(spuId int64, updateSpu map[string]interfa
 		return nil, err
 	}
 	// 更新缓存
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(),
+	if p.cache != nil {
+		p.cache.Del(context.Background(),
 			fmt.Sprintf("product:detail:admin:%d", spuId),
 			fmt.Sprintf("product:detail:user:%d", spuId))
 	}
@@ -885,8 +891,8 @@ func (p *ProductService) UpdateProductFull(spuId int64, req requset.FullUpdatePr
 		return nil, err
 	}
 	// 更新缓存
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(),
+	if p.cache != nil {
+		p.cache.Del(context.Background(),
 			fmt.Sprintf("product:detail:admin:%d", spuId),
 			fmt.Sprintf("product:detail:user:%d", spuId))
 	}
@@ -926,8 +932,8 @@ func (p *ProductService) DeleteProduct(spuId int64) error {
 		return nil
 	})
 	// 更新商品缓存
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(),
+	if p.cache != nil {
+		p.cache.Del(context.Background(),
 			fmt.Sprintf("product:detail:admin:%d", spuId),
 			fmt.Sprintf("product:detail:user:%d", spuId))
 	}
@@ -983,8 +989,8 @@ func (p *ProductService) PublishProduct(spuId int64) error {
 	})
 
 	// 更新商品缓存
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(),
+	if p.cache != nil {
+		p.cache.Del(context.Background(),
 			fmt.Sprintf("product:detail:admin:%d", spuId),
 			fmt.Sprintf("product:detail:user:%d", spuId))
 	}
@@ -1015,8 +1021,8 @@ func (p *ProductService) WithdrawProduct(spuId int64) error {
 		return err
 	}
 	// 更新商品缓存
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(),
+	if p.cache != nil {
+		p.cache.Del(context.Background(),
 			fmt.Sprintf("product:detail:admin:%d", spuId),
 			fmt.Sprintf("product:detail:user:%d", spuId))
 	}

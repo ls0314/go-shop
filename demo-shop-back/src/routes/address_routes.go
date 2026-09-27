@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -10,8 +11,8 @@ import (
 var addressCtrl *handler.AddressHandler
 
 // InitAddressModule 用户地址模块初始化（在InitRoutes中调用）
-func InitAddressModule() {
-	addressCtrl = handler.NewAddressHandler()
+func InitAddressModule(deps service.ServiceDeps) {
+	addressCtrl = handler.NewAddressHandler(deps)
 }
 
 // RegisterAddressRoutes 初始化用户地址路由

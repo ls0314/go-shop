@@ -4,15 +4,16 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 var userRoleCtrl *handler.UserRoleHandler
 
-func InitUserRoleModule() {
+func InitUserRoleModule(deps service.ServiceDeps) {
 
-	userRoleCtrl = handler.NewUserRoleHandler()
+	userRoleCtrl = handler.NewUserRoleHandler(deps)
 }
 
 func RegisterUserRoleRoutes(r *gin.Engine) {

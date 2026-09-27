@@ -2,8 +2,7 @@ package service
 
 import (
 	"context"
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
+	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
@@ -22,16 +21,18 @@ type InventoryService struct {
 	ProductRepo      *repository.ProductRepo      // 商品数据层实例
 	InventoryLogRepo *repository.InventoryLogRepo // 库存日志数据层实例
 	db               *gorm.DB
+	cache            *cache.RedisService // 库存缓存(失效用);nil = Redis 未配置
 }
 
 // NewInventoryService 创建库存服务层实例
-// 接收值：注入的数据库连接（由 composition root 提供）
+// 接收值：deps - 服务层依赖（由 composition root 注入）
 // 返回值：*InventoryService - 库存服务层实例指针
-func NewInventoryService() *InventoryService {
+func NewInventoryService(deps ServiceDeps) *InventoryService {
 	return &InventoryService{
-		ProductRepo:      repository.NewProductRepo(db.DB),
-		InventoryLogRepo: repository.NewInventoryRepo(db.DB),
-		db:               db.DB,
+		ProductRepo:      repository.NewProductRepo(deps.DB),
+		InventoryLogRepo: repository.NewInventoryRepo(deps.DB),
+		db:               deps.DB,
+		cache:            deps.Cache,
 	}
 }
 
@@ -253,8 +254,8 @@ func (is *InventoryService) AdjustStock(userID int64, req requset.InventoryAdjus
 		return nil, err
 	}
 	// 库存变更后失效缓存(短 TTL 兜底,失效失败最多 30 秒旧值)
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(), fmt.Sprintf("sku:stock:%d", req.SkuId))
+	if is.cache != nil {
+		_ = is.cache.Del(context.Background(), fmt.Sprintf("sku:stock:%d", req.SkuId))
 	}
 	return &stockResp, nil
 }
@@ -347,8 +348,8 @@ func (is *InventoryService) lockStockWithTx(tx *gorm.DB, skuId, qty, orderId int
 		return nil
 	})
 	// 库存变更后失效缓存(短 TTL 兜底,失效失败最多 30 秒旧值)
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(), fmt.Sprintf("sku:stock:%d", skuId))
+	if is.cache != nil {
+		_ = is.cache.Del(context.Background(), fmt.Sprintf("sku:stock:%d", skuId))
 	}
 	return err
 }
@@ -442,8 +443,8 @@ func (is *InventoryService) DeductStockWithTx(tx *gorm.DB, skuId, qty, orderId i
 
 	})
 	// 库存变更后失效缓存(短 TTL 兜底,失效失败最多 30 秒旧值)
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(), fmt.Sprintf("sku:stock:%d", skuId))
+	if is.cache != nil {
+		_ = is.cache.Del(context.Background(), fmt.Sprintf("sku:stock:%d", skuId))
 	}
 	return err
 }
@@ -537,8 +538,8 @@ func (is *InventoryService) ReleaseStockWithTx(tx *gorm.DB, skuId, qty, orderId 
 
 	})
 	// 库存变更后失效缓存(短 TTL 兜底,失效失败最多 30 秒旧值)
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(), fmt.Sprintf("sku:stock:%d", skuId))
+	if is.cache != nil {
+		_ = is.cache.Del(context.Background(), fmt.Sprintf("sku:stock:%d", skuId))
 	}
 	return err
 }
@@ -609,8 +610,8 @@ func (is *InventoryService) RefundStock(skuId, qty, orderId int64) error {
 
 	})
 	// 库存变更后失效缓存(短 TTL 兜底,失效失败最多 30 秒旧值)
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(), fmt.Sprintf("sku:stock:%d", skuId))
+	if is.cache != nil {
+		_ = is.cache.Del(context.Background(), fmt.Sprintf("sku:stock:%d", skuId))
 	}
 	return err
 }

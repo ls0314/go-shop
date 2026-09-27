@@ -20,7 +20,7 @@ func TestUseCoupon_Concurrent_OnlyOneWins(t *testing.T) {
 	userID := mustCreateUser(t)
 	// 前置:走真实链路领一张券(保证 expire_at 等字段合法)
 	templateID := createTemplate(t, 10, 5)
-	svc := service.NewCouponService()
+	svc := service.NewCouponService(testDeps())
 	resp, err := svc.ReceiveCoupon(userID, templateID)
 	if err != nil {
 		t.Fatalf("领取前置券失败: %v", err)
@@ -53,7 +53,7 @@ func TestRefundCoupon_Idempotent(t *testing.T) {
 
 	userID := mustCreateUser(t)
 	templateID := createTemplate(t, 10, 5)
-	svc := service.NewCouponService()
+	svc := service.NewCouponService(testDeps())
 	resp, err := svc.ReceiveCoupon(userID, templateID)
 	if err != nil {
 		t.Fatalf("领取前置券失败: %v", err)

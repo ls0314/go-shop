@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,8 +12,8 @@ import (
 var inventoryCtrl *handler.InventoryHandler
 
 // InitInventoryModule 库存模块初始化（在InitRoutes中调用）
-func InitInventoryModule() {
-	inventoryCtrl = handler.NewInventoryHandler()
+func InitInventoryModule(deps service.ServiceDeps) {
+	inventoryCtrl = handler.NewInventoryHandler(deps)
 }
 
 // RegisterInventoryRoutes 初始化库存路由

@@ -1,7 +1,6 @@
 package service
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
@@ -18,10 +17,10 @@ type RoleService struct {
 // NewRoleService 新建服务层角色对象实例
 // 接收值：roleRepo - 数据层角色对象指针
 // 返回值：*RoleService - 服务层角色对象指针
-func NewRoleService() *RoleService {
+func NewRoleService(deps ServiceDeps) *RoleService {
 	return &RoleService{
-		RoleRepo: repository.NewRoleRepo(db.DB),
-		db:       db.DB,
+		RoleRepo: repository.NewRoleRepo(deps.DB),
+		db:       deps.DB,
 	}
 }
 

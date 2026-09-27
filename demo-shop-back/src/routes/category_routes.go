@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,8 +12,8 @@ import (
 var categoryCtrl *handler.CategoryHandler
 
 // InitCategoryModule 类目模块初始化（在InitRoutes中调用）
-func InitCategoryModule() {
-	categoryCtrl = handler.NewCategoryHandler()
+func InitCategoryModule(deps service.ServiceDeps) {
+	categoryCtrl = handler.NewCategoryHandler(deps)
 }
 
 // RegisterCategoryRoutes 初始化类目路由

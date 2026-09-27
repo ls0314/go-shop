@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,8 +12,8 @@ import (
 var orderCtrl *handler.OrderHandler
 
 // InitOrderModule 订单模块初始化（在InitRoutes中调用）
-func InitOrderModule() {
-	orderCtrl = handler.NewOrderHandler()
+func InitOrderModule(deps service.ServiceDeps) {
+	orderCtrl = handler.NewOrderHandler(deps)
 }
 
 // RegisterOrderRoutes 初始化订单路由

@@ -17,9 +17,9 @@ type DeptHandler struct {
 // NewDeptHandler 新建handler层部门对象实例
 // 接收值：无接收值
 // 返回值：*DeptHandler - handler层部门对象指针
-func NewDeptHandler() *DeptHandler {
+func NewDeptHandler(deps service.ServiceDeps) *DeptHandler {
 	return &DeptHandler{
-		DeptService: service.NewDeptService(),
+		DeptService: service.NewDeptService(deps),
 	}
 }
 

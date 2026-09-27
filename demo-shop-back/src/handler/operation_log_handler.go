@@ -13,9 +13,9 @@ type OperationLogHandler struct {
 	OperationLogService *service.OperationLogService
 }
 
-func NewOperationLogHandler() *OperationLogHandler {
+func NewOperationLogHandler(deps service.ServiceDeps) *OperationLogHandler {
 	return &OperationLogHandler{
-		OperationLogService: service.NewOperationLogService(),
+		OperationLogService: service.NewOperationLogService(deps),
 	}
 }
 

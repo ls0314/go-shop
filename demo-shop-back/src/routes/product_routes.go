@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,8 +12,8 @@ import (
 var productCtrl *handler.ProductHandler
 
 // InitProductModule 商品模块初始化（在InitRoutes中调用）
-func InitProductModule() {
-	productCtrl = handler.NewProductHandler()
+func InitProductModule(deps service.ServiceDeps) {
+	productCtrl = handler.NewProductHandler(deps)
 }
 
 // RegisterProductRoutes 初始化商品路由

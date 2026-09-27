@@ -1,7 +1,6 @@
 package service
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
@@ -26,11 +25,11 @@ type CartItemService struct {
 // NewCartItemService 创建购物车服务层实例
 // 接收值：注入的数据库连接（由 composition root 提供）
 // 返回值：*CartItemService - 购物车服务层实例指针
-func NewCartItemService() *CartItemService {
+func NewCartItemService(deps ServiceDeps) *CartItemService {
 	return &CartItemService{
-		CartItemRepo: repository.NewCartItemRepo(db.DB),
-		ProductRepo:  repository.NewProductRepo(db.DB),
-		db:           db.DB,
+		CartItemRepo: repository.NewCartItemRepo(deps.DB),
+		ProductRepo:  repository.NewProductRepo(deps.DB),
+		db:           deps.DB,
 	}
 }
 

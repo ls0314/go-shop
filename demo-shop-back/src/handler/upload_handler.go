@@ -16,8 +16,9 @@ type UploadHandler struct {
 // NewUploadHandler 新建文件上传的HTTP handler实例
 // 接收值：无接收值，全局实例化
 // 返回值：*UploadHandler - 文件上传handler指针
-func NewUploadHandler() *UploadHandler {
+func NewUploadHandler(deps service.ServiceDeps) *UploadHandler {
 	return &UploadHandler{
+		// FileService 是无状态实现(无 repo/连接依赖),不需要 deps
 		fileService: service.NewFileService(),
 	}
 }

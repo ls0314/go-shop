@@ -17,9 +17,9 @@ type UserRoleHandler struct {
 // NewUserRoleHandler 新建用户角色关联表的HTTP handler实例
 // 接收值：无接收值
 // 返回值：*UserRoleHandler - 用户角色关联handler指针
-func NewUserRoleHandler() *UserRoleHandler {
+func NewUserRoleHandler(deps service.ServiceDeps) *UserRoleHandler {
 	return &UserRoleHandler{
-		UserRoleService: service.NewUserRoleService(),
+		UserRoleService: service.NewUserRoleService(deps),
 	}
 }
 

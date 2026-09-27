@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -10,8 +11,8 @@ import (
 var cartItemCtrl *handler.CartItemHandler
 
 // InitCartItemModule 购物车模块初始化（在InitRoutes中调用）
-func InitCartItemModule() {
-	cartItemCtrl = handler.NewCartItemHandler()
+func InitCartItemModule(deps service.ServiceDeps) {
+	cartItemCtrl = handler.NewCartItemHandler(deps)
 }
 
 // RegisterCartItemRoutes 初始化购物车路由

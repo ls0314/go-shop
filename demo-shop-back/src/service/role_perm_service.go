@@ -2,8 +2,7 @@ package service
 
 import (
 	"context"
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
+	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 	"fmt"
@@ -18,18 +17,19 @@ type RolePermService struct {
 	PermRepo     *repository.PermissionRepo // 权限表数据层实例
 	UserRoleRepo *repository.UserRoleRepo   // 用户角色表数据层实例
 	db           *gorm.DB                   // 全局数据库
+	cache        *cache.RedisService        // 权限缓存失效用;nil = Redis 未配置
 }
 
 // NewRolePermService 创建角色-权限关联服务层实例
-// 接收值：conn - 数据库连接（由调用方注入）
+// 接收值：deps - 服务层依赖（由 composition root 注入）
 // 返回值：*RolePermService - 角色-权限关联服务层指针
-func NewRolePermService() *RolePermService {
+func NewRolePermService(deps ServiceDeps) *RolePermService {
 	return &RolePermService{
-		RolePermRepo: repository.NewRolePermRepo(db.DB),
-		RoleRepo:     repository.NewRoleRepo(db.DB),
-		PermRepo:     repository.NewPermissionRepo(db.DB),
-		UserRoleRepo: repository.NewUserRoleRepo(db.DB),
-		db:           db.DB,
+		RolePermRepo: repository.NewRolePermRepo(deps.DB),
+		RoleRepo:     repository.NewRoleRepo(deps.DB),
+		PermRepo:     repository.NewPermissionRepo(deps.DB),
+		UserRoleRepo: repository.NewUserRoleRepo(deps.DB),
+		db:           deps.DB,
 	}
 }
 
@@ -72,9 +72,9 @@ func (rp *RolePermService) CreateRolePerm(roleId int64, permIds []int64) error {
 	}
 	// 失效该角色下所有用户的权限缓存(角色权限变了,持有者的权限集合都过期)
 	userIds, _ := rp.UserRoleRepo.GetUserIdsByRoleId(roleId)
-	if cache := infra.GetCache(); cache != nil {
+	if rp.cache != nil {
 		for _, uid := range userIds {
-			_ = cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", uid))
+			_ = rp.cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", uid))
 		}
 	}
 	return nil
@@ -129,9 +129,9 @@ func (rp *RolePermService) DeleteRolePermRel(roleId int64) error {
 	}
 	// 失效该角色下所有用户的权限缓存(角色权限变了,持有者的权限集合都过期)
 	userIds, _ := rp.UserRoleRepo.GetUserIdsByRoleId(roleId)
-	if cache := infra.GetCache(); cache != nil {
+	if rp.cache != nil {
 		for _, uid := range userIds {
-			_ = cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", uid))
+			_ = rp.cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", uid))
 		}
 	}
 	return nil

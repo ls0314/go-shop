@@ -1,7 +1,6 @@
 package service
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/response"
 	"demo-shop-back/src/repository"
@@ -20,10 +19,10 @@ type AddressService struct {
 // NewAddressService 创建地址管理服务层实例
 // 接收值：使用全局数据库和repository初始化，故无接收值
 // 返回值：*AddressService - 地址服务层指针
-func NewAddressService() *AddressService {
+func NewAddressService(deps ServiceDeps) *AddressService {
 	return &AddressService{
-		AddressRepo: repository.NewAddressRepo(db.DB),
-		DB:          db.DB,
+		AddressRepo: repository.NewAddressRepo(deps.DB),
+		DB:          deps.DB,
 	}
 }
 

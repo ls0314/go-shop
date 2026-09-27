@@ -3,15 +3,16 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 var userInfoCtrl *handler.UserInfoHandler
 
-func InitUserInfoModule() {
+func InitUserInfoModule(deps service.ServiceDeps) {
 
-	userInfoCtrl = handler.NewUserInfoHandler()
+	userInfoCtrl = handler.NewUserInfoHandler(deps)
 }
 
 func RegisterUserInfoRoutes(r *gin.Engine) {

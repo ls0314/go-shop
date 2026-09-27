@@ -74,8 +74,12 @@ func main() {
 	}
 	defer infra.Shutdown()
 
+	// 服务层依赖集合:全局读取点在此收敛为一处(B0 去全局化)
+	// 必须放在 infra.InitInfra 之后 —— NewServiceDeps 会读取 infra 单例与 db.DB
+	deps := service.NewServiceDeps()
+
 	// 对账任务初始化
-	task.Init()
+	task.Init(deps)
 
 	// 可观测性:独立内部端口暴露 /metrics + DB 连接池水位采样
 	metrics.StartMetricsServer()
@@ -92,10 +96,10 @@ func main() {
 	}
 	middleware.InitJWT(jwtSecret)
 	// 路由初始化
-	router := routes.InitRoutes()
+	router := routes.InitRoutes(deps)
 
 	// 启动mq消费者
-	infra.StartOrderConsumer(service.NewOrderService())
+	infra.StartOrderConsumer(service.NewOrderService(deps))
 
 	// main.go 原 SetTrustedProxies(["127.0.0.1"]) 处替换:
 	trusted := os.Getenv("DEMO_SHOP_TRUSTED_PROXIES")

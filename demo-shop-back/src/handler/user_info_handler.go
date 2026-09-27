@@ -17,9 +17,9 @@ type UserInfoHandler struct {
 // NewUserInfoHandler 新建用户信息表的HTTP handler实例
 // 接收值：无接收值
 // 返回值：*UserInfoHandler - 用户信息handler指针
-func NewUserInfoHandler() *UserInfoHandler {
+func NewUserInfoHandler(deps service.ServiceDeps) *UserInfoHandler {
 	return &UserInfoHandler{
-		UserInfoService: service.NewUserInfoService(),
+		UserInfoService: service.NewUserInfoService(deps),
 	}
 }
 

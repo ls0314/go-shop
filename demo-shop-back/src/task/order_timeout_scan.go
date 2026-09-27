@@ -5,8 +5,6 @@
 package task
 
 import (
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/metrics"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
@@ -30,11 +28,12 @@ type OrderTimeoutScanService struct {
 }
 
 // NewOrderTimeoutScanService 创建扫描任务
-func NewOrderTimeoutScanService() *OrderTimeoutScanService {
+// 接收值：deps - 服务层依赖（由 composition root 注入）
+func NewOrderTimeoutScanService(deps service.ServiceDeps) *OrderTimeoutScanService {
 	return &OrderTimeoutScanService{
-		orderRepo: repository.NewOrderRepo(db.DB),
-		orderSvc:  service.NewOrderService(),
-		locks:     NewDistributedLockManager(infra.GetCache()),
+		orderRepo: repository.NewOrderRepo(deps.DB),
+		orderSvc:  service.NewOrderService(deps),
+		locks:     NewDistributedLockManager(deps.Cache),
 	}
 }
 

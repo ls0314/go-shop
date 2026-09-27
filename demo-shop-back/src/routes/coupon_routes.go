@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,9 +13,9 @@ var couponCtrl *handler.CouponHandler
 
 // InitCouponModule 初始化优惠券模块 handler 实例
 // 说明：在 routes.go 中注册路由前调用，全局单例
-func InitCouponModule() {
+func InitCouponModule(deps service.ServiceDeps) {
 
-	couponCtrl = handler.NewCouponHandler()
+	couponCtrl = handler.NewCouponHandler(deps)
 
 }
 

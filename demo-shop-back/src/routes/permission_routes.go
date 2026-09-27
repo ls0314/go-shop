@@ -12,8 +12,8 @@ import (
 var permCtrl *handler.PermissionHandler
 
 // InitPermissionModule 权限模块初始化（在InitRoutes中调用）
-func InitPermissionModule() {
-	permService := service.NewPermissionService()
+func InitPermissionModule(deps service.ServiceDeps) {
+	permService := service.NewPermissionService(deps)
 	permCtrl = handler.NewPermissionHandler(permService)
 }
 

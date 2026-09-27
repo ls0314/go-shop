@@ -2,11 +2,10 @@ package task
 
 import (
 	"context"
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
+	"demo-shop-back/src/service"
 	"fmt"
 	"log"
 	"strconv"
@@ -25,21 +24,21 @@ type StockReconcileService struct {
 	locks       *DistributedLockManager
 }
 
-func NewStockReconcileService() *StockReconcileService {
+func NewStockReconcileService(deps service.ServiceDeps) *StockReconcileService {
 	return &StockReconcileService{
-		couponRepo:  repository.NewCouponRepo(db.DB),
-		productRepo: repository.NewProductRepo(db.DB),
-		cache:       infra.GetCache(),
-		locks:       NewDistributedLockManager(infra.GetCache()),
+		couponRepo:  repository.NewCouponRepo(deps.DB),
+		productRepo: repository.NewProductRepo(deps.DB),
+		cache:       deps.Cache,
+		locks:       NewDistributedLockManager(deps.Cache),
 	}
 }
 
 // NewStockReconcileServiceWithCache 测试专用构造:显式注入 Redis,
 // 使「对账收敛」成为可被测试断言的行为(C5 阶段二)
-func NewStockReconcileServiceWithCache(c *cache.RedisService) *StockReconcileService {
+func NewStockReconcileServiceWithCache(deps service.ServiceDeps, c *cache.RedisService) *StockReconcileService {
 	return &StockReconcileService{
-		couponRepo:  repository.NewCouponRepo(db.DB),
-		productRepo: repository.NewProductRepo(db.DB),
+		couponRepo:  repository.NewCouponRepo(deps.DB),
+		productRepo: repository.NewProductRepo(deps.DB),
 		cache:       c,
 		locks:       NewDistributedLockManager(c),
 	}

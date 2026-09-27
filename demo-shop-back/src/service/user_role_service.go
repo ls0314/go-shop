@@ -2,8 +2,7 @@ package service
 
 import (
 	"context"
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
+	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 	"fmt"
@@ -17,17 +16,18 @@ type UserRoleService struct {
 	UserRepo     *repository.UserRepo     // 用户表数据层实例
 	RoleRepo     *repository.RoleRepo     // 角色表数据层实例
 	db           *gorm.DB                 // 全局数据库
+	cache        *cache.RedisService      // 权限缓存失效用;nil = Redis 未配置
 }
 
 // NewUserRoleService 创建用户-角色关联服务层实例
 // 接收值：conn - 数据库连接（由调用方注入）
 // 返回值：*UserRoleService - 用户-角色关联服务层指针
-func NewUserRoleService() *UserRoleService {
+func NewUserRoleService(deps ServiceDeps) *UserRoleService {
 	return &UserRoleService{
-		UserRoleRepo: repository.NewUserRoleRepo(db.DB),
-		UserRepo:     repository.NewUserRepo(db.DB),
-		RoleRepo:     repository.NewRoleRepo(db.DB),
-		db:           db.DB,
+		UserRoleRepo: repository.NewUserRoleRepo(deps.DB),
+		UserRepo:     repository.NewUserRepo(deps.DB),
+		RoleRepo:     repository.NewRoleRepo(deps.DB),
+		db:           deps.DB,
 	}
 }
 
@@ -78,8 +78,8 @@ func (ur *UserRoleService) CreateUserRole(userId int64, roleIds []int64) error {
 		return err
 	}
 	// 用户角色变更后失效该用户的权限缓存
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", userId))
+	if ur.cache != nil {
+		_ = ur.cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", userId))
 	}
 	return nil
 
@@ -137,8 +137,8 @@ func (ur *UserRoleService) DeleteUserRole(userId int64) error {
 		return err
 	}
 	// 用户角色变更后失效该用户的权限缓存
-	if cache := infra.GetCache(); cache != nil {
-		_ = cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", userId))
+	if ur.cache != nil {
+		_ = ur.cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", userId))
 	}
 	return nil
 }

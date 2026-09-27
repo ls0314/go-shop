@@ -1,7 +1,6 @@
 package service
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
@@ -23,11 +22,11 @@ type ScopeService struct {
 //	roleRepo - 角色数据层实例
 //
 // 返回值：*ScopeService - 数据权限范围服务层实例指针
-func NewScopeService() *ScopeService {
+func NewScopeService(deps ServiceDeps) *ScopeService {
 	return &ScopeService{
-		ScopeRope: repository.NewScopeRepo(db.DB),
-		RoleRepo:  repository.NewRoleRepo(db.DB),
-		db:        db.DB,
+		ScopeRope: repository.NewScopeRepo(deps.DB),
+		RoleRepo:  repository.NewRoleRepo(deps.DB),
+		db:        deps.DB,
 	}
 }
 

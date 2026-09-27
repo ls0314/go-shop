@@ -18,9 +18,9 @@ type CartItemHandler struct {
 // NewCartItemHandler 创建购物车管理handler层实例
 // 接收值：无接收值，全局实例化
 // 返回值：*CartItemHandler - 购物车handler指针
-func NewCartItemHandler() *CartItemHandler {
+func NewCartItemHandler(deps service.ServiceDeps) *CartItemHandler {
 	return &CartItemHandler{
-		CartItemService: service.NewCartItemService(),
+		CartItemService: service.NewCartItemService(deps),
 	}
 }
 

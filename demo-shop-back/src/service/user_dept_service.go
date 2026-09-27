@@ -1,7 +1,6 @@
 package service
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
@@ -19,12 +18,12 @@ type UserDeptService struct {
 // NewUserDeptService 创建用户-部门关联服务层实例
 // 接收值：conn - 数据库连接（由调用方注入）
 // 返回值：*UserDeptService - 用户-部门关联服务层指针
-func NewUserDeptService() *UserDeptService {
+func NewUserDeptService(deps ServiceDeps) *UserDeptService {
 	return &UserDeptService{
-		UserDeptRepo:   repository.NewUserDeptRepo(db.DB),
-		UserRepo:       repository.NewUserRepo(db.DB),
-		DepartmentRepo: repository.NewDeptRepo(db.DB),
-		db:             db.DB,
+		UserDeptRepo:   repository.NewUserDeptRepo(deps.DB),
+		UserRepo:       repository.NewUserRepo(deps.DB),
+		DepartmentRepo: repository.NewDeptRepo(deps.DB),
+		db:             deps.DB,
 	}
 }
 

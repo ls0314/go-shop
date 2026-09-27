@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,8 +12,8 @@ import (
 var menuPermissionCtrl *handler.MenuPermissionHandler
 
 // InitMenuPermModule 初始化菜单权限模块
-func InitMenuPermModule() {
-	menuPermissionCtrl = handler.NewMenuPermissionHandler()
+func InitMenuPermModule(deps service.ServiceDeps) {
+	menuPermissionCtrl = handler.NewMenuPermissionHandler(deps)
 }
 
 // RegisterMenuPermRoutes 注册菜单权限相关路由

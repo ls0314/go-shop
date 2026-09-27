@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/infra/mq"
 	"demo-shop-back/src/model"
@@ -28,22 +26,24 @@ type OrderService struct {
 	CouponRepo        *repository.CouponRepo
 	OutboxMessageRepo *repository.OutboxMessageRepo
 	db                *gorm.DB
+	cache             *cache.RedisService // 库存闸门(deps.GateCache,含熔断语义);nil = 闸门关闭
 	*CartItemService
 	*InventoryService
 }
 
 // NewOrderService 创建订单服务层实例
-// 接收值：注入的数据库连接（由 composition root 提供）
+// 接收值：deps - 服务层依赖（由 composition root 注入）
 // 返回值：*OrderService - 订单服务层实例指针
-func NewOrderService() *OrderService {
+func NewOrderService(deps ServiceDeps) *OrderService {
 	order := &OrderService{
-		OrderRepo:         repository.NewOrderRepo(db.DB),
-		AddressRepo:       repository.NewAddressRepo(db.DB),
-		CouponRepo:        repository.NewCouponRepo(db.DB),
-		OutboxMessageRepo: repository.NewOutboxMessage(db.DB),
-		db:                db.DB,
-		CartItemService:   NewCartItemService(),
-		InventoryService:  NewInventoryService(),
+		OrderRepo:         repository.NewOrderRepo(deps.DB),
+		AddressRepo:       repository.NewAddressRepo(deps.DB),
+		CouponRepo:        repository.NewCouponRepo(deps.DB),
+		OutboxMessageRepo: repository.NewOutboxMessage(deps.DB),
+		db:                deps.DB,
+		cache:             deps.GateCache,
+		CartItemService:   NewCartItemService(deps),
+		InventoryService:  NewInventoryService(deps),
 	}
 	return order
 }
@@ -142,7 +142,7 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 		skuId, qty int64
 	}
 	var gateDeducted []skuDeduction
-	cacheSvc := infra.GetGateCache()
+	cacheSvc := o.cache
 	if cacheSvc != nil {
 		ctx := context.Background()
 		gateBroken := false // 中途 Redis 异常:还掉已扣的,本单整体降级为无闸门走 DB

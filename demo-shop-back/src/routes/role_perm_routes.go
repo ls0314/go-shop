@@ -4,15 +4,16 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 var rolePermCtrl *handler.RolePermHandler
 
-func InitRolePermModule() {
+func InitRolePermModule(deps service.ServiceDeps) {
 
-	rolePermCtrl = handler.NewRolePermHandler()
+	rolePermCtrl = handler.NewRolePermHandler(deps)
 }
 
 func RegisterRolePermRoutes(r *gin.Engine) {

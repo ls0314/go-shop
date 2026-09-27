@@ -1,7 +1,6 @@
 package service
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
@@ -20,12 +19,12 @@ type MenuService struct {
 // NewMenuService 创建菜单表服务层实例
 // 接收值：注入的数据库连接（由 composition root 提供）
 // 返回值：*MenuService - 菜单表服务层实例指针
-func NewMenuService() *MenuService {
+func NewMenuService(deps ServiceDeps) *MenuService {
 	return &MenuService{
-		MenuRepo:     repository.NewMenuRepo(db.DB),
-		RoleMenuRepo: repository.NewRoleMenuRepo(db.DB),
-		UserRoleRepo: repository.NewUserRoleRepo(db.DB),
-		db:           db.DB,
+		MenuRepo:     repository.NewMenuRepo(deps.DB),
+		RoleMenuRepo: repository.NewRoleMenuRepo(deps.DB),
+		UserRoleRepo: repository.NewUserRoleRepo(deps.DB),
+		db:           deps.DB,
 	}
 }
 

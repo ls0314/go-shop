@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,8 +12,8 @@ import (
 var menuCtrl *handler.MenuHandler
 
 // InitMenuModule 菜单模块初始化（在InitRoutes中调用）
-func InitMenuModule() {
-	menuCtrl = handler.NewMenuHandler()
+func InitMenuModule(deps service.ServiceDeps) {
+	menuCtrl = handler.NewMenuHandler(deps)
 }
 
 // RegisterMenuRoutes 初始化菜单路由

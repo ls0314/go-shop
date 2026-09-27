@@ -1,7 +1,6 @@
 package service
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
@@ -18,10 +17,10 @@ type UserInfoService struct {
 // NewUserInfoService 创建用户信息服务层实例
 // 接收值：conn - 数据库连接（由调用方注入）
 // 返回值：*UserInfoService - 用户信息服务层指针
-func NewUserInfoService() *UserInfoService {
+func NewUserInfoService(deps ServiceDeps) *UserInfoService {
 	return &UserInfoService{
-		UserInfoRepo: repository.NewUserProfileRepo(db.DB),
-		db:           db.DB,
+		UserInfoRepo: repository.NewUserProfileRepo(deps.DB),
+		db:           deps.DB,
 	}
 }
 

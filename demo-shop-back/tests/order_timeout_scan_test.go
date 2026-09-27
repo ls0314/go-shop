@@ -45,7 +45,7 @@ func TestOrderTimeoutScan_CancelsExpiredOrder(t *testing.T) {
 	orderID := mustCreateOrderReadyToCancel(t, userID, skuID, qty)
 	backdateOrderCreatedAt(t, orderID, model.OrderPayTTL+time.Minute) // 刚过阈值
 
-	svc := task.NewOrderTimeoutScanService()
+	svc := task.NewOrderTimeoutScanService(testDeps())
 	cancelled, skipped := svc.ScanOnce()
 
 	if cancelled != 1 || skipped != 0 {
@@ -73,7 +73,7 @@ func TestOrderTimeoutScan_IgnoresFreshOrder(t *testing.T) {
 	backdateOrderCreatedAt(t, orderID, model.OrderPayTTL-time.Minute) // 还没到阈值
 	markAllOtherPendingPayAsCancelled(t, orderID)                     // ← 新增
 
-	svc := task.NewOrderTimeoutScanService()
+	svc := task.NewOrderTimeoutScanService(testDeps())
 	if cancelled, skipped := svc.ScanOnce(); cancelled != 0 || skipped != 0 {
 		t.Fatalf("未超时订单不得被处理(cancelled=%d skipped=%d)", cancelled, skipped)
 	}
@@ -99,7 +99,7 @@ func TestOrderTimeoutScan_AlreadyCancelled_CountedAsSkipped(t *testing.T) {
 		t.Fatalf("模拟 MQ 已取消失败: %v", err)
 	}
 
-	svc := task.NewOrderTimeoutScanService()
+	svc := task.NewOrderTimeoutScanService(testDeps())
 	cancelled, skipped := svc.ScanOnce()
 
 	// 用 >= 而非 ==:候选集里可能还有其它用例在同一瞬间制造的超时单,
@@ -132,11 +132,11 @@ func TestOrderTimeoutScan_RaceWithOtherCanceller(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		scanCancelled, scanSkipped = task.NewOrderTimeoutScanService().ScanOnce()
+		scanCancelled, scanSkipped = task.NewOrderTimeoutScanService(testDeps()).ScanOnce()
 	}()
 	go func() {
 		defer wg.Done()
-		_, _ = service.NewOrderService().CancelOrderBySystem(orderID, "系统")
+		_, _ = service.NewOrderService(testDeps()).CancelOrderBySystem(orderID, "系统")
 	}()
 	wg.Wait()
 
@@ -171,7 +171,7 @@ func TestOrderTimeoutScan_Idempotent(t *testing.T) {
 	orderID := mustCreateOrderReadyToCancel(t, userID, skuID, qty)
 	backdateOrderCreatedAt(t, orderID, model.OrderPayTTL+time.Minute)
 
-	svc := task.NewOrderTimeoutScanService()
+	svc := task.NewOrderTimeoutScanService(testDeps())
 	if cancelled, _ := svc.ScanOnce(); cancelled != 1 {
 		t.Fatalf("第一轮应取消 1 单, 实际 %d", cancelled)
 	}

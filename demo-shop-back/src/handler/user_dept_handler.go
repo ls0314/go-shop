@@ -13,9 +13,9 @@ type UserDeptHandler struct {
 	UserDeptService *service.UserDeptService
 }
 
-func NewUserDeptHandler() *UserDeptHandler {
+func NewUserDeptHandler(deps service.ServiceDeps) *UserDeptHandler {
 	return &UserDeptHandler{
-		UserDeptService: service.NewUserDeptService(),
+		UserDeptService: service.NewUserDeptService(deps),
 	}
 }
 

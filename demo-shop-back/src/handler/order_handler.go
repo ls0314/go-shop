@@ -18,9 +18,9 @@ type OrderHandler struct {
 // NewOrderHandler 创建订单管理handler层实例
 // 接收值：无接收值，全局实例化
 // 返回值：*OrderHandler - 订单handler指针
-func NewOrderHandler() *OrderHandler {
+func NewOrderHandler(deps service.ServiceDeps) *OrderHandler {
 	return &OrderHandler{
-		OrderService: service.NewOrderService(),
+		OrderService: service.NewOrderService(deps),
 	}
 }
 

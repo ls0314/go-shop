@@ -17,9 +17,9 @@ type MenuHandler struct {
 // NewMenuHandler 新建菜单表中的HTTP handler实例
 // 接收值：无接收值，全局实例化
 // 返回值：*MenuHandler - 菜单handler指针
-func NewMenuHandler() *MenuHandler {
+func NewMenuHandler(deps service.ServiceDeps) *MenuHandler {
 	return &MenuHandler{
-		MenuService: service.NewMenuService(),
+		MenuService: service.NewMenuService(deps),
 	}
 }
 

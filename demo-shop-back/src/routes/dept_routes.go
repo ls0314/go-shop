@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,10 +15,10 @@ var deptCtrl *handler.DeptHandler
 // InitDeptModule 初始化部门模块
 // 功能：完成部门模块 仓库层 → 服务层 → 控制层 的依赖注入与实例化
 // 执行顺序：创建数据访问层实例 → 创建业务逻辑层实例 → 创建控制器实例
-func InitDeptModule() {
+func InitDeptModule(deps service.ServiceDeps) {
 
 	// 初始化部门控制器，赋值给全局控制器变量
-	deptCtrl = handler.NewDeptHandler()
+	deptCtrl = handler.NewDeptHandler(deps)
 
 }
 

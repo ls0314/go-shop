@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
@@ -24,18 +22,24 @@ type CouponService struct {
 }
 
 // NewCouponService 新建优惠券模块服务层实例
-// 接收值：无接收值，使用全局数据库连接
+// 接收值：deps - 服务层依赖（由 composition root 注入）
 // 返回值：*CouponService - 优惠券模块服务层实例指针
-func NewCouponService() *CouponService {
+//
+// 注意 cache 取 deps.GateCache 而非 deps.Cache:领券闸门需要
+// DEMO_SHOP_GATE_ENABLED 熔断语义(关闭时整条闸门旁路,DS-A-19 压测 A/B 用)。
+func NewCouponService(deps ServiceDeps) *CouponService {
 	return &CouponService{
-		CouponRepo: repository.NewCouponRepo(db.DB),
-		db:         db.DB,
-		cache:      infra.GetGateCache(),
+		CouponRepo: repository.NewCouponRepo(deps.DB),
+		db:         deps.DB,
+		cache:      deps.GateCache,
 	}
 }
 
-func NewCouponServiceWithCache(c *cache.RedisService) *CouponService {
-	svc := NewCouponService()
+// NewCouponServiceWithCache 测试用:在完整 deps 的基础上替换闸门缓存实例。
+// 为什么保留这个变体:测试需要一个与生产不同的 Redis 实例(或强制启用闸门),
+// 而 deps 里的其余依赖仍需正常注入。
+func NewCouponServiceWithCache(deps ServiceDeps, c *cache.RedisService) *CouponService {
+	svc := NewCouponService(deps)
 	svc.cache = c
 	return svc
 }

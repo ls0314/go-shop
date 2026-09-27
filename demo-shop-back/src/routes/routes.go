@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"demo-shop-back/src/service"
 	"net/http"
 
 	"demo-shop-back/src/middleware"
@@ -8,10 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func InitRoutes() *gin.Engine {
+func InitRoutes(deps service.ServiceDeps) *gin.Engine {
 	r := gin.Default()
 
-	// HTTP 层指标(DS-A-22):第一个业务中间件,保证所有请求(含404/预检)被计量
+	// HTTP 层指标:第一个业务中间件,保证所有请求(含404/预检)被计量
 	r.Use(middleware.HTTPMetrics())
 
 	// 配置CORS中间件
@@ -32,91 +33,91 @@ func InitRoutes() *gin.Engine {
 	r.Use(middleware.GlobalRateLimit())
 
 	// ========== 用户模块初始化 ==========
-	InitUserModule()
+	InitUserModule(deps)
 	// ========== 注册用户路由 ==========
 	RegisterUserRoutes(r)
 	// ========== 用户信息模块初始化 ==========
-	InitUserInfoModule()
+	InitUserInfoModule(deps)
 	// ========== 注册用户信息路由 ==========
 	RegisterUserInfoRoutes(r)
 	// ========== 权限模块初始化 ==========
-	InitPermissionModule()
+	InitPermissionModule(deps)
 	// ========== 注册权限路由 ==========
 	RegisterPermissionRoutes(r)
 	// ========== 菜单模块初始化 ==========
-	InitMenuModule()
+	InitMenuModule(deps)
 	// ========== 注册菜单路由 ==========
 	RegisterMenuRoutes(r)
 	// ========== 角色模块初始化 ==========
-	InitRoleModule()
+	InitRoleModule(deps)
 	// ========== 注册角色路由 ==========
 	RegisterRoleRoutes(r)
 	// ========== 部门模块初始化 ==========
-	InitDeptModule()
+	InitDeptModule(deps)
 	// ========== 注册部门路由 ==========
 	RegisterDeptRoutes(r)
 	// ========== 数据权限模块初始化 ==========
-	InitScopeModule()
+	InitScopeModule(deps)
 	// ========== 注册数据权限路由 ==========
 	RegisterScopeRoutes(r)
 	// ========== 角色权限关联模块初始化 ==========
-	InitRolePermModule()
+	InitRolePermModule(deps)
 	// ========== 注册角色权限关联路由 ==========
 	RegisterRolePermRoutes(r)
 	// ========== 用户角色关联模块初始化 ==========
-	InitUserRoleModule()
+	InitUserRoleModule(deps)
 	// ========== 注册用户角色关联路由 ==========
 	RegisterUserRoleRoutes(r)
 	// ========== 角色菜单关联模块初始化 ==========
-	InitRoleMenuModule()
+	InitRoleMenuModule(deps)
 	// ========== 注册角色菜单关联路由 ==========
 	RegisterRoleMenuRoutes(r)
 	// ========== 用户部门关联模块初始化 ==========
-	InitUserDeptModule()
+	InitUserDeptModule(deps)
 	// ========== 注册用户部门关联路由 ==========
 	RegisterUserDeptRoutes(r)
 	// ========== 菜单权限关联模块初始化 ==========
-	InitMenuPermModule()
+	InitMenuPermModule(deps)
 	// ========== 注册菜单权限关联路由 ==========
 	RegisterMenuPermRoutes(r)
 	// ========== 类目模块初始化 ==========
-	InitCategoryModule()
+	InitCategoryModule(deps)
 	// ========== 注册类目路由 ==========
 	RegisterCategoryRoutes(r)
 	// ========== 上传模块初始化 ==========
-	InitUploadModule()
+	InitUploadModule(deps)
 	// ========== 注册上传路由 ==========
 	RegisterUploadRoutes(r)
 	// ========== 商品模块初始化 ==========
-	InitProductModule()
+	InitProductModule(deps)
 	// ========== 注册商品路由 ==========
 	RegisterProductRoutes(r)
 	// ========== 用户地址管理模块初始化 ==========
-	InitAddressModule()
+	InitAddressModule(deps)
 	// ========== 注册用户地址管理路由 ==========
 	RegisterAddressRoutes(r)
 	// ========== 库存管理模块初始化 ==========
-	InitInventoryModule()
+	InitInventoryModule(deps)
 	// ========== 注册库存管理路由 ==========
 	RegisterInventoryRoutes(r)
 	// ========== 用户购物车管理模块初始化 ==========
-	InitCartItemModule()
+	InitCartItemModule(deps)
 	// ========== 注册用户购物车管理路由 ==========
 	RegisterCartItemRoutes(r)
 	// ========== 用户订单管理模块初始化 ==========
-	InitOrderModule()
+	InitOrderModule(deps)
 	// ========== 注册用户订单管理路由 ==========
 	RegisterOrderRoutes(r)
 	// ========== 用户支付管理模块初始化 ==========
-	InitPaymentModule()
+	InitPaymentModule(deps)
 	// ========== 注册用户支付管理路由 ==========
 	RegisterPaymentRoutes(r)
 	// ========== 操作日志管理模块初始化 ==========
-	InitOperationLogModule()
+	InitOperationLogModule(deps)
 	// ========== 注册操作日志管理路由 ==========
 	RegisterOperationLogRoutes(r)
 	// ========== 优惠卷管理模块初始化 ==========
-	InitCouponModule()
+	InitCouponModule(deps)
 	// ========== 注册优惠卷管理路由 ==========
 	RegisterCouponRoutes(r)
 

@@ -18,9 +18,9 @@ type ProductHandler struct {
 // NewProductHandler 新建商品模块的 HTTP handler 实例
 // 接收值：无接收值，全局实例化
 // 返回值：*ProductHandler - 商品 handler 指针
-func NewProductHandler() *ProductHandler {
+func NewProductHandler(deps service.ServiceDeps) *ProductHandler {
 	return &ProductHandler{
-		ProductService: service.NewProductService(),
+		ProductService: service.NewProductService(deps),
 	}
 }
 

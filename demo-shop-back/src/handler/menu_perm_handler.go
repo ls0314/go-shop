@@ -17,9 +17,9 @@ type MenuPermissionHandler struct {
 // NewMenuPermissionHandler 新建菜单权限关联表的HTTP handler实例
 // 接收值：无接收值
 // 返回值：*MenuPermissionHandler - 菜单权限关联handler指针
-func NewMenuPermissionHandler() *MenuPermissionHandler {
+func NewMenuPermissionHandler(deps service.ServiceDeps) *MenuPermissionHandler {
 	return &MenuPermissionHandler{
-		MenuPermissionService: service.NewMenuPermissionService(),
+		MenuPermissionService: service.NewMenuPermissionService(deps),
 	}
 }
 

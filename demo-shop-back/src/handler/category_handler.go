@@ -17,9 +17,9 @@ type CategoryHandler struct {
 // NewCategoryHandler 新建类目表中的HTTP handler实例
 // 接收值：无接收值，全局实例化
 // 返回值：*CategoryHandler - 类目handler指针
-func NewCategoryHandler() *CategoryHandler {
+func NewCategoryHandler(deps service.ServiceDeps) *CategoryHandler {
 	return &CategoryHandler{
-		CategoryService: service.NewCategoryService(),
+		CategoryService: service.NewCategoryService(deps),
 	}
 }
 

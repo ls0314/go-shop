@@ -17,9 +17,9 @@ type AddressHandler struct {
 // NewAddressHandler 创建地址管理handler层实例
 // 接收值：无接收值，全局实例化
 // 返回值：*AddressHandler - 地址handler指针
-func NewAddressHandler() *AddressHandler {
+func NewAddressHandler(deps service.ServiceDeps) *AddressHandler {
 	return &AddressHandler{
-		AddressService: service.NewAddressService(),
+		AddressService: service.NewAddressService(deps),
 	}
 }
 

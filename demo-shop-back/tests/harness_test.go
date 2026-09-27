@@ -5,6 +5,7 @@ import (
 	"demo-shop-back/db"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/service"
 	"errors"
 	"fmt"
 	"sync"
@@ -16,6 +17,21 @@ import (
 type concurrentResult struct {
 	affected int64
 	err      error
+}
+
+// testDeps 构造测试用服务层依赖。
+//
+// DB 用 TestMain 已初始化的测试库;Cache/GateCache 默认 nil,
+// 使"Redis 未配置"的降级分支与生产语义一致;需要闸门的用例自行覆盖
+// (见 coupon_concurrent_test.go 里的 testDepsWithCache)。
+func testDeps() service.ServiceDeps {
+	return service.ServiceDeps{DB: db.DB}
+}
+
+// testDepsWithCache 带 Redis 的依赖:Cache 与 GateCache 都给同一个实例,
+// 否则 CouponService 的闸门会因 GateCache 为 nil 而被旁路(测试会假绿)。
+func testDepsWithCache(rdb *cache.RedisService) service.ServiceDeps {
+	return service.ServiceDeps{DB: db.DB, Cache: rdb, GateCache: rdb}
 }
 
 func runConcurrent(t *testing.T, n int, action func(i int) (int64, error)) (stats map[string]int, affectedSum int64) {

@@ -109,7 +109,7 @@ func TestWiring_HTTP_AllRegisteredRoutes(t *testing.T) {
 	const uname = "smoke-wiring-user"
 	insertSmokeUser(t, uname, "Smoke-Passw0rd-1")
 
-	engine := routes.InitRoutes()
+	engine := routes.InitRoutes(testDeps())
 	token := smokeLogin(t, engine, uname, "Smoke-Passw0rd-1")
 
 	checked := 0
@@ -148,7 +148,7 @@ func TestWiring_HTTP_AuthedRouteNeedsToken(t *testing.T) {
 	if err := initTestGlobals(); err != nil {
 		t.Skipf("全局初始化失败: %v", err)
 	}
-	engine := routes.InitRoutes()
+	engine := routes.InitRoutes(testDeps())
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/cart", nil)

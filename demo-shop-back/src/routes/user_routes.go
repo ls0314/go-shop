@@ -4,14 +4,15 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 var userCtrl *handler.UserHandler
 
-func InitUserModule() {
-	userCtrl = handler.NewUserHandler()
+func InitUserModule(deps service.ServiceDeps) {
+	userCtrl = handler.NewUserHandler(deps)
 }
 
 func RegisterUserRoutes(r *gin.Engine) {

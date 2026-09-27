@@ -1,7 +1,6 @@
 package service
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
@@ -19,12 +18,12 @@ type RoleMenuService struct {
 // NewRoleMenuService 创建角色-菜单关联服务层实例
 // 接收值：使用全局数据库和repository初始化，故无接收值
 // 返回值：*RoleMenuService - 角色-菜单关联服务层指针
-func NewRoleMenuService() *RoleMenuService {
+func NewRoleMenuService(deps ServiceDeps) *RoleMenuService {
 	return &RoleMenuService{
-		RoleMenuRepo: repository.NewRoleMenuRepo(db.DB),
-		RoleRepo:     repository.NewRoleRepo(db.DB),
-		MenuRepo:     repository.NewMenuRepo(db.DB),
-		db:           db.DB,
+		RoleMenuRepo: repository.NewRoleMenuRepo(deps.DB),
+		RoleRepo:     repository.NewRoleRepo(deps.DB),
+		MenuRepo:     repository.NewMenuRepo(deps.DB),
+		db:           deps.DB,
 	}
 }
 

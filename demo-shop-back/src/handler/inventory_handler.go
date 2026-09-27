@@ -18,9 +18,9 @@ type InventoryHandler struct {
 // NewInventoryHandler 创建库存管理handler层实例
 // 接收值：无接收值，全局实例化
 // 返回值：*InventoryHandler - 库存handler指针
-func NewInventoryHandler() *InventoryHandler {
+func NewInventoryHandler(deps service.ServiceDeps) *InventoryHandler {
 	return &InventoryHandler{
-		InventoryService: service.NewInventoryService(),
+		InventoryService: service.NewInventoryService(deps),
 	}
 }
 

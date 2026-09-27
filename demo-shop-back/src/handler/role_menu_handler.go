@@ -17,9 +17,9 @@ type RoleMenuHandler struct {
 // NewRoleMenuHandler 新建角色菜单关联表的HTTP handler实例
 // 接收值：无接收值
 // 返回值：*RoleMenuHandler - 角色菜单关联handler指针
-func NewRoleMenuHandler() *RoleMenuHandler {
+func NewRoleMenuHandler(deps service.ServiceDeps) *RoleMenuHandler {
 	return &RoleMenuHandler{
-		RoleMenuService: service.NewRoleMenuService(),
+		RoleMenuService: service.NewRoleMenuService(deps),
 	}
 }
 

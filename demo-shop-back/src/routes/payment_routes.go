@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,8 +12,8 @@ import (
 var payCtrl *handler.PaymentHandler
 
 // InitPaymentModule 支付模块初始化（在InitRoutes中调用）
-func InitPaymentModule() {
-	payCtrl = handler.NewPaymentHandler()
+func InitPaymentModule(deps service.ServiceDeps) {
+	payCtrl = handler.NewPaymentHandler(deps)
 }
 
 // RegisterPaymentRoutes 注册支付模块路由

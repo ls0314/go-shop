@@ -7,6 +7,7 @@ import (
 	"demo-shop-back/src/infra/metrics"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/routes"
+	"demo-shop-back/src/service"
 	"demo-shop-back/src/task"
 	"demo-shop-back/src/utils"
 	"log"
@@ -94,7 +95,7 @@ func main() {
 	router := routes.InitRoutes()
 
 	// 启动mq消费者
-	infra.StartOrderConsumer()
+	infra.StartOrderConsumer(service.NewOrderService())
 
 	// main.go 原 SetTrustedProxies(["127.0.0.1"]) 处替换:
 	trusted := os.Getenv("DEMO_SHOP_TRUSTED_PROXIES")

@@ -64,20 +64,23 @@ services:
     networks: [demo-shop-network]
     restart: always
 
-  backend:
+  # ============ 双实例(A4):两个进程同时跑,跨进程共享状态才被真正检验 ============
+  backend-1: &backend-base
     build:
       context: ./demo-shop-back
       args:
         GOPROXY: https://goproxy.cn,direct
-    environment:
+    environment: &backend-env
       DEMO_SHOP_DB_HOST: postgres
       DEMO_SHOP_REDIS_ADDR: redis:6379
       DEMO_SHOP_REDIS_PASSWORD: ${REDIS_PASSWORD:-demoShop}
       DEMO_SHOP_RABBITMQ_DSN: amqp://demoShop:demoShop@rabbitmq:5672/demoShop
       DEMO_SHOP_ES_ADDRESSES: http://elasticsearch:9200
       DEMO_SHOP_JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
+      # 双实例必须不同,否则雪花 ID 碰撞(uk_order_no 会报错而非静默脏数据)
       DEMO_SHOP_SNOWFLAKE_WORKER_ID: "1"
       DEMO_SHOP_TRUSTED_PROXIES: 172.16.0.0/12
+      # 种子只让 backend-1 加载:seed 走版本账本,两实例同时首启会并发抢同一批种子
       DEMO_SHOP_SEED_DIR: /app/db/seeds
       # 预扣闸门一键开关(压测 A/B 与生产熔断):false=闸门旁路,全量走 DB 双防线
       DEMO_SHOP_GATE_ENABLED: "true"
@@ -95,6 +98,20 @@ services:
     volumes: [uploads-data:/app/uploads]
     networks: [demo-shop-network]
     restart: always
+
+  backend-2:
+    <<: *backend-base
+    environment:
+      <<: *backend-env
+      DEMO_SHOP_SNOWFLAKE_WORKER_ID: "2"
+      # 不加载种子:backend-1 已跑完,这里只需复用(靠 depends_on 保证顺序)
+      DEMO_SHOP_SEED_DIR: ""
+    depends_on:
+      postgres:      { condition: service_healthy }
+      redis:         { condition: service_healthy }
+      rabbitmq:      { condition: service_healthy }
+      elasticsearch: { condition: service_healthy }
+      backend-1:     { condition: service_healthy }
     # 故意不映射宿主机端口:后端只经 nginx 对外。调试时临时加 "9001:9001"
 
   frontend:
@@ -103,13 +120,22 @@ services:
       args:
         NPM_REGISTRY: https://registry.npmmirror.com
     environment:
-      BACKEND_HOST: backend   # 服务名即域名,nginx 模板经 envsubst 注入
-      BACKEND_PORT: "9001"
+      # upstream 名(定义在 nginx.conf.template 中),不再是单个主机名
+      BACKEND_UPSTREAM: backend_cluster
     depends_on:
-      backend: { condition: service_healthy }
+      backend-1: { condition: service_healthy }
+      backend-2: { condition: service_healthy }
     ports: ["8080:80"]
     networks: [demo-shop-network]
     restart: always
+    healthcheck:
+      # 探自己是否在服务,不探上游:上游全挂时 nginx 仍应起来并返回 502,
+      # 否则整个前端被标 unhealthy,反而看不清问题出在哪
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
   # 可观测性(DS-A-22):指标抓取 + 可视化面板
   prometheus:

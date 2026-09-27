@@ -22,15 +22,15 @@ const (
 	scanLockName   = "order:time:scan"
 )
 
-type OrderTimeoutSacnService struct {
+type OrderTimeoutScanService struct {
 	orderRepo *repository.OrderRepo
 	orderSvc  *service.OrderService
 	locks     *DistributedLockManager
 }
 
 // NewOrderTimeoutScanService 创建扫描任务
-func NewOrderTimeoutScanService() *OrderTimeoutSacnService {
-	return &OrderTimeoutSacnService{
+func NewOrderTimeoutScanService() *OrderTimeoutScanService {
+	return &OrderTimeoutScanService{
 		orderRepo: repository.NewOrderRepo(),
 		orderSvc:  service.NewOrderService(),
 		locks:     NewDistributedLockManager(infra.GetCache()),
@@ -38,7 +38,7 @@ func NewOrderTimeoutScanService() *OrderTimeoutSacnService {
 }
 
 // Start 启动周期扫描(阻塞调用方,通常放 goroutine)
-func (s *OrderTimeoutSacnService) Start(interval time.Duration) {
+func (s *OrderTimeoutScanService) Start(interval time.Duration) {
 	log.Printf("[INFO] 启动订单超时扫描: 周期 %v, 阈值 %v", interval, model.OrderPayTTL)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -49,7 +49,7 @@ func (s *OrderTimeoutSacnService) Start(interval time.Duration) {
 
 // ScanOnce 立即执行一轮扫描测试 / 手动触发入口
 // 返回值: cancelled - 本轮真实取消的单数; skipped - 已被 MQ 处理而跳过的单数
-func (s *OrderTimeoutSacnService) ScanOnce() (cancelled, skipped int) {
+func (s *OrderTimeoutScanService) ScanOnce() (cancelled, skipped int) {
 	release, ok := s.locks.TryLock(scanLockName, scanLockExpiry)
 	if !ok {
 		return 0, 0
@@ -94,6 +94,6 @@ func (s *OrderTimeoutSacnService) ScanOnce() (cancelled, skipped int) {
 	return cancelled, skipped
 }
 
-func (s *OrderTimeoutSacnService) run() {
+func (s *OrderTimeoutScanService) run() {
 	s.ScanOnce()
 }

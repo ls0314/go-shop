@@ -114,9 +114,9 @@ func GetES() *es.ESClient {
 
 // StartOrderConsumer 启动订单超时消费者（goroutine）
 // 接收值：无——消费者回调由 mq.RegisterCanceller 在 NewOrderService 中注入
-func StartOrderConsumer() {
+func StartOrderConsumer(canceller mq.OrderCanceller) {
 	if GlobalInfra != nil && GlobalInfra.MQ != nil {
-		if err := GlobalInfra.MQ.StartOrderConsumer(); err != nil {
+		if err := GlobalInfra.MQ.StartOrderConsumer(canceller); err != nil {
 			log.Printf("[WARN] 启动订单消费者失败: %v", err)
 		}
 	}

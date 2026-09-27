@@ -45,7 +45,6 @@ func NewOrderService() *OrderService {
 		CartItemService:   NewCartItemService(),
 		InventoryService:  NewInventoryService(),
 	}
-	mq.RegisterCanceller(order)
 	return order
 }
 

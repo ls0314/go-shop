@@ -2,21 +2,23 @@ package mq
 
 import (
 	"demo-shop-back/src/infra/metrics"
+	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/response"
+	"errors"
 	"log"
 	"strconv"
 
 	"github.com/rabbitmq/amqp091-go"
 )
 
-// DefaultCanceller 全局订单取消回调——由 service.NewOrderService 通过 RegisterCanceller 注入
-var DefaultCanceller OrderCanceller
-
-// RegisterCanceller 注册订单取消回调实现
-// 接收值：c - OrderCanceller 接口实现（通常为 *service.OrderService）
-func RegisterCanceller(c OrderCanceller) {
-	DefaultCanceller = c
-}
+//// DefaultCanceller 全局订单取消回调——由 service.NewOrderService 通过 RegisterCanceller 注入
+//var DefaultCanceller OrderCanceller
+//
+//// RegisterCanceller 注册订单取消回调实现
+//// 接收值：c - OrderCanceller 接口实现（通常为 *service.OrderService）
+//func RegisterCanceller(c OrderCanceller) {
+//	DefaultCanceller = c
+//}
 
 // OrderCanceller 订单取消能力接口——由 service.OrderService 隐式实现
 type OrderCanceller interface {
@@ -33,7 +35,10 @@ type OrderCanceller interface {
 //
 // 接收值：无——使用 DefaultCanceller 回调
 // 返回值：error - 消费者注册失败时返回（goroutine 启动失败）
-func (r *RabbitMQ) StartOrderConsumer() error {
+func (r *RabbitMQ) StartOrderConsumer(canceller OrderCanceller) error {
+	if canceller == nil {
+		return errors.New("MQ:StartOrderConsumer 需要非 nil 的 OrderCanceller")
+	}
 	msgs, err := r.Channel.Consume(QueueOrderDead, "", false, false, false, false, nil)
 	if err != nil {
 		return err
@@ -48,7 +53,7 @@ func (r *RabbitMQ) StartOrderConsumer() error {
 				if !ok {
 					return
 				}
-				r.handleOrderExpired(msg, DefaultCanceller)
+				r.handleOrderExpired(msg, canceller)
 			}
 		}
 	}()
@@ -79,12 +84,15 @@ func (r *RabbitMQ) handleOrderExpired(msg amqp091.Delivery, canceller OrderCance
 
 	// CancelOrder 内部有状态机校验：仅 pending_pay 可取消，其他状态自动跳过
 	_, err = canceller.CancelOrderBySystem(orderId, "系统")
-	if err != nil {
-		log.Printf("[MQ] 自动取消订单失败 orderId=%d err=%v", orderId, err)
+	switch {
+	case err == nil:
+		metrics.OrderTimeoutCancelTotal.WithLabelValues("cancelled").Inc()
+	case errors.Is(err, model.ErrOrderAlreadyCancelled), errors.Is(err, model.ErrOrderCannotCancel):
+		// 已支付/已被扫描任务取消:幂等命中,不是故障
+		metrics.OrderTimeoutCancelTotal.WithLabelValues("skipped").Inc()
+	default:
 		metrics.OrderTimeoutCancelTotal.WithLabelValues("failed").Inc()
-	} else {
-		// processed = 消费链路成功走完(含"已支付/已取消自动跳过"的幂等路径)
-		metrics.OrderTimeoutCancelTotal.WithLabelValues("processed").Inc()
+		log.Printf("[MQ] 自动取消订单失败 orderId=%d err=%v", orderId, err)
 	}
 	msg.Ack(false)
 }

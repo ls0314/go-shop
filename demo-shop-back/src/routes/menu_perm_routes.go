@@ -22,7 +22,7 @@ func RegisterMenuPermRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
 	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
 	// 菜单权限接口路由分组，统一前缀 /api/v1/menu
-	menuPermissionGroup := r.Group("/api/v1/menu")
+	menuPermissionGroup := r.Group("/api/v1/admin/menu")
 	// 添加全局认证中间件（必须登录才能访问）
 	menuPermissionGroup.Use(middleware.AuthMiddleware())
 	menuPermissionGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))

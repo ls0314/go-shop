@@ -4,7 +4,7 @@ import service from "@/utils/request";
 
 export const CreateProductApi  = (data: CreateProductReq = {}) => {
     return service({
-        url: '/platform/products',
+        url: '/admin/products',
         method: 'post',
         data: data
     })
@@ -28,7 +28,7 @@ export const GetProductApi = (id:number) => {
 
 export const UpdateProductApi = (id:number, data: UpdateProductReq) => {
     return service({
-        url: `/platform/products/${id}`,
+        url: `/admin/products/${id}`,
         method: 'put',
         data: data
     })
@@ -36,7 +36,7 @@ export const UpdateProductApi = (id:number, data: UpdateProductReq) => {
 
 export const UpdateProductFullApi = (id:number, data: UpdateProductFullReq) => {
     return service({
-        url: `/platform/products/${id}/full`,
+        url: `/admin/products/${id}/full`,
         method: 'put',
         data: data
     })
@@ -44,21 +44,21 @@ export const UpdateProductFullApi = (id:number, data: UpdateProductFullReq) => {
 
 export const DeleteProductApi = (id:number) => {
     return service({
-        url: `/platform/products/${id}`,
+        url: `/admin/products/${id}`,
         method: 'delete',
     })
 }
 
 export const PublishProductApi = (id:number) => {
     return service({
-        url: `/platform/products/${id}/publish`,
+        url: `/admin/products/${id}/publish`,
         method: 'post',
     })
 }
 
 export const WithdrawProductApi = (id:number) => {
     return service({
-        url: `/platform/products/${id}/withdraw`,
+        url: `/admin/products/${id}/withdraw`,
         method: 'post',
     })
 }

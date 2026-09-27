@@ -22,7 +22,7 @@ func InitPermissionModule(deps service.ServiceDeps) {
 func RegisterPermissionRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
 	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
-	permGroup := r.Group("/api/v1/permissions")
+	permGroup := r.Group("/api/v1/admin/permissions")
 	permGroup.Use(middleware.AuthMiddleware())
 	permGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{

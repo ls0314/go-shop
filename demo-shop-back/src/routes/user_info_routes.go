@@ -16,18 +16,18 @@ func InitUserInfoModule(deps service.ServiceDeps) {
 }
 
 func RegisterUserInfoRoutes(r *gin.Engine, deps service.ServiceDeps) {
-	// 创建角色接口路由分组，统一前缀 /api/v1/Info
-	userInfoGroup := r.Group("/api/v1/user/info")
+	// 管理端:用户档案(user_profile)维护。前缀统一 /api/v1/admin/**
+	userInfoGroup := r.Group("/api/v1/admin/user/info")
 	// 添加全局认证中间件（必须登录才能访问角色接口）
 	userInfoGroup.Use(middleware.AuthMiddleware())
 	{
-		// 创建角色信息接口
-		userInfoGroup.POST("create", userInfoCtrl.CreateUserInfo)
-		// 根据ID获取单个角色信息接口
+		// 创建用户档案接口(注意:路径必须带前导斜杠,否则会注册成 /admin/user/infocreate)
+		userInfoGroup.POST("/create", userInfoCtrl.CreateUserInfo)
+		// 根据ID获取单个用户档案
 		userInfoGroup.GET("/:id", userInfoCtrl.GetUserInfo)
-		// 根据ID更新角色信息接口
+		// 根据ID更新用户档案
 		userInfoGroup.PUT("/:id", userInfoCtrl.UpdateUserInfo)
-		// 根据ID删除角色信息接口
+		// 根据ID删除用户档案
 		userInfoGroup.DELETE("/:id", userInfoCtrl.DeleteUserInfo)
 	}
 }

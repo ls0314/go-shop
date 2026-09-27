@@ -29,7 +29,7 @@ func RegisterPaymentRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// ============================================================
 	// 用户端 + 管理端路由（需JWT登录）
 	// ============================================================
-	payGroup := r.Group("/api/v1/users/pay")
+	payGroup := r.Group("/api/v1/pay")
 	payGroup.Use(middleware.AuthMiddleware())
 	{
 		// 发起支付 → POST /api/v1/user/pay/order/:orderId

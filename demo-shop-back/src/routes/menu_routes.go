@@ -21,7 +21,7 @@ func InitMenuModule(deps service.ServiceDeps) {
 func RegisterMenuRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
 	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
-	menuGroup := r.Group("/api/v1/menu")
+	menuGroup := r.Group("/api/v1/admin/menu")
 	menuGroup.Use(middleware.AuthMiddleware())
 	menuGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{

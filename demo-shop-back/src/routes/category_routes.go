@@ -21,7 +21,7 @@ func InitCategoryModule(deps service.ServiceDeps) {
 func RegisterCategoryRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
 	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
-	categoryGroup := r.Group("/api/v1/platform/category")
+	categoryGroup := r.Group("/api/v1/admin/category")
 	categoryGroup.Use(middleware.AuthMiddleware())
 	categoryGroup.Use(middleware.OperationLogMiddleware(model.LogModuleCategory))
 	{

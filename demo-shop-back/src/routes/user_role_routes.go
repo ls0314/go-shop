@@ -20,8 +20,8 @@ func InitUserRoleModule(deps service.ServiceDeps) {
 func RegisterUserRoleRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
 	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
-	// 创建角色接口路由分组，统一前缀 /api/v1/role
-	userRoleGroup := r.Group("/api/v1/user")
+	// 管理端:用户-角色关联。前缀统一 /api/v1/admin/**
+	userRoleGroup := r.Group("/api/v1/admin/user")
 	// 添加全局认证中间件（必须登录才能访问角色接口）
 	userRoleGroup.Use(middleware.AuthMiddleware())
 	userRoleGroup.Use(middleware.OperationLogMiddleware(model.LogModuleUser))

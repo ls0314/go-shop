@@ -6,7 +6,7 @@ import type { CreateCouponReq } from '@/types/coupon'
 // 创建优惠券模板
 export const CreateCouponApi = (data: CreateCouponReq) => {
     return service({
-        url: '/admin/platform/coupons',
+        url: '/admin/coupons',
         method: 'post',
         data,
     })
@@ -15,7 +15,7 @@ export const CreateCouponApi = (data: CreateCouponReq) => {
 // 优惠券模板列表（管理端）
 export const GetCouponListApi = (params?: { page?: number; page_size?: number; coupon_name?: string; coupon_type?: string }) => {
     return service({
-        url: '/admin/platform/coupons',
+        url: '/admin/coupons',
         method: 'get',
         params,
     })
@@ -26,7 +26,7 @@ export const GetCouponListApi = (params?: { page?: number; page_size?: number; c
 // 领券中心模板列表（可领取的券）
 export const GetReceiveCouponListApi = (params?: { page?: number; page_size?: number }) => {
     return service({
-        url: '/users/platform/coupons/templates',
+        url: '/coupons/templates',
         method: 'get',
         params,
     })
@@ -35,7 +35,7 @@ export const GetReceiveCouponListApi = (params?: { page?: number; page_size?: nu
 // 我的卡券列表
 export const GetUserCouponListApi = (params?: { page?: number; page_size?: number; status?: string }) => {
     return service({
-        url: '/users/platform/coupons',
+        url: '/coupons',
         method: 'get',
         params,
     })
@@ -44,7 +44,7 @@ export const GetUserCouponListApi = (params?: { page?: number; page_size?: numbe
 // 领取优惠券
 export const ReceiveCouponApi = (templateId: number) => {
     return service({
-        url: `/users/platform/coupons/receive/${templateId}`,
+        url: `/coupons/receive/${templateId}`,
         method: 'post',
     })
 }
@@ -52,7 +52,7 @@ export const ReceiveCouponApi = (templateId: number) => {
 // 结算可用券列表
 export const GetAvailableCouponApi = (orderAmount: number) => {
     return service({
-        url: '/users/platform/coupons/available',
+        url: '/coupons/available',
         method: 'get',
         params: { order_amount: orderAmount },
     })

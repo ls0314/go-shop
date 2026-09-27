@@ -20,7 +20,7 @@ func InitAddressModule(deps service.ServiceDeps) {
 // 鉴权方式：AuthMiddleware（JWT登录即可，无需额外权限）
 // 业务规则：归属校验（用户仅能操作自己的地址）、默认地址管理（唯一默认+自动转移）、上限20条
 func RegisterAddressRoutes(r *gin.Engine, deps service.ServiceDeps) {
-	addressGroup := r.Group("/api/v1/users/addresses")
+	addressGroup := r.Group("/api/v1/addresses")
 	addressGroup.Use(middleware.AuthMiddleware())
 	{
 		// 接口1：新增收货地址 → POST /api/v1/user/addresses

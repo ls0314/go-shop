@@ -3,7 +3,7 @@ import type { CategoryTreeParams, CreateCategoryData, UpdateCategoryData, Catego
 
 export const GetCategoryTreeApi = (params: CategoryTreeParams = {}) => {
     return service({
-        url: '/platform/category/tree',
+        url: '/admin/category/tree',
         method: 'get',
         params
     })
@@ -11,7 +11,7 @@ export const GetCategoryTreeApi = (params: CategoryTreeParams = {}) => {
 
 export const CreateCategoryApi = (data: CreateCategoryData) => {
     return service({
-        url: '/platform/category',
+        url: '/admin/category',
         method: 'post',
         data: data
     })
@@ -19,7 +19,7 @@ export const CreateCategoryApi = (data: CreateCategoryData) => {
 
 export const UpdateCategoryApi = (id, data: UpdateCategoryData) => {
     return service({
-        url: `/platform/category/${id}`,
+        url: `/admin/category/${id}`,
         method: 'put',
         data: data
     })
@@ -27,21 +27,21 @@ export const UpdateCategoryApi = (id, data: UpdateCategoryData) => {
 
 export const DeleteCategoryApi = (id) => {
     return service({
-        url: `/platform/category/${id}`,
+        url: `/admin/category/${id}`,
         method: 'delete',
     })
 }
 
 export const GetCategoryApi = (id) => {
     return service({
-        url: `/platform/category/${id}`,
+        url: `/admin/category/${id}`,
         method: 'get',
     })
 }
 
 export const GetCategoryChildrenListApi = (id, params: CategoryChildrenParams = {}) => {
     return service({
-        url: `/platform/category/children/${id}`,
+        url: `/admin/category/children/${id}`,
         method: 'get',
         params
     })

@@ -10,7 +10,7 @@ export const loginApi = (data) => {
 
 export const getUserInfoApi = () => {
     return service({
-        url: '/user/info',
+        url: '/user/info', // 当前登录用户信息(非管理端 /admin/user/info)
         method: 'get'
     })
 }

@@ -4,7 +4,7 @@ import type { CreatePaymentReq, AdminPaymentQuery } from '@/types/payment'
 // 发起支付
 export const CreatePaymentApi = (orderId: number, data: CreatePaymentReq) => {
     return service({
-        url: `/users/pay/order/${orderId}`,
+        url: `/pay/order/${orderId}`,
         method: 'post',
         data,
     })
@@ -13,7 +13,7 @@ export const CreatePaymentApi = (orderId: number, data: CreatePaymentReq) => {
 // 查询支付状态
 export const GetPaymentApi = (payNo: string) => {
     return service({
-        url: `/users/pay/${payNo}`,
+        url: `/pay/${payNo}`,
         method: 'get',
     })
 }

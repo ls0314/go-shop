@@ -21,7 +21,7 @@ func InitProductModule(deps service.ServiceDeps) {
 func RegisterProductRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
 	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
-	productGroup := r.Group("/api/v1/platform/products")
+	productGroup := r.Group("/api/v1/admin/products")
 	productGroup.Use(middleware.AuthMiddleware())
 	productGroup.Use(middleware.OperationLogMiddleware(model.LogModuleProduct))
 	{
@@ -35,10 +35,10 @@ func RegisterProductRoutes(r *gin.Engine, deps service.ServiceDeps) {
 		productGroup.DELETE("/:id", permMW, productCtrl.DeleteProduct)
 	}
 
-	userProductGroup := r.Group("/api/v1/users/platform/products")
+	userProductGroup := r.Group("/api/v1/products")
 	userProductGroup.Use()
 	{
 		userProductGroup.GET("", productCtrl.UserProductList)
-		userProductGroup.GET(":id", productCtrl.UserProduct)
+		userProductGroup.GET("/:id", productCtrl.UserProduct)
 	}
 }

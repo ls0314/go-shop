@@ -24,7 +24,7 @@ func InitOrderModule(deps service.ServiceDeps) {
 func RegisterOrderRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
 	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
-	orderGroup := r.Group("/api/v1/platform/orders")
+	orderGroup := r.Group("/api/v1/admin/orders")
 	orderGroup.Use(middleware.AuthMiddleware())
 	orderGroup.Use(middleware.OperationLogMiddleware(model.LogModuleOrder))
 	{
@@ -35,7 +35,7 @@ func RegisterOrderRoutes(r *gin.Engine, deps service.ServiceDeps) {
 		// 接口7：管理端发货 → PUT /api/v1/platform/orders/:id/ship
 		orderGroup.PUT("/:id/ship", permMW, orderCtrl.OrderShip)
 	}
-	userOrderGroup := r.Group("/api/v1/users/platform/orders")
+	userOrderGroup := r.Group("/api/v1/orders")
 	userOrderGroup.Use(middleware.AuthMiddleware())
 	{
 		// 接口1：创建订单 → POST /api/v1/user/platform/orders

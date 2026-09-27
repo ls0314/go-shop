@@ -30,14 +30,14 @@ func InitCouponModule(deps service.ServiceDeps) {
 func RegisterCouponRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
 	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
-	couponGroup := r.Group("/api/v1/admin/platform/coupons")
+	couponGroup := r.Group("/api/v1/admin/coupons")
 	couponGroup.Use(middleware.AuthMiddleware())
 	couponGroup.Use(middleware.OperationLogMiddleware(model.LogModuleProduct))
 	{
 		couponGroup.POST("", permMW, couponCtrl.CreateCouponTemplate)
 		couponGroup.GET("", permMW, couponCtrl.GetCouponList)
 	}
-	userCouponGroup := r.Group("/api/v1/users/platform/coupons")
+	userCouponGroup := r.Group("/api/v1/coupons")
 	userCouponGroup.Use(middleware.AuthMiddleware())
 	{
 		userCouponGroup.GET("", couponCtrl.GetUserCouponList)

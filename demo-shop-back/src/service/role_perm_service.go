@@ -1,9 +1,12 @@
 package service
 
 import (
+	"context"
 	"demo-shop-back/db"
+	"demo-shop-back/src/infra"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -13,6 +16,7 @@ type RolePermService struct {
 	RolePermRepo *repository.RolePermRepo   // 角色-权限关联表数据层实例
 	RoleRepo     *repository.RoleRepo       // 角色表数据层实例
 	PermRepo     *repository.PermissionRepo // 权限表数据层实例
+	UserRoleRepo *repository.UserRoleRepo   // 用户角色表数据层实例
 	db           *gorm.DB                   // 全局数据库
 }
 
@@ -24,6 +28,7 @@ func NewRolePermService() *RolePermService {
 		RolePermRepo: repository.NewRolePermRepo(),
 		RoleRepo:     repository.NewRoleRepo(),
 		PermRepo:     repository.NewPermissionRepo(),
+		UserRoleRepo: repository.NewUserRoleRepo(),
 		db:           db.DB,
 	}
 }
@@ -61,8 +66,18 @@ func (rp *RolePermService) CreateRolePerm(roleId int64, permIds []int64) error {
 		tx.Rollback()
 		return err
 	}
-
-	return tx.Commit().Error
+	err := tx.Commit().Error
+	if err != nil {
+		return err
+	}
+	// 失效该角色下所有用户的权限缓存(角色权限变了,持有者的权限集合都过期)
+	userIds, _ := rp.UserRoleRepo.GetUserIdsByRoleId(roleId)
+	if cache := infra.GetCache(); cache != nil {
+		for _, uid := range userIds {
+			_ = cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", uid))
+		}
+	}
+	return nil
 }
 
 // GetRolePermList 根据角色ID查询关联的权限列表
@@ -108,6 +123,16 @@ func (rp *RolePermService) DeleteRolePermRel(roleId int64) error {
 		tx.Rollback()
 		return err
 	}
-	// 提交事务
-	return tx.Commit().Error
+	err := tx.Commit().Error
+	if err != nil {
+		return err
+	}
+	// 失效该角色下所有用户的权限缓存(角色权限变了,持有者的权限集合都过期)
+	userIds, _ := rp.UserRoleRepo.GetUserIdsByRoleId(roleId)
+	if cache := infra.GetCache(); cache != nil {
+		for _, uid := range userIds {
+			_ = cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", uid))
+		}
+	}
+	return nil
 }

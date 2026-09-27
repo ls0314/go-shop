@@ -3,7 +3,12 @@
     <!-- 顶部导航栏 -->
     <div class="top-nav">
       <div class="logo-area">
-        <span class="logo-text">demo_shop</span>
+        <RouterLink
+            to="/home"
+            class="text-xl font-bold text-indigo-500"
+        >
+          Ds_demo
+        </RouterLink>
       </div>
       <div class="nav-links">
         <a href="#">用户协议</a>
@@ -29,8 +34,8 @@
       <div class="right-form-container">
         <div class="form-card">
           <div class="form-tabs">
-            <a href="/login" class="tab-item ">登录</a>
-            <a href="/register" class="tab-item active">注册</a>
+            <RouterLink to="/login" class="tab-item">登录</RouterLink>
+            <RouterLink to="/register" class="tab-item active">注册</RouterLink>
           </div>
 
           <form @submit.prevent="handleRegister" class="xiaomi-form">
@@ -104,7 +109,7 @@
 
             <div class="form-footer">
               <span>已有账号？</span>
-              <a href="/login">立即登录</a>
+              <RouterLink to="/login">立即登录</RouterLink>
             </div>
           </form>
         </div>
@@ -115,6 +120,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import axios from 'axios'
 import { registerApi } from '@/api/user.ts'
 import router from "../router/index.js";
@@ -148,7 +154,7 @@ const handleRegister = async () => {
       alert("注册成功")
     }
     console.log('准备跳转')
-    router.push('/Home')
+    router.push('/login')
   }).catch(err => {
     console.log('请求失败', err)
     if (err.response && err.response.data) {

@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"demo-shop-back/db"
+	"demo-shop-back/src/infra"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 
@@ -33,31 +35,30 @@ func NewPermissionService() *PermissionService {
 // 接收值：perm - 权限结构体
 // 返回值：error - 错误信息
 func (p *PermissionService) CreatePermission(perm *model.SysPermission) error {
-	// 根据传入权限名判断权限是否存在
-	existing, _ := p.PermRepo.GetPermByCode(perm.PermissionCode)
+	// 根据传入权限编码联合判断权限是否存在
+	existing, _ := p.PermRepo.GetPermByCodeUk(perm.ApiPath, perm.RequestMethod, perm.PermissionCode)
 	if existing != nil {
 		return model.PermissionExist
 	}
 
-	// 开启事务
-	tx := p.db.Begin()
-	if tx.Error != nil {
-		return tx.Error
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
+	err := p.db.Transaction(func(tx *gorm.DB) error {
+		permTxRepo := p.PermRepo.WithTx(tx)
+
+		if err := permTxRepo.CreatePerm(perm); err != nil {
+			return err
 		}
-	}()
-	// 创建事务实例
-	permTxRepo := p.PermRepo.WithTx(tx)
-	// 调用数据层创建权限
-	if err := permTxRepo.CreatePerm(perm); err != nil {
-		tx.Rollback()
+
+		return nil
+	})
+	if err != nil {
 		return err
 	}
-	// 提交事务
-	return tx.Commit().Error
+	// 权限映射变更：版本号+1，使所有 api:perm 缓存即时失效
+	if cache := infra.GetCache(); cache != nil {
+		_, _ = cache.Incr(context.Background(), "api:perm:version")
+	}
+	return nil
+
 }
 
 // GetPermission 查询权限信息（根据权限ID）
@@ -96,8 +97,12 @@ func (p *PermissionService) GetPermissionList(page, pageSize int, permType strin
 	if page <= 0 {
 		page = 1
 	}
-	if pageSize <= 0 || pageSize > 100 {
+	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
+	if pageSize <= 0 {
 		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
 	}
 	// 调用数据层返回分页权限信息
 	return p.PermRepo.GetPermList(page, pageSize, permType)
@@ -160,7 +165,16 @@ func (p *PermissionService) UpdatePermission(permID int64, updatePerm map[string
 		return err
 	}
 	// 提交事务
-	return tx.Commit().Error
+	err = tx.Commit().Error
+
+	if err != nil {
+		return err
+	}
+	// 权限映射变更：版本号+1，使所有 api:perm 缓存即时失效
+	if cache := infra.GetCache(); cache != nil {
+		_, _ = cache.Incr(context.Background(), "api:perm:version")
+	}
+	return nil
 
 }
 
@@ -204,5 +218,14 @@ func (p *PermissionService) DeletePermission(id int64) error {
 		return err
 	}
 	// 提交事务
-	return tx.Commit().Error
+	err = tx.Commit().Error
+
+	if err != nil {
+		return err
+	}
+	// 权限映射变更：版本号+1，使所有 api:perm 缓存即时失效
+	if cache := infra.GetCache(); cache != nil {
+		_, _ = cache.Incr(context.Background(), "api:perm:version")
+	}
+	return nil
 }

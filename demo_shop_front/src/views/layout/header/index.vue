@@ -68,14 +68,6 @@ const menus = [
   {
     title: '关于',
     path: '/about'
-  },
-  {
-    title: '注册',
-    path: '/register'
-  },
-  {
-    title: '登录',
-    path: '/login'
   }
 ]
 

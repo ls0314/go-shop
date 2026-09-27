@@ -1,0 +1,143 @@
+# 全栈一键编排:4 中间件 + 后端 + 前端
+services:
+  postgres:
+    image: postgres:14-alpine
+    # 调试期暴露宿主机端口;"纯部署"姿态可删掉 ports
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: demo_shop
+    # DS-A-20 调试中确认:默认 100 上限会被并发连接打满,提到 300
+    command: postgres -c max_connections=300
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [demo-shop-network]
+    restart: always
+
+  redis:
+    image: redis:6-alpine
+    ports: ["6379:6379"]
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-demoShop}
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-demoShop}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [demo-shop-network]
+    restart: always
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports: ["5672:5672", "15672:15672"]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-demoShop}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-demoShop}
+      RABBITMQ_DEFAULT_VHOST: demoShop
+    volumes: [rabbitmq-data:/var/lib/rabbitmq]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    networks: [demo-shop-network]
+    restart: always
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
+    ports: ["9200:9200"]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+    volumes: [elasticsearch-data:/usr/share/elasticsearch/data]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -v '\"status\":\"red\"'"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    networks: [demo-shop-network]
+    restart: always
+
+  backend:
+    build:
+      context: ./demo-shop-back
+      args:
+        GOPROXY: https://goproxy.cn,direct
+    environment:
+      DEMO_SHOP_DB_HOST: postgres
+      DEMO_SHOP_REDIS_ADDR: redis:6379
+      DEMO_SHOP_REDIS_PASSWORD: ${REDIS_PASSWORD:-demoShop}
+      DEMO_SHOP_RABBITMQ_DSN: amqp://demoShop:demoShop@rabbitmq:5672/demoShop
+      DEMO_SHOP_ES_ADDRESSES: http://elasticsearch:9200
+      DEMO_SHOP_JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
+      DEMO_SHOP_SNOWFLAKE_WORKER_ID: "1"
+      DEMO_SHOP_TRUSTED_PROXIES: 172.16.0.0/12
+      DEMO_SHOP_SEED_DIR: /app/db/seeds
+      # 预扣闸门一键开关(压测 A/B 与生产熔断):false=闸门旁路,全量走 DB 双防线
+      DEMO_SHOP_GATE_ENABLED: "true"
+    depends_on:
+      postgres:      { condition: service_healthy }
+      redis:         { condition: service_healthy }
+      rabbitmq:      { condition: service_healthy }
+      elasticsearch: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9001/api/v1/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s   # 首次启动要跑迁移,别在迁移期间判死
+    volumes: [uploads-data:/app/uploads]
+    networks: [demo-shop-network]
+    restart: always
+    # 故意不映射宿主机端口:后端只经 nginx 对外。调试时临时加 "9001:9001"
+
+  frontend:
+    build:
+      context: ./demo_shop_front
+      args:
+        NPM_REGISTRY: https://registry.npmmirror.com
+    environment:
+      BACKEND_HOST: backend   # 服务名即域名,nginx 模板经 envsubst 注入
+      BACKEND_PORT: "9001"
+    depends_on:
+      backend: { condition: service_healthy }
+    ports: ["8080:80"]
+    networks: [demo-shop-network]
+    restart: always
+
+  # 可观测性(DS-A-22):指标抓取 + 可视化面板
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    ports: ["9090:9090"]
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks: [demo-shop-network]
+    restart: always
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes: [grafana-data:/var/lib/grafana]
+    depends_on: [prometheus]
+    networks: [demo-shop-network]
+    restart: always
+
+networks:
+  demo-shop-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
+  elasticsearch-data:
+  uploads-data:
+  grafana-data:

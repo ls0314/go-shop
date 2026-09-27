@@ -53,9 +53,85 @@ var (
 	CategoryHasRel         = errors.New("该类目已关联商品/属性，不能删除")
 	CategoryParentInvalid  = errors.New("此父节点无效")
 )
+
 var (
-	StatusIdNotExist          = "ID不存在"
-	StatusInternalServerError = "服务器错误"
-	StatusBadRequest          = "请求参数错误"
-	StatusNotExistRequest     = "请求内容不存在"
+	ProductNotExist            = errors.New("商品不存在")
+	ErrSpuTemplate             = errors.New("规格值与规格模板不匹配")
+	ErrSkuNum                  = errors.New("SKU数量错误")
+	ErrSpecValues              = errors.New("SKU规格值不匹配")
+	ErrSkuCodeNotOnly          = errors.New("SKU编码需唯一")
+	ErrSpecValuesNotOnly       = errors.New("SKU规格组合唯一")
+	ErrNoActiveSku             = errors.New("至少需要一个启用状态的SKU")
+	ErrNoAvailableStock        = errors.New("启用SKU的总库存必须大于0")
+	ErrInvalidPrice            = errors.New("所有启用SKU的售价必须大于0")
+	ErrCategoryNotUsed         = errors.New("类目不可用")
+	ErrPublishedCantChangeSpec = errors.New("已上架商品不允许修改规格模板")
+	ErrSkuListEmpty            = errors.New("修改后SKU列表为空")
+	ErrInvalidStatusTransition = errors.New("商品状态转换不合法")
+)
+
+var (
+	AddressNotExist   = errors.New("地址不存在")
+	AddressListIsNull = errors.New("地址列表为空")
+	AddressNumsIsFull = errors.New("地址数量超出限制")
+	UserNotSetAddress = errors.New("用户越权修改地址")
+	ReceiverNotNull   = errors.New("收货人姓名或手机号码不能为空")
+)
+
+// 库存模块错误码 7001-7005
+var (
+	ErrSkuNotExist    = errors.New("SKU不存在")     // 7001
+	ErrStockNegative  = errors.New("调整后库存不能为负数") // 7002
+	ErrRemarkEmpty    = errors.New("调整原因不能为空")   // 7003
+	ErrStockNotEnough = errors.New("库存不足")       // 7004
+	ErrSkuDisabled    = errors.New("SKU已禁用或已删除") // 7005
+)
+
+// 购物车模块错误码
+var (
+	ErrSpuDisabled   = errors.New("SKU已禁用或已删除")
+	CartItemMax      = errors.New("购物车数量已达上限（100条）")
+	QuantityMax      = errors.New("购买数量超出限制（单SKU购买范围为0~999）")
+	CartItemNotExist = errors.New("购物车项不存在")
+	NotAuthority     = errors.New("无权操作该购物车项")
+)
+
+// 订单模块错误码
+var (
+	ErrAddressNotExist       = errors.New("收货地址不存在")
+	ErrCartNoSettlementItems = errors.New("购物车无可结算商品")
+	ErrDuplicateSubmit       = errors.New("重复提交（幂等键已使用）")
+	ErrOrderNotExist         = errors.New("订单不存在")
+	ErrOrderNoPermission     = errors.New("无权查看/操作该订单")
+	ErrOrderCannotCancel     = errors.New("订单状态不允许取消（仅待支付可取消）")
+	ErrOrderAlreadyCancelled = errors.New("订单已被处理（已取消或已支付），无需重复取消")
+	ErrOrderCannotShip       = errors.New("订单状态不允许发货（仅已支付可发货）")
+	ErrExpressIncomplete     = errors.New("快递信息不完整")
+	ErrOrderCannotConfirm    = errors.New("订单状态不允许确认收货（仅已发货可确认）")
+)
+
+// 支付模块错误码
+var (
+	ErrPayNoPermission         = errors.New("订单不属于当前用户")
+	ErrOrderCannotPay          = errors.New("订单状态不允许支付（仅待支付可支付）")
+	ErrPayRecordExisting       = errors.New("已有进行中的支付记录")
+	ErrPayRecordNoExist        = errors.New("支付记录不存在")
+	ErrPayRecordNoNoPermission = errors.New("无权查看该支付记录")
+	ErrPayStatusMisTake        = errors.New("支付状态不正确（非pending，回调幂等）")
+	ErrPayAmountMisTake        = errors.New("支付金额与订单金额不匹配")
+)
+
+// 优惠券模块错误码 11001-11009
+var (
+	ErrCouponTemplateNotExist   = errors.New("优惠券模板不存在")                  // 11001
+	ErrCouponSoldOut            = errors.New("优惠券已领完")                    // 11002
+	ErrCouponLimitExceeded      = errors.New("已达领取上限")                    // 11003
+	ErrCouponNotExistOrUsed     = errors.New("优惠券不存在或已使用")                // 11004
+	ErrCouponThresholdNotMet    = errors.New("优惠券不满足使用门槛")                // 11005
+	ErrCouponExpired            = errors.New("优惠券已过期")                    // 11006
+	ErrCouponParamInvalid       = errors.New("参数非法（类型/金额/数量校验失败）")        // 11007
+	ErrCouponValidityInvalid    = errors.New("有效期配置非法（两种有效期方式均未配置或同时配置）") // 11008
+	ErrCouponOrderAmountInvalid = errors.New("订单金额参数非法（小于 0）")            // 11009
+	ErrUseCouponNoNoPermission  = errors.New("无权使用该优惠卷")
+	ErrCannotCancelCoupon       = errors.New("返还优惠卷失败")
 )

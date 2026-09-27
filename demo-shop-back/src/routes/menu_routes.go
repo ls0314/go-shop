@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,13 +19,14 @@ func InitMenuModule() {
 func RegisterMenuRoutes(r *gin.Engine) {
 	menuGroup := r.Group("/api/v1/menu")
 	menuGroup.Use(middleware.AuthMiddleware())
+	menuGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
-		menuGroup.POST("", menuCtrl.CreateMenu)
-		menuGroup.GET("", menuCtrl.GetMenuList)
-		menuGroup.GET("/:id", menuCtrl.GetMenu)
+		menuGroup.POST("", middleware.PermissionMiddleware(), menuCtrl.CreateMenu)
+		menuGroup.GET("", middleware.PermissionMiddleware(), menuCtrl.GetMenuList)
+		menuGroup.GET("/:id", middleware.PermissionMiddleware(), menuCtrl.GetMenu)
 		menuGroup.POST("/tree", menuCtrl.GetMenuTreeByUserId)
-		menuGroup.GET("/:id/tree", menuCtrl.GetMenuTreeByRoleId)
-		menuGroup.PUT("/:id", menuCtrl.UpdateMenu)
-		menuGroup.DELETE("/:id", menuCtrl.DeleteMenu)
+		menuGroup.GET("/:id/tree", middleware.PermissionMiddleware(), menuCtrl.GetMenuTreeByRoleId)
+		menuGroup.PUT("/:id", middleware.PermissionMiddleware(), menuCtrl.UpdateMenu)
+		menuGroup.DELETE("/:id", middleware.PermissionMiddleware(), menuCtrl.DeleteMenu)
 	}
 }

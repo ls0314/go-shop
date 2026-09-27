@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { loginApi, getUserInfoApi } from '@/api/user'
+import { loginApi, getUserInfoApi, getPermsApi } from '@/api/user'
 import router from '@/router/index'
 import { ElMessage } from 'element-plus'
 import {useRouter} from "vue-router";
@@ -33,6 +33,8 @@ export const useUserStore = defineStore('user', () => {
         user_id: '',
         username: '',
     })
+    // 当前用户权限码集合(按钮级权限控制用)
+    const permCodes = ref<string[]>([])
 
     const isLoggedIn = computed(() => !!userToken.value.access_token)
 
@@ -43,6 +45,27 @@ export const useUserStore = defineStore('user', () => {
     // setToken设置Token信息
     function setToken(val:UserToken) {
         userToken.value = val
+    }
+
+    // hasPerm 判断用户是否持有某权限码(支持多个任一)
+    function hasPerm(...codes: string[]): boolean {
+        if (codes.length === 0) return true
+        return codes.some(code => permCodes.value.includes(code))
+    }
+
+    // GetPerms 拉取当前用户权限码(登录后调用;按钮级权限控制数据源)
+    async function GetPerms() {
+        try {
+            const res: any = await getPermsApi()
+            if (res.data.code === 200) {
+                permCodes.value = res.data.data?.perms || []
+                return true
+            }
+            return false
+        } catch (err: any) {
+            console.error('获取用户权限失败', err)
+            return false
+        }
     }
 
     // GetUserInfo 获取用户信息
@@ -81,6 +104,8 @@ export const useUserStore = defineStore('user', () => {
 
             //  获取并设置用户信息
             await GetUserInfo()
+            //  拉取用户权限码(按钮级权限控制)
+            await GetPerms()
 
             // 初始化路由
             const routerStore = useRouterStore()
@@ -110,6 +135,7 @@ export const useUserStore = defineStore('user', () => {
         // 清空本地状态
         userToken.value = { access_token: '', refresh_token: '' }
         userInfo.value = { user_id: '', username: '' }
+        permCodes.value = []
         // 清空动态路由
         routerStore.ResetAsyncRouter()
         // 跳转到登录页
@@ -120,9 +146,12 @@ export const useUserStore = defineStore('user', () => {
         return {
             userToken,
             userInfo,
+            permCodes,
             isLoggedIn,
             LoginIn,
             GetUserInfo,
+            GetPerms,
+            hasPerm,
             Logout,
             setToken,
             setUserInfo
@@ -132,7 +161,7 @@ export const useUserStore = defineStore('user', () => {
         persist: {
             key: 'user',
             storage: sessionStorage,
-            paths: ['userToken']
+            paths: ['userToken', 'userInfo']
         } as any
     }
 )

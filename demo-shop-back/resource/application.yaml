@@ -11,3 +11,18 @@ database:
   password: postgres
   dbname: demo_shop
   sslmode: disable
+
+# 缓存配置
+redis:
+  addr: localhost:6379
+  password: "demoShop"
+  db: 0
+
+# 消息队列配置
+rabbitmq:
+  dsn: "amqp://demoShop:demoShop@localhost:5672/demoShop"
+
+
+elasticsearch:
+  addresses:
+    - http://localhost:9200

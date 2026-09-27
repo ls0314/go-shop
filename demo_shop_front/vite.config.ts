@@ -34,18 +34,22 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       open: true,
-      proxy: {
-        '/api': {
-          target: env.VITE_APP_API_BASE_URL,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
+        proxy: {
+            '/api': {
+                target: `${env.VITE_BASE_PATH}:${env.VITE_SERVER_PORT}`,
+                changeOrigin: true,
+            },
+            '/uploads': {
+                target: `${env.VITE_BASE_PATH}:${env.VITE_SERVER_PORT}`,
+                changeOrigin: true,
+            }
         }
-      }
     },
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
-      minify: 'terser',
+      // 使用 vite 内置 esbuild 压缩(无需额外安装 terser 可选依赖)
+      minify: 'esbuild',
       sourcemap: mode === 'development'
     }
   }

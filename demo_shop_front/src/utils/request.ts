@@ -8,7 +8,7 @@ import { getUserStore } from '@/pinia'
 import router from '@/router'
 
 const request = axios.create({
-    baseURL: 'http://localhost:9001',
+    baseURL: import.meta.env.VITE_BASE_API,
     timeout: 5000,
 })
 

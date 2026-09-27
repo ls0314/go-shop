@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"demo-shop-back/db"
+	"demo-shop-back/src/infra"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/response"
 	"demo-shop-back/src/repository"
@@ -16,6 +18,7 @@ import (
 // CategoryService 类目表服务层实例
 type CategoryService struct {
 	CategoryRepo *repository.CategoryRepo // 类目表数据层实例
+	ProductRepo  *repository.ProductRepo
 	db           *gorm.DB
 }
 
@@ -25,6 +28,7 @@ type CategoryService struct {
 func NewCategoryService() *CategoryService {
 	return &CategoryService{
 		CategoryRepo: repository.NewCategoryRepo(),
+		ProductRepo:  repository.NewProductRepo(),
 		db:           db.DB,
 	}
 }
@@ -168,8 +172,12 @@ func (c *CategoryService) GetCategoryList(page, pageSize int) ([]response.GetLis
 	if page <= 0 {
 		page = 1
 	}
-	if pageSize <= 0 || pageSize > 100 {
+	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
+	if pageSize <= 0 {
 		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
 	}
 	// 调用数据层返回分页类目信息
 	categoryList, total, err := c.CategoryRepo.GetCategoryList(page, pageSize)
@@ -305,7 +313,7 @@ func (c *CategoryService) UpdateCategory(categoryId int64, updateCategory map[st
 	err := c.db.Transaction(func(tx *gorm.DB) error {
 		// 创建事务实例
 		categoryTXRepo := c.CategoryRepo.WithTx(tx)
-		// 1查询旧类目信息
+		// 查询旧类目信息
 		oldCategory, err := categoryTXRepo.GetCategoryById(categoryId)
 		if err != nil {
 			return err
@@ -385,6 +393,10 @@ func (c *CategoryService) UpdateCategory(categoryId int64, updateCategory map[st
 	if err != nil {
 		return model.SysCategory{}, err
 	}
+	// 类目变更后失效缓存
+	if cache := infra.GetCache(); cache != nil {
+		_ = cache.Del(context.Background(), fmt.Sprintf("category:%d", categoryId))
+	}
 	// 返回更新后的类目信息
 	return updatedCategory, nil
 }
@@ -394,7 +406,7 @@ func (c *CategoryService) UpdateCategory(categoryId int64, updateCategory map[st
 // 返回值：error - 错误信息
 func (c *CategoryService) DeleteCategory(categoryId int64) error {
 	// 开始事务
-	return c.db.Transaction(func(tx *gorm.DB) error {
+	err := c.db.Transaction(func(tx *gorm.DB) error {
 		// 创建事务实例
 		categoryTxRepo := c.CategoryRepo.WithTx(tx)
 
@@ -416,7 +428,10 @@ func (c *CategoryService) DeleteCategory(categoryId int64) error {
 			return model.CategoryHasChildren
 		}
 
-		// TODO 关联商品检查
+		// 判断待删除类目是否存在关联商品
+		if spu, err := c.ProductRepo.GetSpuByCategory(categoryId); err != nil || spu != nil {
+			return model.CategoryHasRel
+		}
 
 		// 调用数据层删除类目
 		if err := categoryTxRepo.DeleteCategoryById(categoryId); err != nil {
@@ -440,4 +455,12 @@ func (c *CategoryService) DeleteCategory(categoryId int64) error {
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	// 类目变更后失效缓存
+	if cache := infra.GetCache(); cache != nil {
+		_ = cache.Del(context.Background(), fmt.Sprintf("category:%d", categoryId))
+	}
+	return nil
 }

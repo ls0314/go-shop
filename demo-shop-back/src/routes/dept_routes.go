@@ -31,16 +31,16 @@ func RegisterDeptRoutes(r *gin.Engine) {
 	deptGroup.Use(middleware.AuthMiddleware())
 	{
 		// 创建部门接口
-		deptGroup.POST("", deptCtrl.CreateDept)
+		deptGroup.POST("", middleware.PermissionMiddleware(), deptCtrl.CreateDept)
 		// 分页获取部门列表接口
-		deptGroup.GET("", deptCtrl.GetDeptList)
+		deptGroup.GET("", middleware.PermissionMiddleware(), deptCtrl.GetDeptList)
 		// 根据ID获取单个部门接口
-		deptGroup.GET("/:id", deptCtrl.GetDept)
+		deptGroup.GET("/:id", middleware.PermissionMiddleware(), deptCtrl.GetDept)
 		// 根据用户Id构建该用户的部门树
-		deptGroup.GET("/tree/:userId", deptCtrl.GetDeptTreeByUserId)
+		deptGroup.GET("/tree/:userId", middleware.PermissionMiddleware(), deptCtrl.GetDeptTreeByUserId)
 		// 根据ID更新部门接口
-		deptGroup.PUT("/:id", deptCtrl.UpdateDept)
+		deptGroup.PUT("/:id", middleware.PermissionMiddleware(), deptCtrl.UpdateDept)
 		// 根据ID删除部门接口
-		deptGroup.DELETE("/:id", deptCtrl.DeleteDept)
+		deptGroup.DELETE("/:id", middleware.PermissionMiddleware(), deptCtrl.DeleteDept)
 	}
 }

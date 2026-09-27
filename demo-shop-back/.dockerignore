@@ -1,0 +1,7 @@
+.git
+.idea/
+tests/
+uploads/
+temp/
+*.exe
+*.md

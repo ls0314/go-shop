@@ -7,12 +7,18 @@
     "types": ["node"],
     "skipLibCheck": true,
 
+    /* vue-tsc -b 构建模式要求：composite + 可 emit 声明文件 */
+    "composite": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "outDir": "./node_modules/.tmp/tsc-node",
+
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
-    "noEmit": true,
 
     /* Linting */
     "strict": true,

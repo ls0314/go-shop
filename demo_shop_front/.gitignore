@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# TypeScript build info (vue-tsc -b 增量缓存)
+*.tsbuildinfo
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

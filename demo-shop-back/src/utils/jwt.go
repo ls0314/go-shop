@@ -18,8 +18,6 @@ type JWTService struct {
 	SigningKey []byte
 }
 
-const Secret = "demo-shop"
-
 func NewJWTService(signingKey string) *JWTService {
 	return &JWTService{
 		SigningKey: []byte(signingKey),

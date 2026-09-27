@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,7 @@ func Success(c *gin.Context, data interface{}) {
 }
 
 func Fail(c *gin.Context, code int, message string) {
+	_ = c.Error(errors.New(message))
 	c.JSON(http.StatusBadRequest, Response{
 		Code:    code,
 		Message: message,
@@ -29,6 +31,7 @@ func Fail(c *gin.Context, code int, message string) {
 }
 
 func Error(c *gin.Context, code int, message string) {
+	_ = c.Error(errors.New(message))
 	c.JSON(http.StatusInternalServerError, Response{
 		Code:    code,
 		Message: message,

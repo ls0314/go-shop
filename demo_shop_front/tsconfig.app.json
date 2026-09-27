@@ -4,6 +4,19 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "types": ["vite/client"],
 
+    /* vue-tsc -b 构建模式要求：composite + 可 emit 声明文件 */
+    "composite": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "outDir": "./node_modules/.tmp/tsc-app",
+
+    /* 路径别名：与 vite.config.ts 的 alias 保持一致，供 vue-tsc 类型检查解析 @/ */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,

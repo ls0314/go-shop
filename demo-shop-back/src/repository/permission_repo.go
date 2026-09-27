@@ -48,19 +48,40 @@ func (r *PermissionRepo) GetPermByID(id int64) (*model.SysPermission, error) {
 	return &perm, nil
 }
 
-// GetPermByCode 查询权限信息(按权限代码查)
+// GetPermByCodeUk 查询联合权限信息(按权限代码查)（权限代码，api路径，请求方法）
 // 接收值：code - 所查询权限代码
 // 返回值：
 //
 //	*model.SysPermission - 所查询权限信息
 //	error - 错误信息
-func (r *PermissionRepo) GetPermByCode(code string) (*model.SysPermission, error) {
+func (r *PermissionRepo) GetPermByCodeUk(apiPath, requestMethod, code string) (*model.SysPermission, error) {
 	var perm model.SysPermission
-	err := r.DB.Where("permission_code = ?", code).First(&perm).Error
+	err := r.DB.Where("permission_code = ? AND request_method = ? AND api_path = ?", code, requestMethod, apiPath).First(&perm).Error
 	if err != nil {
 		return nil, err
 	}
 	return &perm, nil
+}
+
+// GetPermCodesByApi 查询联合权限对应代码（api路径，请求方法）
+// 接收值：
+//
+//	apiPath - api路径
+//	requestMethod - 请求方法
+//
+// 返回值：
+//
+//	*model.SysPermission - 所查询权限信息
+//	error - 错误信息
+func (r *PermissionRepo) GetPermCodesByApi(apiPath, requestMethod string) ([]string, error) {
+	var codes []string
+	err := r.DB.Model(&model.SysPermission{}).
+		Where("api_path = ? AND request_method = ?", apiPath, requestMethod).
+		Pluck("permission_code", &codes).Error
+	if err != nil {
+		return nil, err
+	}
+	return codes, nil
 }
 
 // GetPermList 分页查询权限信息（可根据类型查询）
@@ -144,4 +165,19 @@ func (r *PermissionRepo) HasPermission(userId int64, permission string) (bool, e
 	}
 
 	return count > 0, nil
+}
+
+// GetPermCodesByUserId 查询用户持有的全部权限码(去重)——权限缓存的数据源
+func (r *PermissionRepo) GetPermCodesByUserId(userId int64) ([]string, error) {
+	var codes []string
+	err := r.DB.Table("sys_user_role AS ur").
+		Joins("JOIN sys_role_permission AS rp ON ur.role_id = rp.role_id").
+		Joins("JOIN sys_permission AS p ON rp.permission_id = p.permission_id").
+		Where("ur.user_id = ?", userId).
+		Distinct("p.permission_code").
+		Pluck("p.permission_code", &codes).Error
+	if err != nil {
+		return nil, err
+	}
+	return codes, nil
 }

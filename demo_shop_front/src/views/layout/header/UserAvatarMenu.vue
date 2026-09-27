@@ -18,9 +18,25 @@
         <button
             type="button"
             class="block w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
+            @click="handleAddress"
+        >
+          收货地址
+        </button>
+
+        <button
+            type="button"
+            class="block w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
             @click="handleProfile"
         >
           个人信息
+        </button>
+
+        <button
+            type="button"
+            class="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm text-indigo-600 transition hover:bg-indigo-50 dark:border-slate-700 dark:text-indigo-400 dark:hover:bg-slate-700"
+            @click="handleSwitchToShop"
+        >
+          返回商城
         </button>
 
         <button
@@ -61,16 +77,19 @@ const closeMenu = () => {
   visible.value = false
 }
 
+const handleAddress = () => {
+  closeMenu()
+  router.push('/shop/address')
+}
+
 const handleProfile = async () => {
   closeMenu()
+  ElMessage.info('个人信息功能开发中')
+}
 
-  try {
-    closeMenu()
-    ElMessage.info('个人信息功能开发中')
-    // await router.push('/profile')
-  } catch {
-    ElMessage.info('个人信息页面暂未配置')
-  }
+const handleSwitchToShop = () => {
+  closeMenu()
+  router.push('/shop/home')
 }
 
 const handleLogout = () => {

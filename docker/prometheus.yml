@@ -1,0 +1,10 @@
+# Prometheus 抓取配置(DS-A-22)
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # 后端指标:独立内部端口 :9002(compose 网络内可达,不映射宿主机)
+  - job_name: demo-shop-backend
+    static_configs:
+      - targets: ["backend:9002"]

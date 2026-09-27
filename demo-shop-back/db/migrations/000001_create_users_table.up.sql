@@ -1,3 +1,6 @@
+-- 系统扩展（CREATE EXTENSION 按库生效，放在迁移链最前保证每个库都安装）
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- 创建用户认证表 (高频查询，需要分表)
 CREATE TABLE IF NOT EXISTS sys_user (
     user_id BIGSERIAL PRIMARY KEY,

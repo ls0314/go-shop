@@ -3,11 +3,16 @@ package routes
 import (
 	"net/http"
 
+	"demo-shop-back/src/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 
 func InitRoutes() *gin.Engine {
 	r := gin.Default()
+
+	// HTTP 层指标(DS-A-22):第一个业务中间件,保证所有请求(含404/预检)被计量
+	r.Use(middleware.HTTPMetrics())
 
 	// 配置CORS中间件
 	r.Use(func(c *gin.Context) {
@@ -22,6 +27,9 @@ func InitRoutes() *gin.Engine {
 		}
 		c.Next()
 	})
+
+	// 全局兜底限流(DS-A-21):保护 DB/下游总容量;healthz 豁免
+	r.Use(middleware.GlobalRateLimit())
 
 	// ========== 用户模块初始化 ==========
 	InitUserModule()
@@ -79,12 +87,47 @@ func InitRoutes() *gin.Engine {
 	InitUploadModule()
 	// ========== 注册上传路由 ==========
 	RegisterUploadRoutes(r)
+	// ========== 商品模块初始化 ==========
+	InitProductModule()
+	// ========== 注册商品路由 ==========
+	RegisterProductRoutes(r)
+	// ========== 用户地址管理模块初始化 ==========
+	InitAddressModule()
+	// ========== 注册用户地址管理路由 ==========
+	RegisterAddressRoutes(r)
+	// ========== 库存管理模块初始化 ==========
+	InitInventoryModule()
+	// ========== 注册库存管理路由 ==========
+	RegisterInventoryRoutes(r)
+	// ========== 用户购物车管理模块初始化 ==========
+	InitCartItemModule()
+	// ========== 注册用户购物车管理路由 ==========
+	RegisterCartItemRoutes(r)
+	// ========== 用户订单管理模块初始化 ==========
+	InitOrderModule()
+	// ========== 注册用户订单管理路由 ==========
+	RegisterOrderRoutes(r)
+	// ========== 用户支付管理模块初始化 ==========
+	InitPaymentModule()
+	// ========== 注册用户支付管理路由 ==========
+	RegisterPaymentRoutes(r)
+	// ========== 操作日志管理模块初始化 ==========
+	InitOperationLogModule()
+	// ========== 注册操作日志管理路由 ==========
+	RegisterOperationLogRoutes(r)
+	// ========== 优惠卷管理模块初始化 ==========
+	InitCouponModule()
+	// ========== 注册优惠卷管理路由 ==========
+	RegisterCouponRoutes(r)
 
 	// 静态文件服务 - 上传文件访问
 	r.Static("/uploads", "./uploads")
 
 	r.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "Hello World")
+	})
+	r.GET("/api/v1/healthz", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
 	return r

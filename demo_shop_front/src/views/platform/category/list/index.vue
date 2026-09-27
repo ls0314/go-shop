@@ -232,7 +232,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Search, Refresh, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCategoryStore } from '@/pinia/modules/category'
-import CategoryForm from '@/components/Category/CategoryForm.vue'
+import CategoryForm from '@/components/category/categoryForm.vue'
 import type { Category } from '@/types/category'
 
 // 状态管理

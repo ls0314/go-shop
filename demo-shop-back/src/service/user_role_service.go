@@ -1,9 +1,12 @@
 package service
 
 import (
+	"context"
 	"demo-shop-back/db"
+	"demo-shop-back/src/infra"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -70,8 +73,15 @@ func (ur *UserRoleService) CreateUserRole(userId int64, roleIds []int64) error {
 		return err
 	}
 
-	// 提交事务
-	return tx.Commit().Error
+	err := tx.Commit().Error
+	if err != nil {
+		return err
+	}
+	// 用户角色变更后失效该用户的权限缓存
+	if cache := infra.GetCache(); cache != nil {
+		_ = cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", userId))
+	}
+	return nil
 
 }
 
@@ -122,6 +132,13 @@ func (ur *UserRoleService) DeleteUserRole(userId int64) error {
 		tx.Rollback()
 		return err
 	}
-	// 提交事务
-	return tx.Commit().Error
+	err := tx.Commit().Error
+	if err != nil {
+		return err
+	}
+	// 用户角色变更后失效该用户的权限缓存
+	if cache := infra.GetCache(); cache != nil {
+		_ = cache.Del(context.Background(), fmt.Sprintf("user:perm:%d", userId))
+	}
+	return nil
 }

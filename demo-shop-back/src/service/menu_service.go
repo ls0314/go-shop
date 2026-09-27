@@ -104,8 +104,12 @@ func (m *MenuService) GetMenuList(page, pageSize int, menuType string) ([]model.
 	if page <= 0 {
 		page = 1
 	}
-	if pageSize <= 0 || pageSize > 100 {
+	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
+	if pageSize <= 0 {
 		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
 	}
 	// 调用数据层返回分页菜单信息
 	return m.MenuRepo.GetMenuList(page, pageSize, menuType)
@@ -144,7 +148,7 @@ func (m *MenuService) GetMenuTreeByRoleIds(roleIds []int64) ([]*model.SysMenu, e
 		return nil, err
 	}
 	if len(menuIds) == 0 {
-		return nil, model.MenuNotExist
+		return []*model.SysMenu{}, nil
 	}
 	// 批量查询菜单，且已按 sort_order 排序
 	menuList, err := m.MenuRepo.ListMenuByIds(menuIds)
@@ -176,7 +180,7 @@ func (m *MenuService) GetMenuTreeByUserId(userId int64) ([]*model.SysMenu, error
 		return nil, err
 	}
 	if len(menuIds) == 0 {
-		return nil, model.MenuNotExist
+		return []*model.SysMenu{}, nil
 	}
 	// 批量查询菜单，且已按 sort_order 排序
 	menuList, err := m.MenuRepo.ListMenuByIds(menuIds)

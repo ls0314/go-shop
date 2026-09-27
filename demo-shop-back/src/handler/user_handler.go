@@ -24,6 +24,31 @@ func NewUserHandler() *UserHandler {
 	}
 }
 
+// GetUserInfoByContext 从JWT鉴权上下文中提取当前登录用户ID
+// 接收值：c - Gin上下文
+// 返回值：int64 - 用户ID,userName - 用户名, error - 用户未登录时返回UserNotLogin
+func GetUserInfoByContext(c *gin.Context) (int64, string, error) {
+	// 从上下文中获取中间件注入的user_id
+	userIdVal, exist := c.Get("user_id")
+	if !exist {
+		return 0, "", model.UserNotLogin
+	}
+	userNameVal, exist := c.Get("username")
+	if !exist {
+		return 0, "", model.UserNotLogin
+	}
+	// 类型断言确保为int64
+	userId, ok := userIdVal.(int64)
+	if !ok {
+		return 0, "", model.UserNotLogin
+	}
+	userName, ok := userNameVal.(string)
+	if !ok {
+		return 0, "", model.UserNotLogin
+	}
+	return userId, userName, nil
+}
+
 // CreateUserHandler 用户注册接口
 // 路由映射：POST /api/v1/user/register
 // 功能：接收前端传递的用户注册信息，校验参数后调用服务层执行注册
@@ -63,6 +88,10 @@ func (u *UserHandler) CreateUserHandler(c *gin.Context) {
 // 响应：
 //
 //	200：查询成功，返回用户ID和用户名
+//
+// GetUserInfo 获取当前登录用户信息接口
+// 路由映射：GET /api/v1/user/info
+// 功能：从 JWT 上下文取出 user_id/username 返回(前端登录后展示用)
 func (u *UserHandler) GetUserInfo(c *gin.Context) {
 
 	userID, _ := c.Get("user_id") //
@@ -70,6 +99,26 @@ func (u *UserHandler) GetUserInfo(c *gin.Context) {
 
 	utils.Success(c, gin.H{"user_id": userID,
 		"username": username})
+}
+
+// GetUserPerms 获取当前登录用户的全部权限码接口
+// 路由映射：GET /api/v1/user/perms
+// 鉴权：AuthMiddleware(仅需登录)
+// 功能：返回用户权限码数组(如 ["system:user:view","system:role:create",...])，
+//
+//	前端用于按钮级权限控制(有权限才渲染新增/编辑/删除按钮)
+func (u *UserHandler) GetUserPerms(c *gin.Context) {
+	userId, _, err := GetUserInfoByContext(c)
+	if err != nil {
+		utils.Fail(c, 400, model.UserNotLogin.Error())
+		return
+	}
+	codes, err := middleware.GetUserPermCodes(userId)
+	if err != nil {
+		utils.Error(c, 500, err.Error())
+		return
+	}
+	utils.Success(c, gin.H{"perms": codes})
 }
 
 func (u *UserHandler) GetUser(c *gin.Context) {

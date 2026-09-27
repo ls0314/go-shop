@@ -32,14 +32,14 @@ func RegisterScopeRoutes(r *gin.Engine) {
 	scopeGroup.Use(middleware.AuthMiddleware())
 	{
 		// 创建数据权限接口
-		scopeGroup.POST("", scopeCtrl.CreateScope)
+		scopeGroup.POST("", middleware.PermissionMiddleware(), scopeCtrl.CreateScope)
 		// 分页获取数据权限列表接口
-		scopeGroup.GET("", scopeCtrl.GetScopeList)
+		scopeGroup.GET("", middleware.PermissionMiddleware(), scopeCtrl.GetScopeList)
 		// 根据ID获取单个数据权限接口
-		scopeGroup.GET("/:id", scopeCtrl.GetScope)
+		scopeGroup.GET("/:id", middleware.PermissionMiddleware(), scopeCtrl.GetScope)
 		// 根据ID更新数据权限接口
-		scopeGroup.PUT("/:id", scopeCtrl.UpdateScope)
+		scopeGroup.PUT("/:id", middleware.PermissionMiddleware(), scopeCtrl.UpdateScope)
 		// 根据ID删除数据权限接口
-		scopeGroup.DELETE("/:id", scopeCtrl.DeleteScope)
+		scopeGroup.DELETE("/:id", middleware.PermissionMiddleware(), scopeCtrl.DeleteScope)
 	}
 }

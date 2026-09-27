@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -20,11 +21,12 @@ func InitPermissionModule() {
 func RegisterPermissionRoutes(r *gin.Engine) {
 	permGroup := r.Group("/api/v1/permissions")
 	permGroup.Use(middleware.AuthMiddleware())
+	permGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
-		permGroup.POST("", permCtrl.CreatePermission)
-		permGroup.GET("", permCtrl.GetPermissionList)
-		permGroup.GET("/:id", permCtrl.GetPermission)
-		permGroup.PUT("/:id", permCtrl.UpdatePermission)
-		permGroup.DELETE("/:id", permCtrl.DeletePermission)
+		permGroup.POST("", middleware.PermissionMiddleware(), permCtrl.CreatePermission)
+		permGroup.GET("", middleware.PermissionMiddleware(), permCtrl.GetPermissionList)
+		permGroup.GET("/:id", middleware.PermissionMiddleware(), permCtrl.GetPermission)
+		permGroup.PUT("/:id", middleware.PermissionMiddleware(), permCtrl.UpdatePermission)
+		permGroup.DELETE("/:id", middleware.PermissionMiddleware(), permCtrl.DeletePermission)
 	}
 }

@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/model"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,13 +19,14 @@ func InitCategoryModule() {
 func RegisterCategoryRoutes(r *gin.Engine) {
 	categoryGroup := r.Group("/api/v1/platform/category")
 	categoryGroup.Use(middleware.AuthMiddleware())
+	categoryGroup.Use(middleware.OperationLogMiddleware(model.LogModuleCategory))
 	{
-		categoryGroup.POST("", middleware.PermissionMiddleware("platform:category:create"), categoryCtrl.CreateCategory)
-		categoryGroup.GET("", middleware.PermissionMiddleware("platform:category:view"), categoryCtrl.GetCategoryList)
-		categoryGroup.GET("/:id", middleware.PermissionMiddleware("platform:category:view"), categoryCtrl.GetCategory)
-		categoryGroup.GET("/tree", middleware.PermissionMiddleware("platform:category:tree"), categoryCtrl.GetCategoryTree)
-		categoryGroup.GET("/children/:id", middleware.PermissionMiddleware("platform:category:children"), categoryCtrl.GetCategoryChildrenList)
-		categoryGroup.PUT("/:id", middleware.PermissionMiddleware("platform:category:update"), categoryCtrl.UpdateCategory)
-		categoryGroup.DELETE("/:id", middleware.PermissionMiddleware("platform:category:delete"), categoryCtrl.DeleteCategory)
+		categoryGroup.POST("", middleware.PermissionMiddleware(), categoryCtrl.CreateCategory)
+		categoryGroup.GET("", middleware.PermissionMiddleware(), categoryCtrl.GetCategoryList)
+		categoryGroup.GET("/:id", middleware.PermissionMiddleware(), categoryCtrl.GetCategory)
+		categoryGroup.GET("/tree", middleware.PermissionMiddleware(), categoryCtrl.GetCategoryTree)
+		categoryGroup.GET("/children/:id", middleware.PermissionMiddleware(), categoryCtrl.GetCategoryChildrenList)
+		categoryGroup.PUT("/:id", middleware.PermissionMiddleware(), categoryCtrl.UpdateCategory)
+		categoryGroup.DELETE("/:id", middleware.PermissionMiddleware(), categoryCtrl.DeleteCategory)
 	}
 }

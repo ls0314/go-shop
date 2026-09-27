@@ -9,7 +9,7 @@ import (
 // SysPermission 权限信息结构体, 对应数据表sys_permission
 type SysPermission struct {
 	PermissionID   int64     `gorm:"primaryKey;column:permission_id" json:"permission_id"`
-	PermissionCode string    `gorm:"column:permission_code;uniqueIndex;not null;size:100" json:"permission_code"`
+	PermissionCode string    `gorm:"column:permission_code;not null;size:100" json:"permission_code"`
 	PermissionName string    `gorm:"column:permission_name;not null;size:100" json:"permission_name"`
 	PermissionType string    `gorm:"column:permission_type;not null;size:20" json:"permission_type"`
 	RequestMethod  string    `gorm:"column:request_method;size:10" json:"request_method"`

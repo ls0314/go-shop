@@ -3,6 +3,7 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,9 @@ func InitPaymentModule(deps service.ServiceDeps) {
 //	用户端  /api/v1/users/pay       - 鉴权：AuthMiddleware（JWT登录即可）
 //	回调    /api/v1/pay              - 鉴权：无（支付平台回调/模拟支付均无需登录）
 //	管理端  共用用户端路由前缀          - 鉴权：AuthMiddleware + PermissionMiddleware（platform:pay:view）
-func RegisterPaymentRoutes(r *gin.Engine) {
+func RegisterPaymentRoutes(r *gin.Engine, deps service.ServiceDeps) {
+	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
+	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
 	// ============================================================
 	// 用户端 + 管理端路由（需JWT登录）
 	// ============================================================
@@ -46,7 +49,7 @@ func RegisterPaymentRoutes(r *gin.Engine) {
 		// 管理端支付列表 → GET /api/v1/admin/pay/list
 		// 鉴权：platform:pay:view（仅超级管理员/运营人员）
 		// 参数：Query参数 page/page_size/pay_status/pay_method/order_no/start_time/end_time
-		adminPayGroup.GET("/list", middleware.PermissionMiddleware(), payCtrl.GetPaymentList)
+		adminPayGroup.GET("/list", permMW, payCtrl.GetPaymentList)
 	}
 
 	// ============================================================

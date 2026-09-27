@@ -19,7 +19,7 @@ func InitCartItemModule(deps service.ServiceDeps) {
 // 路由前缀：/api/v1/user/cart
 // 鉴权方式：AuthMiddleware（JWT登录即可，无需额外权限）
 // 业务规则：归属校验（用户仅能操作自己的购物车）、重复SKU累加、实时联表查询价格库存
-func RegisterCartItemRoutes(r *gin.Engine) {
+func RegisterCartItemRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	cartItemGroup := r.Group("/api/v1/users/cart")
 	cartItemGroup.Use(middleware.AuthMiddleware())
 	{

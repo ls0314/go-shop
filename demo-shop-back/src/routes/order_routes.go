@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -20,17 +21,19 @@ func InitOrderModule(deps service.ServiceDeps) {
 // 管理端路由前缀：/api/v1/platform/orders，鉴权：AuthMiddleware + PermissionMiddleware
 // 用户端路由前缀：/api/v1/user/platform/orders，鉴权：AuthMiddleware（JWT登录即可）
 // 管理端所需权限：platform:order:view（列表/详情）/ platform:order:ship（发货）
-func RegisterOrderRoutes(r *gin.Engine) {
+func RegisterOrderRoutes(r *gin.Engine, deps service.ServiceDeps) {
+	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
+	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
 	orderGroup := r.Group("/api/v1/platform/orders")
 	orderGroup.Use(middleware.AuthMiddleware())
 	orderGroup.Use(middleware.OperationLogMiddleware(model.LogModuleOrder))
 	{
 		// 接口5：管理端订单列表 → GET /api/v1/platform/orders
-		orderGroup.GET("", middleware.PermissionMiddleware(), orderCtrl.GetOrderList)
+		orderGroup.GET("", permMW, orderCtrl.GetOrderList)
 		// 接口6：管理端订单详情 → GET /api/v1/platform/orders/:id
-		orderGroup.GET("/:id", middleware.PermissionMiddleware(), orderCtrl.GetOrderInfo)
+		orderGroup.GET("/:id", permMW, orderCtrl.GetOrderInfo)
 		// 接口7：管理端发货 → PUT /api/v1/platform/orders/:id/ship
-		orderGroup.PUT("/:id/ship", middleware.PermissionMiddleware(), orderCtrl.OrderShip)
+		orderGroup.PUT("/:id/ship", permMW, orderCtrl.OrderShip)
 	}
 	userOrderGroup := r.Group("/api/v1/users/platform/orders")
 	userOrderGroup.Use(middleware.AuthMiddleware())

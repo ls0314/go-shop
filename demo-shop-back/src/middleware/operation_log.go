@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"bytes"
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 	"encoding/json"
@@ -119,8 +118,7 @@ func OperationLogMiddleware(module string) gin.HandlerFunc {
 	}
 }
 
-func InitLogWorker() {
-	repo := *repository.NewOperationLogRepo(db.DB)
+func InitLogWorker(repo *repository.OperationLogRepo) {
 	for i := 0; i < 2; i++ {
 		go func() {
 			for operationLog := range logQueue {

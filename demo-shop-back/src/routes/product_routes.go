@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -17,19 +18,21 @@ func InitProductModule(deps service.ServiceDeps) {
 }
 
 // RegisterProductRoutes 初始化商品路由
-func RegisterProductRoutes(r *gin.Engine) {
+func RegisterProductRoutes(r *gin.Engine, deps service.ServiceDeps) {
+	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
+	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
 	productGroup := r.Group("/api/v1/platform/products")
 	productGroup.Use(middleware.AuthMiddleware())
 	productGroup.Use(middleware.OperationLogMiddleware(model.LogModuleProduct))
 	{
-		productGroup.POST("", middleware.PermissionMiddleware(), productCtrl.CreateProduct)
-		productGroup.GET("", middleware.PermissionMiddleware(), productCtrl.GetProductList)
-		productGroup.GET("/:id", middleware.PermissionMiddleware(), productCtrl.GetProduct)
-		productGroup.PUT("/:id", middleware.PermissionMiddleware(), productCtrl.UpdateProduct)
-		productGroup.PUT("/:id/full", middleware.PermissionMiddleware(), productCtrl.UpdateFullProduct)
-		productGroup.POST("/:id/publish", middleware.PermissionMiddleware(), productCtrl.PublishProduct)
-		productGroup.POST("/:id/withdraw", middleware.PermissionMiddleware(), productCtrl.WithdrawnProduct)
-		productGroup.DELETE("/:id", middleware.PermissionMiddleware(), productCtrl.DeleteProduct)
+		productGroup.POST("", permMW, productCtrl.CreateProduct)
+		productGroup.GET("", permMW, productCtrl.GetProductList)
+		productGroup.GET("/:id", permMW, productCtrl.GetProduct)
+		productGroup.PUT("/:id", permMW, productCtrl.UpdateProduct)
+		productGroup.PUT("/:id/full", permMW, productCtrl.UpdateFullProduct)
+		productGroup.POST("/:id/publish", permMW, productCtrl.PublishProduct)
+		productGroup.POST("/:id/withdraw", permMW, productCtrl.WithdrawnProduct)
+		productGroup.DELETE("/:id", permMW, productCtrl.DeleteProduct)
 	}
 
 	userProductGroup := r.Group("/api/v1/users/platform/products")

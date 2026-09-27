@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -26,7 +27,9 @@ func InitRoleModule(deps service.ServiceDeps) {
 // RegisterRoleRoutes 注册角色模块路由
 // 参数：r *gin.Engine Gin路由引擎实例
 // 功能：注册角色相关API路由，统一前缀 /api/v1/role，并添加登录认证中间件
-func RegisterRoleRoutes(r *gin.Engine) {
+func RegisterRoleRoutes(r *gin.Engine, deps service.ServiceDeps) {
+	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
+	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
 	// 创建角色接口路由分组，统一前缀 /api/v1/role
 	roleGroup := r.Group("/api/v1/role")
 	// 添加全局认证中间件（必须登录才能访问角色接口）
@@ -34,14 +37,14 @@ func RegisterRoleRoutes(r *gin.Engine) {
 	roleGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
 		// 创建角色接口
-		roleGroup.POST("", middleware.PermissionMiddleware(), roleCtrl.CreateRole)
+		roleGroup.POST("", permMW, roleCtrl.CreateRole)
 		// 分页获取角色列表接口
-		roleGroup.GET("", middleware.PermissionMiddleware(), roleCtrl.GetRoleList)
+		roleGroup.GET("", permMW, roleCtrl.GetRoleList)
 		// 根据ID获取单个角色接口
-		roleGroup.GET("/:id", middleware.PermissionMiddleware(), roleCtrl.GetRole)
+		roleGroup.GET("/:id", permMW, roleCtrl.GetRole)
 		// 根据ID更新角色接口
-		roleGroup.PUT("/:id", middleware.PermissionMiddleware(), roleCtrl.UpdateRole)
+		roleGroup.PUT("/:id", permMW, roleCtrl.UpdateRole)
 		// 根据ID删除角色接口
-		roleGroup.DELETE("/:id", middleware.PermissionMiddleware(), roleCtrl.DeleteRole)
+		roleGroup.DELETE("/:id", permMW, roleCtrl.DeleteRole)
 	}
 }

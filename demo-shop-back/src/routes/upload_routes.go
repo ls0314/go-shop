@@ -24,7 +24,7 @@ func InitUploadModule(deps service.ServiceDeps) {
 // 注册路由：
 //
 //	POST /api/v1/upload/chunk - 上传文件分片（所有分片上传完毕后自动合并）
-func RegisterUploadRoutes(r *gin.Engine) {
+func RegisterUploadRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	uploadGroup := r.Group("/api/v1/upload")
 	uploadGroup.Use(middleware.AuthMiddleware())
 	{

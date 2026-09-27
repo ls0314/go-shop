@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 	"demo-shop-back/src/utils"
 	"strconv"
@@ -13,6 +15,8 @@ import (
 // UserHandler 用户表handler层实例
 type UserHandler struct {
 	UserService *service.UserService // 用户服务层对象指针
+	permRepo    *repository.PermissionRepo
+	cache       *cache.RedisService
 }
 
 // NewUserHandler 新建用户表的HTTP handler实例
@@ -21,6 +25,8 @@ type UserHandler struct {
 func NewUserHandler(deps service.ServiceDeps) *UserHandler {
 	return &UserHandler{
 		UserService: service.NewUserService(deps),
+		permRepo:    repository.NewPermissionRepo(deps.DB),
+		cache:       deps.Cache,
 	}
 }
 
@@ -113,7 +119,7 @@ func (u *UserHandler) GetUserPerms(c *gin.Context) {
 		utils.Fail(c, 400, model.UserNotLogin.Error())
 		return
 	}
-	codes, err := middleware.GetUserPermCodes(userId)
+	codes, err := middleware.GetUserPermCodes(u.permRepo, u.cache, userId)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
 		return

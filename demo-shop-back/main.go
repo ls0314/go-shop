@@ -6,6 +6,7 @@ import (
 	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/metrics"
 	"demo-shop-back/src/middleware"
+	"demo-shop-back/src/repository"
 	"demo-shop-back/src/routes"
 	"demo-shop-back/src/service"
 	"demo-shop-back/src/task"
@@ -86,7 +87,7 @@ func main() {
 	metrics.StartDBPoolSampler(30 * time.Second)
 
 	// 操作日志初始化
-	middleware.InitLogWorker()
+	middleware.InitLogWorker(repository.NewOperationLogRepo(deps.DB))
 
 	// JWT初始化
 	jwtSecret := os.Getenv("DEMO_SHOP_JWT_SECRET")

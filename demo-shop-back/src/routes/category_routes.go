@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -17,17 +18,19 @@ func InitCategoryModule(deps service.ServiceDeps) {
 }
 
 // RegisterCategoryRoutes 初始化类目路由
-func RegisterCategoryRoutes(r *gin.Engine) {
+func RegisterCategoryRoutes(r *gin.Engine, deps service.ServiceDeps) {
+	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
+	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
 	categoryGroup := r.Group("/api/v1/platform/category")
 	categoryGroup.Use(middleware.AuthMiddleware())
 	categoryGroup.Use(middleware.OperationLogMiddleware(model.LogModuleCategory))
 	{
-		categoryGroup.POST("", middleware.PermissionMiddleware(), categoryCtrl.CreateCategory)
-		categoryGroup.GET("", middleware.PermissionMiddleware(), categoryCtrl.GetCategoryList)
-		categoryGroup.GET("/:id", middleware.PermissionMiddleware(), categoryCtrl.GetCategory)
-		categoryGroup.GET("/tree", middleware.PermissionMiddleware(), categoryCtrl.GetCategoryTree)
-		categoryGroup.GET("/children/:id", middleware.PermissionMiddleware(), categoryCtrl.GetCategoryChildrenList)
-		categoryGroup.PUT("/:id", middleware.PermissionMiddleware(), categoryCtrl.UpdateCategory)
-		categoryGroup.DELETE("/:id", middleware.PermissionMiddleware(), categoryCtrl.DeleteCategory)
+		categoryGroup.POST("", permMW, categoryCtrl.CreateCategory)
+		categoryGroup.GET("", permMW, categoryCtrl.GetCategoryList)
+		categoryGroup.GET("/:id", permMW, categoryCtrl.GetCategory)
+		categoryGroup.GET("/tree", permMW, categoryCtrl.GetCategoryTree)
+		categoryGroup.GET("/children/:id", permMW, categoryCtrl.GetCategoryChildrenList)
+		categoryGroup.PUT("/:id", permMW, categoryCtrl.UpdateCategory)
+		categoryGroup.DELETE("/:id", permMW, categoryCtrl.DeleteCategory)
 	}
 }

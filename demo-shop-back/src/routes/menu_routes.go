@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -17,17 +18,19 @@ func InitMenuModule(deps service.ServiceDeps) {
 }
 
 // RegisterMenuRoutes 初始化菜单路由
-func RegisterMenuRoutes(r *gin.Engine) {
+func RegisterMenuRoutes(r *gin.Engine, deps service.ServiceDeps) {
+	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
+	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
 	menuGroup := r.Group("/api/v1/menu")
 	menuGroup.Use(middleware.AuthMiddleware())
 	menuGroup.Use(middleware.OperationLogMiddleware(model.LogModulePermission))
 	{
-		menuGroup.POST("", middleware.PermissionMiddleware(), menuCtrl.CreateMenu)
-		menuGroup.GET("", middleware.PermissionMiddleware(), menuCtrl.GetMenuList)
-		menuGroup.GET("/:id", middleware.PermissionMiddleware(), menuCtrl.GetMenu)
+		menuGroup.POST("", permMW, menuCtrl.CreateMenu)
+		menuGroup.GET("", permMW, menuCtrl.GetMenuList)
+		menuGroup.GET("/:id", permMW, menuCtrl.GetMenu)
 		menuGroup.POST("/tree", menuCtrl.GetMenuTreeByUserId)
-		menuGroup.GET("/:id/tree", middleware.PermissionMiddleware(), menuCtrl.GetMenuTreeByRoleId)
-		menuGroup.PUT("/:id", middleware.PermissionMiddleware(), menuCtrl.UpdateMenu)
-		menuGroup.DELETE("/:id", middleware.PermissionMiddleware(), menuCtrl.DeleteMenu)
+		menuGroup.GET("/:id/tree", permMW, menuCtrl.GetMenuTreeByRoleId)
+		menuGroup.PUT("/:id", permMW, menuCtrl.UpdateMenu)
+		menuGroup.DELETE("/:id", permMW, menuCtrl.DeleteMenu)
 	}
 }

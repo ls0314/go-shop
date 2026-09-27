@@ -2,8 +2,7 @@ package middleware
 
 import (
 	"context"
-	"demo-shop-back/db"
-	"demo-shop-back/src/infra"
+	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 	"demo-shop-back/src/utils"
@@ -75,12 +74,11 @@ func AuthMiddleware() gin.HandlerFunc {
 }
 
 // getUserPermCodes 获取用户全部权限码：先查 Redis(user:perm:{userId})，miss 查 DB 回写
-func getUserPermCodes(permissionRepo *repository.PermissionRepo, userId int64) ([]string, error) {
-	cache := infra.GetCache()
+func getUserPermCodes(permissionRepo *repository.PermissionRepo, cch *cache.RedisService, userId int64) ([]string, error) {
 	key := fmt.Sprintf("user:perm:%d", userId)
-	if cache != nil {
+	if cch != nil {
 		var codes []string
-		hit, err := cache.GetJSON(context.Background(), key, &codes)
+		hit, err := cch.GetJSON(context.Background(), key, &codes)
 		if err == nil && hit {
 			return codes, nil
 		}
@@ -89,25 +87,24 @@ func getUserPermCodes(permissionRepo *repository.PermissionRepo, userId int64) (
 	if err != nil {
 		return nil, err
 	}
-	if cache != nil {
-		_ = cache.SetJSON(context.Background(), key, codes, 30*time.Minute)
+	if cch != nil {
+		_ = cch.SetJSON(context.Background(), key, codes, 30*time.Minute)
 	}
 	return codes, nil
 }
 
 // GetUserPermCodes 供 handler 层获取用户全部权限码(按钮级权限展示用)
-func GetUserPermCodes(userId int64) ([]string, error) {
-	return getUserPermCodes(repository.NewPermissionRepo(db.DB), userId)
+func GetUserPermCodes(permRepo *repository.PermissionRepo, cch *cache.RedisService, userId int64) ([]string, error) {
+	return getUserPermCodes(permRepo, cch, userId)
 }
 
-func getApiPermCodes(permissionRepo *repository.PermissionRepo, path, method string) ([]string, error) {
-	cache := infra.GetCache()
-	if cache == nil {
+func getApiPermCodes(permissionRepo *repository.PermissionRepo, cch *cache.RedisService, path, method string) ([]string, error) {
+	if cch == nil {
 		return permissionRepo.GetPermCodesByApi(path, method)
 	}
 
 	version := "0"
-	v, err := cache.Get(context.Background(), "api:perm:version")
+	v, err := cch.Get(context.Background(), "api:perm:version")
 	switch {
 	case err == nil:
 		version = v
@@ -118,7 +115,7 @@ func getApiPermCodes(permissionRepo *repository.PermissionRepo, path, method str
 
 	key := fmt.Sprintf("api:perm:v%s:%s:%s", version, method, path)
 	var codes []string
-	hit, err := cache.GetJSON(context.Background(), key, &codes)
+	hit, err := cch.GetJSON(context.Background(), key, &codes)
 	if err == nil && hit {
 		return codes, nil
 	}
@@ -130,12 +127,12 @@ func getApiPermCodes(permissionRepo *repository.PermissionRepo, path, method str
 
 	// 回写——空结果不缓存
 	if len(codes) > 0 {
-		_ = cache.SetJSON(context.Background(), key, codes, 30*time.Minute)
+		_ = cch.SetJSON(context.Background(), key, codes, 30*time.Minute)
 	}
 	return codes, nil
 }
 
-func PermissionMiddleware() gin.HandlerFunc {
+func PermissionMiddleware(permRepo *repository.PermissionRepo, cch *cache.RedisService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.FullPath() // Gin 路由模板，如 /api/v1/platform/products/:id
 		method := c.Request.Method
@@ -153,8 +150,7 @@ func PermissionMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		var permissionRepo = repository.NewPermissionRepo(db.DB)
-		codes, err := getApiPermCodes(permissionRepo, path, method)
+		codes, err := getApiPermCodes(permRepo, cch, path, method)
 		if err != nil {
 			utils.Fail(c, 400, err.Error())
 			c.Abort()
@@ -167,7 +163,7 @@ func PermissionMiddleware() gin.HandlerFunc {
 		}
 
 		// 一次取用户全量权限码(缓存优先)，命中则跳过原先逐 code 的 3 表 JOIN 查询
-		userCodes, err := getUserPermCodes(permissionRepo, userId)
+		userCodes, err := getUserPermCodes(permRepo, cch, userId)
 		if err != nil {
 			utils.Error(c, 500, model.HasNotPerm.Error())
 			c.Abort()

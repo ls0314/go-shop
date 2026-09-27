@@ -15,7 +15,7 @@ func InitUserInfoModule(deps service.ServiceDeps) {
 	userInfoCtrl = handler.NewUserInfoHandler(deps)
 }
 
-func RegisterUserInfoRoutes(r *gin.Engine) {
+func RegisterUserInfoRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 创建角色接口路由分组，统一前缀 /api/v1/Info
 	userInfoGroup := r.Group("/api/v1/user/info")
 	// 添加全局认证中间件（必须登录才能访问角色接口）

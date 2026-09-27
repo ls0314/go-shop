@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
+	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +16,9 @@ func InitUserModule(deps service.ServiceDeps) {
 	userCtrl = handler.NewUserHandler(deps)
 }
 
-func RegisterUserRoutes(r *gin.Engine) {
+func RegisterUserRoutes(r *gin.Engine, deps service.ServiceDeps) {
+	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
+	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
 	userPublic := r.Group("/api/v1/user")
 	{
 		userPublic.POST("/register", middleware.PerIPRateLimit(), userCtrl.CreateUserHandler)
@@ -29,11 +32,11 @@ func RegisterUserRoutes(r *gin.Engine) {
 	{
 		userPrivate.GET("/info", userCtrl.GetUserInfo)
 		userPrivate.GET("/perms", userCtrl.GetUserPerms)
-		userPrivate.GET("", middleware.PermissionMiddleware(), userCtrl.GetUserList)
-		userPrivate.POST("", middleware.PermissionMiddleware(), userCtrl.CreateUserHandler)
-		userPrivate.PUT("/:id", middleware.PermissionMiddleware(), userCtrl.UpdateUser)
-		userPrivate.DELETE("/:id", middleware.PermissionMiddleware(), userCtrl.DeleteUser)
-		userPrivate.GET("/:id", middleware.PermissionMiddleware(), userCtrl.GetUser)
+		userPrivate.GET("", permMW, userCtrl.GetUserList)
+		userPrivate.POST("", permMW, userCtrl.CreateUserHandler)
+		userPrivate.PUT("/:id", permMW, userCtrl.UpdateUser)
+		userPrivate.DELETE("/:id", permMW, userCtrl.DeleteUser)
+		userPrivate.GET("/:id", permMW, userCtrl.GetUser)
 	}
 
 }

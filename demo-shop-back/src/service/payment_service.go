@@ -32,8 +32,8 @@ type PaymentService struct {
 // 返回值：*PaymentService - 支付模块服务层实例指针
 func NewPaymentService() *PaymentService {
 	return &PaymentService{
-		PaymentRepo:      repository.NewPaymentRepo(),
-		OrderRepo:        repository.NewOrderRepo(),
+		PaymentRepo:      repository.NewPaymentRepo(db.DB),
+		OrderRepo:        repository.NewOrderRepo(db.DB),
 		db:               db.DB,
 		InventoryService: NewInventoryService(),
 	}

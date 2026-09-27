@@ -25,8 +25,8 @@ type ScopeService struct {
 // 返回值：*ScopeService - 数据权限范围服务层实例指针
 func NewScopeService() *ScopeService {
 	return &ScopeService{
-		ScopeRope: repository.NewScopeRepo(),
-		RoleRepo:  repository.NewRoleRepo(),
+		ScopeRope: repository.NewScopeRepo(db.DB),
+		RoleRepo:  repository.NewRoleRepo(db.DB),
 		db:        db.DB,
 	}
 }

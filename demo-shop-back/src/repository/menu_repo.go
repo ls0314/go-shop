@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 
 	"gorm.io/gorm"
@@ -15,8 +14,8 @@ type MenuRepo struct {
 // NewMenuRepo 创建菜单表数据层实例
 // 接收值：全局数据库操作 无接收值
 // 返回值：*MenuRepo - 菜单表数据层实例指针
-func NewMenuRepo() *MenuRepo {
-	return &MenuRepo{DB: db.DB}
+func NewMenuRepo(conn *gorm.DB) *MenuRepo {
+	return &MenuRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

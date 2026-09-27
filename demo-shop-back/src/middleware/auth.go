@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"demo-shop-back/db"
 	"demo-shop-back/src/infra"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
@@ -96,7 +97,7 @@ func getUserPermCodes(permissionRepo *repository.PermissionRepo, userId int64) (
 
 // GetUserPermCodes 供 handler 层获取用户全部权限码(按钮级权限展示用)
 func GetUserPermCodes(userId int64) ([]string, error) {
-	return getUserPermCodes(repository.NewPermissionRepo(), userId)
+	return getUserPermCodes(repository.NewPermissionRepo(db.DB), userId)
 }
 
 func getApiPermCodes(permissionRepo *repository.PermissionRepo, path, method string) ([]string, error) {
@@ -152,7 +153,7 @@ func PermissionMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		var permissionRepo = repository.NewPermissionRepo()
+		var permissionRepo = repository.NewPermissionRepo(db.DB)
 		codes, err := getApiPermCodes(permissionRepo, path, method)
 		if err != nil {
 			utils.Fail(c, 400, err.Error())

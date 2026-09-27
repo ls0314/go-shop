@@ -25,12 +25,12 @@ type InventoryService struct {
 }
 
 // NewInventoryService 创建库存服务层实例
-// 接收值：使用全局repository初始化，故无接收值
+// 接收值：注入的数据库连接（由 composition root 提供）
 // 返回值：*InventoryService - 库存服务层实例指针
 func NewInventoryService() *InventoryService {
 	return &InventoryService{
-		ProductRepo:      repository.NewProductRepo(),
-		InventoryLogRepo: repository.NewInventoryRepo(),
+		ProductRepo:      repository.NewProductRepo(db.DB),
+		InventoryLogRepo: repository.NewInventoryRepo(db.DB),
 		db:               db.DB,
 	}
 }

@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 
 	"gorm.io/gorm"
@@ -15,8 +14,8 @@ type RoleMenuRepo struct {
 // NewRoleMenuRepo 创建角色-菜单关联表数据层实例
 // 接收值：使用全局数据库，故无接收值
 // 返回值：*RoleMenuRepo - 角色-菜单关联表数据层指针
-func NewRoleMenuRepo() *RoleMenuRepo {
-	return &RoleMenuRepo{DB: db.DB}
+func NewRoleMenuRepo(conn *gorm.DB) *RoleMenuRepo {
+	return &RoleMenuRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

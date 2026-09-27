@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"errors"
 
@@ -16,8 +15,8 @@ type UserRepo struct {
 // NewUserRepo 创建用户表数据层实例
 // 接收值：使用全局数据库，故无接收值
 // 返回值：*UserRepo - 用户表数据层指针
-func NewUserRepo() *UserRepo {
-	return &UserRepo{DB: db.DB}
+func NewUserRepo(conn *gorm.DB) *UserRepo {
+	return &UserRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

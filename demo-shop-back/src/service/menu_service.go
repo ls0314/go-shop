@@ -18,13 +18,13 @@ type MenuService struct {
 }
 
 // NewMenuService 创建菜单表服务层实例
-// 接收值：使用全局repository初始化，故无接收值
+// 接收值：注入的数据库连接（由 composition root 提供）
 // 返回值：*MenuService - 菜单表服务层实例指针
 func NewMenuService() *MenuService {
 	return &MenuService{
-		MenuRepo:     repository.NewMenuRepo(),
-		RoleMenuRepo: repository.NewRoleMenuRepo(),
-		UserRoleRepo: repository.NewUserRoleRepo(),
+		MenuRepo:     repository.NewMenuRepo(db.DB),
+		RoleMenuRepo: repository.NewRoleMenuRepo(db.DB),
+		UserRoleRepo: repository.NewUserRoleRepo(db.DB),
 		db:           db.DB,
 	}
 }

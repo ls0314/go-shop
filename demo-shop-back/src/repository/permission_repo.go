@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 
 	"gorm.io/gorm"
@@ -15,8 +14,8 @@ type PermissionRepo struct {
 // NewPermissionRepo 创建权限表数据层实例
 // 接收值：全局数据库操作 无接收值
 // 返回值：*PermissionRepo - 权限表数据层实例指针
-func NewPermissionRepo() *PermissionRepo {
-	return &PermissionRepo{DB: db.DB}
+func NewPermissionRepo(conn *gorm.DB) *PermissionRepo {
+	return &PermissionRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

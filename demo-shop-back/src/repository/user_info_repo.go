@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 
 	"gorm.io/gorm"
@@ -15,8 +14,8 @@ type UserProfileRepo struct {
 // NewUserProfileRepo 创建用户信息表数据层实例
 // 接收值：使用全局数据库，故无接收值
 // 返回值：*UserProfileRepo - 用户信息表数据层指针
-func NewUserProfileRepo() *UserProfileRepo {
-	return &UserProfileRepo{DB: db.DB}
+func NewUserProfileRepo(conn *gorm.DB) *UserProfileRepo {
+	return &UserProfileRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

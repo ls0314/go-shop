@@ -20,13 +20,13 @@ type UserRoleService struct {
 }
 
 // NewUserRoleService 创建用户-角色关联服务层实例
-// 接收值：使用全局数据库，故无接收值
+// 接收值：conn - 数据库连接（由调用方注入）
 // 返回值：*UserRoleService - 用户-角色关联服务层指针
 func NewUserRoleService() *UserRoleService {
 	return &UserRoleService{
-		UserRoleRepo: repository.NewUserRoleRepo(),
-		UserRepo:     repository.NewUserRepo(),
-		RoleRepo:     repository.NewRoleRepo(),
+		UserRoleRepo: repository.NewUserRoleRepo(db.DB),
+		UserRepo:     repository.NewUserRepo(db.DB),
+		RoleRepo:     repository.NewRoleRepo(db.DB),
 		db:           db.DB,
 	}
 }

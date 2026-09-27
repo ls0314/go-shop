@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 
 	"gorm.io/gorm"
@@ -15,8 +14,8 @@ type MenuPermissionRepo struct {
 // NewMenuPermissionRepo 创建菜单-权限关联表数据层实例
 // 接收值：使用全局数据库，故无接收值
 // 返回值：*MenuPermissionRepo - 菜单-权限关联表数据层指针
-func NewMenuPermissionRepo() *MenuPermissionRepo {
-	return &MenuPermissionRepo{DB: db.DB}
+func NewMenuPermissionRepo(conn *gorm.DB) *MenuPermissionRepo {
+	return &MenuPermissionRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

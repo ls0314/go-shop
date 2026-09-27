@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"errors"
 	"time"
@@ -17,10 +16,8 @@ type AddressRepo struct {
 // NewAddressRepo 创建地址表数据层实例
 // 接收值：使用全局数据库，故无接收值
 // 返回值：*AddressRepo - 地址表数据层指针
-func NewAddressRepo() *AddressRepo {
-	return &AddressRepo{
-		DB: db.DB,
-	}
+func NewAddressRepo(conn *gorm.DB) *AddressRepo {
+	return &AddressRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

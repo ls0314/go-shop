@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
@@ -24,10 +23,8 @@ type CouponRepo struct {
 // NewCouponRepo 新建优惠券模块数据层实例
 // 接收值：无接收值，使用全局数据库连接
 // 返回值：*CouponRepo - 优惠券模块数据层实例指针
-func NewCouponRepo() *CouponRepo {
-	return &CouponRepo{
-		db: db.DB,
-	}
+func NewCouponRepo(conn *gorm.DB) *CouponRepo {
+	return &CouponRepo{db: conn}
 }
 
 // WithTx 优惠券表事务实例

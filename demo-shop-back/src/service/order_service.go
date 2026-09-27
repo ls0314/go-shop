@@ -33,14 +33,14 @@ type OrderService struct {
 }
 
 // NewOrderService 创建订单服务层实例
-// 接收值：使用全局repository初始化，故无接收值
+// 接收值：注入的数据库连接（由 composition root 提供）
 // 返回值：*OrderService - 订单服务层实例指针
 func NewOrderService() *OrderService {
 	order := &OrderService{
-		OrderRepo:         repository.NewOrderRepo(),
-		AddressRepo:       repository.NewAddressRepo(),
-		CouponRepo:        repository.NewCouponRepo(),
-		OutboxMessageRepo: repository.NewOutboxMessage(),
+		OrderRepo:         repository.NewOrderRepo(db.DB),
+		AddressRepo:       repository.NewAddressRepo(db.DB),
+		CouponRepo:        repository.NewCouponRepo(db.DB),
+		OutboxMessageRepo: repository.NewOutboxMessage(db.DB),
 		db:                db.DB,
 		CartItemService:   NewCartItemService(),
 		InventoryService:  NewInventoryService(),

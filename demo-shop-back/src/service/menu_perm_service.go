@@ -17,13 +17,13 @@ type MenuPermissionService struct {
 }
 
 // NewMenuPermissionService 创建菜单-权限关联服务层实例
-// 接收值：使用全局数据库，故无接收值
+// 接收值：conn - 数据库连接（由调用方注入）
 // 返回值：*MenuPermissionService - 菜单-权限关联服务层指针
 func NewMenuPermissionService() *MenuPermissionService {
 	return &MenuPermissionService{
-		MenuPermissionRepo: repository.NewMenuPermissionRepo(),
-		MenuRepo:           repository.NewMenuRepo(),
-		PermissionRepo:     repository.NewPermissionRepo(),
+		MenuPermissionRepo: repository.NewMenuPermissionRepo(db.DB),
+		MenuRepo:           repository.NewMenuRepo(db.DB),
+		PermissionRepo:     repository.NewPermissionRepo(db.DB),
 		db:                 db.DB,
 	}
 }

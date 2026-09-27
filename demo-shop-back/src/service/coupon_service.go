@@ -28,7 +28,7 @@ type CouponService struct {
 // 返回值：*CouponService - 优惠券模块服务层实例指针
 func NewCouponService() *CouponService {
 	return &CouponService{
-		CouponRepo: repository.NewCouponRepo(),
+		CouponRepo: repository.NewCouponRepo(db.DB),
 		db:         db.DB,
 		cache:      infra.GetGateCache(),
 	}

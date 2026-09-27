@@ -21,14 +21,14 @@ type RolePermService struct {
 }
 
 // NewRolePermService 创建角色-权限关联服务层实例
-// 接收值：使用全局数据库，故无接收值
+// 接收值：conn - 数据库连接（由调用方注入）
 // 返回值：*RolePermService - 角色-权限关联服务层指针
 func NewRolePermService() *RolePermService {
 	return &RolePermService{
-		RolePermRepo: repository.NewRolePermRepo(),
-		RoleRepo:     repository.NewRoleRepo(),
-		PermRepo:     repository.NewPermissionRepo(),
-		UserRoleRepo: repository.NewUserRoleRepo(),
+		RolePermRepo: repository.NewRolePermRepo(db.DB),
+		RoleRepo:     repository.NewRoleRepo(db.DB),
+		PermRepo:     repository.NewPermissionRepo(db.DB),
+		UserRoleRepo: repository.NewUserRoleRepo(db.DB),
 		db:           db.DB,
 	}
 }

@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 
 	"gorm.io/gorm"
@@ -15,8 +14,8 @@ type DepartmentRepo struct {
 // NewDeptRepo 创建部门数据访问层实例
 // 接收值：使用全局数据库，故无接收值
 // 返回值: *DepartmentRepo - 部门数据访问层实例
-func NewDeptRepo() *DepartmentRepo {
-	return &DepartmentRepo{DB: db.DB}
+func NewDeptRepo(conn *gorm.DB) *DepartmentRepo {
+	return &DepartmentRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

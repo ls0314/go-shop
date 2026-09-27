@@ -1,6 +1,7 @@
 package service
 
 import (
+	"demo-shop-back/db"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
 	"demo-shop-back/src/repository"
@@ -12,7 +13,7 @@ type OperationLogService struct {
 
 func NewOperationLogService() *OperationLogService {
 	return &OperationLogService{
-		OperationLogRepo: repository.NewOperationLogRepo(),
+		OperationLogRepo: repository.NewOperationLogRepo(db.DB),
 	}
 }
 

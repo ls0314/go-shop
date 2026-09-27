@@ -17,13 +17,13 @@ type UserDeptService struct {
 }
 
 // NewUserDeptService 创建用户-部门关联服务层实例
-// 接收值：使用全局数据库，故无接收值
+// 接收值：conn - 数据库连接（由调用方注入）
 // 返回值：*UserDeptService - 用户-部门关联服务层指针
 func NewUserDeptService() *UserDeptService {
 	return &UserDeptService{
-		UserDeptRepo:   repository.NewUserDeptRepo(),
-		UserRepo:       repository.NewUserRepo(),
-		DepartmentRepo: repository.NewDeptRepo(),
+		UserDeptRepo:   repository.NewUserDeptRepo(db.DB),
+		UserRepo:       repository.NewUserRepo(db.DB),
+		DepartmentRepo: repository.NewDeptRepo(db.DB),
 		db:             db.DB,
 	}
 }

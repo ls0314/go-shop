@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 
 	"gorm.io/gorm"
@@ -15,10 +14,8 @@ type UserDeptRepo struct {
 // NewUserDeptRepo 创建用户-部门关联表数据层实例
 // 接收值：使用全局数据库，故无接收值
 // 返回值：*UserDeptRepo - 用户-部门关联表数据层指针
-func NewUserDeptRepo() *UserDeptRepo {
-	return &UserDeptRepo{
-		DB: db.DB,
-	}
+func NewUserDeptRepo(conn *gorm.DB) *UserDeptRepo {
+	return &UserDeptRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

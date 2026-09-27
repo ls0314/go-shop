@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"errors"
@@ -38,10 +37,8 @@ type ProductRepo struct {
 // NewProductRepo 新建商品表数据层实例
 // 接收值：全局数据库操作 无接收值
 // 返回值：*ProductRepo - 商品表数据层实例指针
-func NewProductRepo() *ProductRepo {
-	return &ProductRepo{
-		DB: db.DB,
-	}
+func NewProductRepo(conn *gorm.DB) *ProductRepo {
+	return &ProductRepo{DB: conn}
 }
 
 // WithTx 商品表事务实例

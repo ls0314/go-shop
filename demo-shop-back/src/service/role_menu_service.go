@@ -21,9 +21,9 @@ type RoleMenuService struct {
 // 返回值：*RoleMenuService - 角色-菜单关联服务层指针
 func NewRoleMenuService() *RoleMenuService {
 	return &RoleMenuService{
-		RoleMenuRepo: repository.NewRoleMenuRepo(),
-		RoleRepo:     repository.NewRoleRepo(),
-		MenuRepo:     repository.NewMenuRepo(),
+		RoleMenuRepo: repository.NewRoleMenuRepo(db.DB),
+		RoleRepo:     repository.NewRoleRepo(db.DB),
+		MenuRepo:     repository.NewMenuRepo(db.DB),
 		db:           db.DB,
 	}
 }

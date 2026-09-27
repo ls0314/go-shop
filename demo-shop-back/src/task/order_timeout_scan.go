@@ -5,6 +5,7 @@
 package task
 
 import (
+	"demo-shop-back/db"
 	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/metrics"
 	"demo-shop-back/src/model"
@@ -31,7 +32,7 @@ type OrderTimeoutScanService struct {
 // NewOrderTimeoutScanService 创建扫描任务
 func NewOrderTimeoutScanService() *OrderTimeoutScanService {
 	return &OrderTimeoutScanService{
-		orderRepo: repository.NewOrderRepo(),
+		orderRepo: repository.NewOrderRepo(db.DB),
 		orderSvc:  service.NewOrderService(),
 		locks:     NewDistributedLockManager(infra.GetCache()),
 	}

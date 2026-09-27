@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
@@ -120,10 +119,8 @@ type InventoryLogRepo struct {
 // NewInventoryRepo 新建库存日志表数据层实例
 // 接收值：全局数据库操作 无接收值
 // 返回值：*InventoryLogRepo - 库存日志表数据层实例指针
-func NewInventoryRepo() *InventoryLogRepo {
-	return &InventoryLogRepo{
-		db: db.DB,
-	}
+func NewInventoryRepo(conn *gorm.DB) *InventoryLogRepo {
+	return &InventoryLogRepo{db: conn}
 }
 
 // WithTx 库存日志表事务实例

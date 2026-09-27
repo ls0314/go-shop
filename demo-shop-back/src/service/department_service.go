@@ -21,8 +21,8 @@ type DeptService struct {
 // 返回值： *DeptService - 部门表服务层指针
 func NewDeptService() *DeptService {
 	return &DeptService{
-		DepartmentRepo: repository.NewDeptRepo(),
-		UserDeptRepo:   repository.NewUserDeptRepo(),
+		DepartmentRepo: repository.NewDeptRepo(db.DB),
+		UserDeptRepo:   repository.NewUserDeptRepo(db.DB),
 		db:             db.DB,
 	}
 }

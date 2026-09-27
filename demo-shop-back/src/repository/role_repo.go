@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 
 	"gorm.io/gorm"
@@ -15,8 +14,8 @@ type RoleRepo struct {
 // NewRoleRepo 新建数据层角色对象
 // 接收值：使用全局数据库, 无参数
 // 返回值：*RoleRepo - 数据层角色对象指针
-func NewRoleRepo() *RoleRepo {
-	return &RoleRepo{DB: db.DB}
+func NewRoleRepo(conn *gorm.DB) *RoleRepo {
+	return &RoleRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

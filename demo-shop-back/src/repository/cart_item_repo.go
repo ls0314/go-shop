@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
@@ -24,10 +23,8 @@ type CartItemRepo struct {
 // NewCartItemRepo 创建购物车表数据层实例
 // 接收值：使用全局数据库，故无接收值
 // 返回值：*CartItemRepo - 购物车表数据层指针
-func NewCartItemRepo() *CartItemRepo {
-	return &CartItemRepo{
-		db: db.DB,
-	}
+func NewCartItemRepo(conn *gorm.DB) *CartItemRepo {
+	return &CartItemRepo{db: conn}
 }
 
 // WithTx 切换数据库事务实例

@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"errors"
 
@@ -16,10 +15,8 @@ type CategoryRepo struct {
 // NewCategoryRepo 创建类目表数据层实例
 // 接收值：全局数据库操作 无接收值
 // 返回值：*CategoryRepo - 类目表数据层实例指针
-func NewCategoryRepo() *CategoryRepo {
-	return &CategoryRepo{
-		DB: db.DB,
-	}
+func NewCategoryRepo(conn *gorm.DB) *CategoryRepo {
+	return &CategoryRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

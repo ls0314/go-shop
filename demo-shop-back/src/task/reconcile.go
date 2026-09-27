@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"log"
 
-	"time"
-
+	"demo-shop-back/db"
 	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/infra/es"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -39,7 +39,7 @@ type ReconcileService struct {
 // NewReconcileService 创建对账服务(依赖从全局 infra 获取)
 func NewReconcileService() *ReconcileService {
 	return &ReconcileService{
-		repo:  repository.NewProductRepo(),
+		repo:  repository.NewProductRepo(db.DB),
 		es:    infra.GetES(),
 		cache: infra.GetCache(),
 		locks: NewDistributedLockManager(infra.GetCache()),

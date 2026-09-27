@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"time"
 
@@ -12,10 +11,8 @@ type OutboxMessageRepo struct {
 	db *gorm.DB
 }
 
-func NewOutboxMessage() *OutboxMessageRepo {
-	return &OutboxMessageRepo{
-		db: db.DB,
-	}
+func NewOutboxMessage(conn *gorm.DB) *OutboxMessageRepo {
+	return &OutboxMessageRepo{db: conn}
 }
 
 func (o *OutboxMessageRepo) WithTx(tx *gorm.DB) *OutboxMessageRepo {

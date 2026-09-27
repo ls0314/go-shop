@@ -1,6 +1,7 @@
 package task
 
 import (
+	"demo-shop-back/db"
 	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/mq"
 	"demo-shop-back/src/repository"
@@ -17,6 +18,6 @@ func Init() {
 
 	if mqIns := infra.GetMQ(); mqIns != nil {
 		lockMgr := NewDistributedLockManager(infra.GetCache())
-		mq.StartOutboxDispatcher(mqIns, repository.NewOutboxMessage(), lockMgr)
+		mq.StartOutboxDispatcher(mqIns, repository.NewOutboxMessage(db.DB), lockMgr)
 	}
 }

@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
@@ -15,10 +14,8 @@ type PaymentRepo struct {
 	db *gorm.DB
 }
 
-func NewPaymentRepo() *PaymentRepo {
-	return &PaymentRepo{
-		db: db.DB,
-	}
+func NewPaymentRepo(conn *gorm.DB) *PaymentRepo {
+	return &PaymentRepo{db: conn}
 }
 
 func (p *PaymentRepo) WithTx(tx *gorm.DB) *PaymentRepo {

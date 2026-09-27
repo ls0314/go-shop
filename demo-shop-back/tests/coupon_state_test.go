@@ -3,6 +3,7 @@ package tests
 import (
 	"testing"
 
+	"demo-shop-back/db"
 	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 )
@@ -25,7 +26,7 @@ func TestUseCoupon_Concurrent_OnlyOneWins(t *testing.T) {
 		t.Fatalf("领取前置券失败: %v", err)
 	}
 
-	repo := repository.NewCouponRepo()
+	repo := repository.NewCouponRepo(db.DB)
 	stats, affectedSum := runConcurrent(t, goroutines, func(i int) (int64, error) {
 		return repo.UseCoupon(resp.UserCouponId, orderNo)
 	})
@@ -57,7 +58,7 @@ func TestRefundCoupon_Idempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("领取前置券失败: %v", err)
 	}
-	repo := repository.NewCouponRepo()
+	repo := repository.NewCouponRepo(db.DB)
 	if n, err := repo.UseCoupon(resp.UserCouponId, orderNo); err != nil || n != 1 {
 		t.Fatalf("前置核销失败: affected=%d err=%v", n, err)
 	}

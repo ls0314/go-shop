@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 
 	"gorm.io/gorm"
@@ -15,8 +14,8 @@ type UserRoleRepo struct {
 // NewUserRoleRepo 创建用户-角色关联表数据层实例
 // 接收值：使用全局数据库，故无接收值
 // 返回值：*UserRoleRepo - 用户-角色关联表数据层指针
-func NewUserRoleRepo() *UserRoleRepo {
-	return &UserRoleRepo{DB: db.DB}
+func NewUserRoleRepo(conn *gorm.DB) *UserRoleRepo {
+	return &UserRoleRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

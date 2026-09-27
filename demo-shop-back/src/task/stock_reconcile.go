@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"demo-shop-back/db"
 	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
@@ -26,8 +27,8 @@ type StockReconcileService struct {
 
 func NewStockReconcileService() *StockReconcileService {
 	return &StockReconcileService{
-		couponRepo:  repository.NewCouponRepo(),
-		productRepo: repository.NewProductRepo(),
+		couponRepo:  repository.NewCouponRepo(db.DB),
+		productRepo: repository.NewProductRepo(db.DB),
 		cache:       infra.GetCache(),
 		locks:       NewDistributedLockManager(infra.GetCache()),
 	}
@@ -37,8 +38,8 @@ func NewStockReconcileService() *StockReconcileService {
 // 使「对账收敛」成为可被测试断言的行为(C5 阶段二)
 func NewStockReconcileServiceWithCache(c *cache.RedisService) *StockReconcileService {
 	return &StockReconcileService{
-		couponRepo:  repository.NewCouponRepo(),
-		productRepo: repository.NewProductRepo(),
+		couponRepo:  repository.NewCouponRepo(db.DB),
+		productRepo: repository.NewProductRepo(db.DB),
 		cache:       c,
 		locks:       NewDistributedLockManager(c),
 	}

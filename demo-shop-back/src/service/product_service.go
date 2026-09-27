@@ -214,12 +214,12 @@ type ProductService struct {
 }
 
 // NewProductService 创建商品服务层实例
-// 接收值：使用全局repository初始化，故无接收值
+// 接收值：注入的数据库连接（由 composition root 提供）
 // 返回值：*ProductService - 商品服务层实例指针
 func NewProductService() *ProductService {
 	return &ProductService{
-		ProductRepo:  repository.NewProductRepo(),
-		CategoryRepo: repository.NewCategoryRepo(),
+		ProductRepo:  repository.NewProductRepo(db.DB),
+		CategoryRepo: repository.NewCategoryRepo(db.DB),
 		db:           db.DB,
 	}
 }

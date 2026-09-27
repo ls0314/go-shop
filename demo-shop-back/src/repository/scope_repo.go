@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 
 	"gorm.io/gorm"
@@ -14,8 +13,8 @@ type ScopeRope struct {
 
 // NewScopeRepo 创建数据权限表数据层实例
 // 返回值：*SysScope - 数据权限表数据层指针
-func NewScopeRepo() *ScopeRope {
-	return &ScopeRope{DB: db.DB}
+func NewScopeRepo(conn *gorm.DB) *ScopeRope {
+	return &ScopeRope{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

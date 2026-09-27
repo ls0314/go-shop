@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"time"
@@ -13,10 +12,8 @@ type OperationLogRepo struct {
 	db *gorm.DB
 }
 
-func NewOperationLogRepo() *OperationLogRepo {
-	return &OperationLogRepo{
-		db: db.DB,
-	}
+func NewOperationLogRepo(conn *gorm.DB) *OperationLogRepo {
+	return &OperationLogRepo{db: conn}
 }
 
 func (o *OperationLogRepo) CreateOperationLog(req *model.OperationLog) error {

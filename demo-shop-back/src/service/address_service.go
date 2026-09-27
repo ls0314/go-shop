@@ -22,7 +22,7 @@ type AddressService struct {
 // 返回值：*AddressService - 地址服务层指针
 func NewAddressService() *AddressService {
 	return &AddressService{
-		AddressRepo: repository.NewAddressRepo(),
+		AddressRepo: repository.NewAddressRepo(db.DB),
 		DB:          db.DB,
 	}
 }

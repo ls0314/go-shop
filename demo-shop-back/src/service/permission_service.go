@@ -24,9 +24,9 @@ type PermissionService struct {
 // 返回值：*PermissionService - 权限表服务层实例指针
 func NewPermissionService() *PermissionService {
 	return &PermissionService{
-		PermRepo:     repository.NewPermissionRepo(),
-		UserRoleRepo: repository.NewUserRoleRepo(),
-		RolePermRepo: repository.NewRolePermRepo(),
+		PermRepo:     repository.NewPermissionRepo(db.DB),
+		UserRoleRepo: repository.NewUserRoleRepo(db.DB),
+		RolePermRepo: repository.NewRolePermRepo(db.DB),
 		db:           db.DB,
 	}
 }

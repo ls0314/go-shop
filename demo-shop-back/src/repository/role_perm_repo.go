@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 
 	"gorm.io/gorm"
@@ -15,8 +14,8 @@ type RolePermRepo struct {
 // NewRolePermRepo 创建角色-权限关联表数据层实例
 // 接收值：使用全局数据库，故无接收值
 // 返回值：*RolePermRepo - 角色-权限关联表数据层指针
-func NewRolePermRepo() *RolePermRepo {
-	return &RolePermRepo{DB: db.DB}
+func NewRolePermRepo(conn *gorm.DB) *RolePermRepo {
+	return &RolePermRepo{DB: conn}
 }
 
 // WithTx 切换数据库事务实例

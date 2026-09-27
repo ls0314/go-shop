@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"demo-shop-back/db"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
@@ -23,10 +22,8 @@ type OrderRepo struct {
 // NewOrderRepo 新建订单模块数据层实例
 // 接收值：全局数据库操作 无接收值
 // 返回值：*OrderRepo - 商品模块数据层实例指针
-func NewOrderRepo() *OrderRepo {
-	return &OrderRepo{
-		db: db.DB,
-	}
+func NewOrderRepo(conn *gorm.DB) *OrderRepo {
+	return &OrderRepo{db: conn}
 }
 
 // WithTx 商品表事务实例

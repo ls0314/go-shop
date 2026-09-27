@@ -20,7 +20,7 @@ type RoleService struct {
 // 返回值：*RoleService - 服务层角色对象指针
 func NewRoleService() *RoleService {
 	return &RoleService{
-		RoleRepo: repository.NewRoleRepo(),
+		RoleRepo: repository.NewRoleRepo(db.DB),
 		db:       db.DB,
 	}
 }

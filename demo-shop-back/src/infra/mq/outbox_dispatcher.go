@@ -14,7 +14,7 @@ type TaskLock interface {
 }
 
 const (
-	outboxLockName     = "outbox:dispatch" // 实际 Redis 锁 = lock:task:outbox:dispatch(管理器统一加前缀,勿重复拼)
+	outboxLockName     = "outbox:dispatch" // 实际 Redis 锁 = lock:task:outbox:dispatch
 	outboxLockExpiry   = 5 * time.Minute   // 锁上界:远大于单轮投递耗时,到期自动释放防死锁
 	outboxPollInterval = time.Second       // 轮询周期:延迟取消的及时性要求是分钟级,1s 绰绰有余
 	outboxBatchSize    = 100               // 单轮上限:防止积压时单轮持锁过久
@@ -37,7 +37,7 @@ func StartOutboxDispatcher(r *RabbitMQ, repo *repository.OutboxMessageRepo, lock
 			}
 		}
 	}()
-	log.Println("[outbox] 投递器已启动")
+	log.Println("[INFO] outbox投递器已启动")
 }
 
 func dispatchOnce(r *RabbitMQ, repo *repository.OutboxMessageRepo, lock TaskLock) {

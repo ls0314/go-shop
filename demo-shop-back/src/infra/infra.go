@@ -53,6 +53,8 @@ func InitInfra(cfg Config) error {
 		if GlobalInfra.MQ != nil {
 			if err := GlobalInfra.MQ.InitOrderDelayTopology(); err != nil {
 				return fmt.Errorf("初始化订单延迟队列拓扑失败: %w", err)
+			} else {
+				log.Printf("[INFO] MQ启动")
 			}
 		}
 	}
@@ -63,8 +65,11 @@ func InitInfra(cfg Config) error {
 			log.Printf("[WARN] 启动es失败: %v ,降级", err)
 		} else {
 			GlobalInfra.ES = client
+			log.Printf("[INFO] ES启动")
 		}
+
 	}
+
 	if cfg.Redis.Addr != "" {
 		client, err := cache.NewRedisService(&redis.Options{
 			Addr:     cfg.Redis.Addr,
@@ -75,6 +80,7 @@ func InitInfra(cfg Config) error {
 			log.Printf("[WARN] 启动redis失败: %v ,降级", err)
 		} else {
 			GlobalInfra.Redis = client
+			log.Printf("[INFO] Redis启动")
 		}
 	}
 

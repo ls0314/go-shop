@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 const (
 	StatusIdNotExist          = "ID不存在"
 	StatusInternalServerError = "服务器错误"
@@ -16,6 +18,8 @@ const (
 	SpuStatusPublished = "published"
 
 	ProductWithdraw = "商品已经下架"
+
+	OrderPayTTL = 15 * time.Minute
 )
 
 const (

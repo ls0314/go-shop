@@ -4,12 +4,13 @@
 //
 //	Exchange: order.dead.exchange (direct)
 //	  ├── Queue: order.dead.queue (消费者监听)
-//	  └── Queue: order.delay.queue (TTL 2min → x-dead-letter → order.dead.queue)
+//	  └── Queue: order.delay.queue (TTL 15min → x-dead-letter → order.dead.queue)
 //
 // 消息流：CreateOrder → PublishOrderDelay → 2min TTL 过期 → DLX → 消费者 → CancelOrder
 package mq
 
 import (
+	"demo-shop-back/src/model"
 	"fmt"
 	"time"
 
@@ -87,7 +88,7 @@ func (r *RabbitMQ) InitOrderDelayTopology() error {
 	if _, err := r.Channel.QueueDeclare(QueueOrderDelay, true, false, false, false, amqp091.Table{
 		"x-dead-letter-exchange":    ExchangeOrderDead,
 		"x-dead-letter-routing-key": RoutingKeyOrderDead,
-		"x-message-ttl":             int32(15 * time.Minute / time.Millisecond),
+		"x-message-ttl":             int32(model.OrderPayTTL / time.Millisecond),
 	}); err != nil {
 		return fmt.Errorf("声明延迟队列 %s 失败: %w", QueueOrderDelay, err)
 	}

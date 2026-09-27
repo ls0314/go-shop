@@ -55,7 +55,7 @@ func (s *StockReconcileService) Start(interval time.Duration) {
 		log.Println("[INFO] Redis 未初始化,闸门对账不启动(闸门本就未启用)")
 		return
 	}
-	log.Printf("[INFO] 启动闸门对账: 周期 %v", interval)
+	log.Printf("[INFO] 启动Redis闸门对账: 周期 %v", interval)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for range ticker.C {

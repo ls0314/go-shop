@@ -76,7 +76,7 @@ func main() {
 	// 对账任务初始化
 	task.Init()
 
-	// 可观测性(DS-A-22):独立内部端口暴露 /metrics + DB 连接池水位采样
+	// 可观测性:独立内部端口暴露 /metrics + DB 连接池水位采样
 	metrics.StartMetricsServer()
 	metrics.StartDBPoolSampler(30 * time.Second)
 
@@ -86,6 +86,7 @@ func main() {
 	// JWT初始化
 	jwtSecret := os.Getenv("DEMO_SHOP_JWT_SECRET")
 	if jwtSecret == "" {
+		//jwtSecret = "demo-shop"
 		log.Fatal("JWT 未配置")
 	}
 	middleware.InitJWT(jwtSecret)

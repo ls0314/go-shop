@@ -12,6 +12,8 @@ func Init() {
 	go reconcile.Start(5*time.Minute, 12*time.Hour)
 	stockReconcile := NewStockReconcileService()
 	go stockReconcile.Start(5 * time.Minute)
+	orderTimeoutScan := NewOrderTimeoutScanService()
+	go orderTimeoutScan.Start(scanInterval)
 
 	if mqIns := infra.GetMQ(); mqIns != nil {
 		lockMgr := NewDistributedLockManager(infra.GetCache())

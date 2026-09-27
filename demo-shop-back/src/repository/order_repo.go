@@ -268,6 +268,19 @@ func (o *OrderRepo) GetOrderList(req requset.GetOrderListReq) ([]response.GetOrd
 
 }
 
+func (o *OrderRepo) ListExpirePendingPay(ttl time.Duration, limit int) ([]int64, error) {
+	var ids []int64
+	err := o.db.Model(&model.UserOrder{}).
+		Where("order_status = ? AND created_at < ?", model.OrderPendingPay, time.Now().UTC().Add(-ttl)).
+		Order("created_at").
+		Limit(limit).
+		Pluck("order_id", &ids).Error
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 // ============================================================
 // 更新订单相关表
 // ============================================================

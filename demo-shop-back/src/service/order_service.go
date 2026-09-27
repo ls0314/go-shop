@@ -69,7 +69,7 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 			PayAmount:   existOrder.PayAmount,
 			TotalAmount: existOrder.TotalAmount,
 			OrderStatus: existOrder.OrderStatus,
-			PayExpireAt: existOrder.CreatedAt.Add(15 * time.Minute), // 订单创建15分钟后支付截至
+			PayExpireAt: existOrder.CreatedAt.Add(model.OrderPayTTL), // 订单创建15分钟后支付截至
 			CreatedAt:   existOrder.CreatedAt,
 		}, nil
 	}
@@ -300,7 +300,7 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 			TotalAmount: totalAmount,
 			PayAmount:   order.PayAmount,
 			OrderStatus: model.OrderPendingPay,
-			PayExpireAt: time.Now().Add(15 * time.Minute),
+			PayExpireAt: time.Now().Add(model.OrderPayTTL),
 			CreatedAt:   time.Now(),
 		}
 

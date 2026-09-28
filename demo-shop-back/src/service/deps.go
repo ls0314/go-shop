@@ -6,6 +6,10 @@ import (
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/infra/es"
 	"demo-shop-back/src/infra/mq"
+	"demo-shop-back/src/infra/userclient"
+	"log"
+	"os"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -21,15 +25,49 @@ type ServiceDeps struct {
 	GateCache *cache.RedisService
 	MQ        *mq.RabbitMQ
 	ES        *es.ESClient
+	UserRPC   *userclient.PermCodesClient
 }
 
 // NewServiceDeps 在 composition root 读一次全局依赖。
 func NewServiceDeps() ServiceDeps {
-	return ServiceDeps{
+	deps := ServiceDeps{
 		DB:        db.DB,
 		Cache:     infra.GetCache(),
 		GateCache: infra.GetGateCache(),
 		MQ:        infra.GetMQ(),
 		ES:        infra.GetES(),
 	}
+	// user-service 走 etcd 服务发现;连不上不阻断启动,判权链路降级为报错。
+	client, err := userclient.NewPermCodesClient(
+		envList("DEMO_SHOP_ETCD_HOSTS", "127.0.0.1:2379"),
+		getEnv("DEMO_SHOP_ETCD_KEY", "user-service"),
+		deps.Cache,
+	)
+	if err != nil {
+		log.Printf("[WARN] 连接 user-service 失败,判权将不可用: %v", err)
+	} else {
+		deps.UserRPC = client
+	}
+	return deps
+}
+
+// envList 读逗号分隔的列表型环境变量。
+func envList(name, fallback string) []string {
+	v := getEnv(name, fallback)
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// getEnv 读环境变量,空值时用默认值。
+func getEnv(name, fallback string) string {
+	if v := os.Getenv(name); v != "" {
+		return v
+	}
+	return fallback
 }

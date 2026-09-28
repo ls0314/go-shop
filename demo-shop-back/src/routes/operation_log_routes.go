@@ -3,7 +3,6 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
-	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +16,7 @@ func InitOperationLogModule(deps service.ServiceDeps) {
 
 func RegisterOperationLogRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
-	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
+	permMW := middleware.PermissionMiddleware(deps.UserRPC, deps.Cache)
 	operationLogGroup := r.Group("/api/v1/admin/log")
 	operationLogGroup.Use(middleware.AuthMiddleware())
 	{

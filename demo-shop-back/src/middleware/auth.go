@@ -2,9 +2,9 @@ package middleware
 
 import (
 	"context"
+	"demo-shop-back/src/contracts"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
-	"demo-shop-back/src/repository"
 	"demo-shop-back/src/utils"
 	"errors"
 	"fmt"
@@ -74,7 +74,7 @@ func AuthMiddleware() gin.HandlerFunc {
 }
 
 // getUserPermCodes 获取用户全部权限码：先查 Redis(user:perm:{userId})，miss 查 DB 回写
-func getUserPermCodes(permissionRepo *repository.PermissionRepo, cch *cache.RedisService, userId int64) ([]string, error) {
+func getUserPermCodes(permissionRepo contracts.PermCodesSource, cch *cache.RedisService, userId int64) ([]string, error) {
 	key := fmt.Sprintf("user:perm:%d", userId)
 	if cch != nil {
 		var codes []string
@@ -94,11 +94,11 @@ func getUserPermCodes(permissionRepo *repository.PermissionRepo, cch *cache.Redi
 }
 
 // GetUserPermCodes 供 handler 层获取用户全部权限码(按钮级权限展示用)
-func GetUserPermCodes(permRepo *repository.PermissionRepo, cch *cache.RedisService, userId int64) ([]string, error) {
+func GetUserPermCodes(permRepo contracts.PermCodesSource, cch *cache.RedisService, userId int64) ([]string, error) {
 	return getUserPermCodes(permRepo, cch, userId)
 }
 
-func getApiPermCodes(permissionRepo *repository.PermissionRepo, cch *cache.RedisService, path, method string) ([]string, error) {
+func getApiPermCodes(permissionRepo contracts.PermCodesSource, cch *cache.RedisService, path, method string) ([]string, error) {
 	if cch == nil {
 		return permissionRepo.GetPermCodesByApi(path, method)
 	}
@@ -132,7 +132,7 @@ func getApiPermCodes(permissionRepo *repository.PermissionRepo, cch *cache.Redis
 	return codes, nil
 }
 
-func PermissionMiddleware(permRepo *repository.PermissionRepo, cch *cache.RedisService) gin.HandlerFunc {
+func PermissionMiddleware(permRepo contracts.PermCodesSource, cch *cache.RedisService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.FullPath() // Gin 路由模板，如 /api/v1/platform/products/:id
 		method := c.Request.Method

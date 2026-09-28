@@ -4,7 +4,6 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
-	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -29,7 +28,7 @@ func InitCouponModule(deps service.ServiceDeps) {
 //   - 仅 AuthMiddleware，userId 由 handler 从 JWT 上下文获取
 func RegisterCouponRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
-	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
+	permMW := middleware.PermissionMiddleware(deps.UserRPC, deps.Cache)
 	couponGroup := r.Group("/api/v1/admin/coupons")
 	couponGroup.Use(middleware.AuthMiddleware())
 	couponGroup.Use(middleware.OperationLogMiddleware(model.LogModuleProduct))

@@ -4,7 +4,6 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
-	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -20,7 +19,7 @@ func InitProductModule(deps service.ServiceDeps) {
 // RegisterProductRoutes 初始化商品路由
 func RegisterProductRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
-	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
+	permMW := middleware.PermissionMiddleware(deps.UserRPC, deps.Cache)
 	productGroup := r.Group("/api/v1/admin/products")
 	productGroup.Use(middleware.AuthMiddleware())
 	productGroup.Use(middleware.OperationLogMiddleware(model.LogModuleProduct))

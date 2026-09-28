@@ -3,7 +3,6 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
-	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -28,7 +27,7 @@ func InitScopeModule(deps service.ServiceDeps) {
 // 功能：注册数据权限相关API路由，统一前缀 /api/v1/scope，并添加登录认证中间件
 func RegisterScopeRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
-	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
+	permMW := middleware.PermissionMiddleware(deps.UserRPC, deps.Cache)
 	// 创建数据权限接口路由分组，统一前缀 /api/v1/scope
 	scopeGroup := r.Group("/api/v1/admin/scope")
 	// 添加全局认证中间件（必须登录才能访问数据权限接口）

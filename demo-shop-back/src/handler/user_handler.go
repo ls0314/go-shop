@@ -1,10 +1,10 @@
 package handler
 
 import (
+	"demo-shop-back/src/contracts"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
-	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 	"demo-shop-back/src/utils"
 	"strconv"
@@ -15,7 +15,7 @@ import (
 // UserHandler 用户表handler层实例
 type UserHandler struct {
 	UserService *service.UserService // 用户服务层对象指针
-	permRepo    *repository.PermissionRepo
+	permRepo    contracts.PermCodesSource
 	cache       *cache.RedisService
 }
 
@@ -25,7 +25,7 @@ type UserHandler struct {
 func NewUserHandler(deps service.ServiceDeps) *UserHandler {
 	return &UserHandler{
 		UserService: service.NewUserService(deps),
-		permRepo:    repository.NewPermissionRepo(deps.DB),
+		permRepo:    deps.UserRPC,
 		cache:       deps.Cache,
 	}
 }

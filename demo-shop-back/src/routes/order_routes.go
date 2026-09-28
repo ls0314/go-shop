@@ -4,7 +4,6 @@ import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
-	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -23,7 +22,7 @@ func InitOrderModule(deps service.ServiceDeps) {
 // 管理端所需权限：platform:order:view（列表/详情）/ platform:order:ship（发货）
 func RegisterOrderRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
-	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
+	permMW := middleware.PermissionMiddleware(deps.UserRPC, deps.Cache)
 	orderGroup := r.Group("/api/v1/admin/orders")
 	orderGroup.Use(middleware.AuthMiddleware())
 	orderGroup.Use(middleware.OperationLogMiddleware(model.LogModuleOrder))

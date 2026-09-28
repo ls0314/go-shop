@@ -3,7 +3,6 @@ package routes
 import (
 	"demo-shop-back/src/handler"
 	"demo-shop-back/src/middleware"
-	"demo-shop-back/src/repository"
 	"demo-shop-back/src/service"
 
 	"github.com/gin-gonic/gin"
@@ -28,7 +27,7 @@ func InitDeptModule(deps service.ServiceDeps) {
 // 功能：注册部门相关API路由，统一前缀 /api/v1/dept，并添加登录认证中间件
 func RegisterDeptRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	// 权限中间件:装配期构造一次,组内所有路由复用同一个闭包
-	permMW := middleware.PermissionMiddleware(repository.NewPermissionRepo(deps.DB), deps.Cache)
+	permMW := middleware.PermissionMiddleware(deps.UserRPC, deps.Cache)
 	// 创建部门接口路由分组，统一前缀 /api/v1/dept
 	deptGroup := r.Group("/api/v1/admin/dept")
 	// 添加全局认证中间件（必须登录才能访问部门接口）

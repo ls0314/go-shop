@@ -150,7 +150,7 @@ func (d *DepartmentRepo) DeleteDept(id int64) error {
 // 返回值：bool - 是否关联用户，error - 错误信息
 func (d *DepartmentRepo) CheckDeptRelUser(deptId int64) (bool, error) {
 	var count int64
-	err := d.DB.Table("sys_dept_user").Where("dept_id=?", deptId).Count(&count).Error
+	err := d.DB.Table("sys_user_dept").Where("dept_id=?", deptId).Count(&count).Error
 	if err != nil {
 		return false, err
 	}

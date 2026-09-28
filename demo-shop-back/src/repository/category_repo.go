@@ -150,7 +150,7 @@ func (c *CategoryRepo) GetCategoryList(page, pageSize int) ([]*model.SysCategory
 //
 // 返回值:
 //
-//	[]*model.SysMenu - 所有符合条件的类目信息
+//	[]*model.SysCategory - 所有符合条件的类目信息
 //	error - 错误信息
 func (c *CategoryRepo) GetAllCategory(level int64, includeDisabled bool) ([]*model.SysCategory, error) {
 	var cateList []*model.SysCategory

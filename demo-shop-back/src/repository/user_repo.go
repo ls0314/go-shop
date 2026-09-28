@@ -143,7 +143,7 @@ func (ur *UserRepo) InsertLoginLog(log *model.UserLoginLog) error {
 // 返回值：bool - 是否关联部门，error - 错误信息
 func (ur *UserRepo) CheckUserRelDept(userId int64) (bool, error) {
 	var count int64
-	err := ur.DB.Table("sys_dept_user").Where("user_id=?", userId).Count(&count).Error
+	err := ur.DB.Table("sys_user_dept").Where("user_id=?", userId).Count(&count).Error
 	if err != nil {
 		return false, err
 	}
@@ -155,7 +155,7 @@ func (ur *UserRepo) CheckUserRelDept(userId int64) (bool, error) {
 // 返回值：bool - 是否关联角色，error - 错误信息
 func (ur *UserRepo) CheckUserRelRole(userId int64) (bool, error) {
 	var count int64
-	err := ur.DB.Table("sys_role_user").Where("user_id=?", userId).Count(&count).Error
+	err := ur.DB.Table("sys_user_role").Where("user_id=?", userId).Count(&count).Error
 	if err != nil {
 		return false, err
 	}

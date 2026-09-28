@@ -38,8 +38,13 @@ func (ui *UserInfoHandler) CreateUserInfo(c *gin.Context) {
 		utils.Fail(c, 400, model.StatusBadRequest)
 		return
 	}
-	err := ui.UserInfoService.CreateUserInfo(userInfo)
+	userId, _, err := GetUserInfoByContext(c)
 	if err != nil {
+		utils.Fail(c, 400, err.Error())
+		return
+	}
+	userInfo.UserId = userId
+	if err := ui.UserInfoService.CreateUserInfo(userInfo); err != nil {
 		utils.Error(c, 500, err.Error())
 		return
 	}
@@ -60,6 +65,17 @@ func (ui *UserInfoHandler) GetUserInfo(c *gin.Context) {
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		utils.Fail(c, 400, model.StatusBadRequest)
+		return
+	}
+	userId, _, err := GetUserInfoByContext(c)
+	if err != nil {
+		utils.Fail(c, 400, err.Error())
+		return
+	}
+
+	if userId != id {
+		utils.Fail(c, 400, model.UserInfoError.Error())
+		c.Abort()
 		return
 	}
 
@@ -90,6 +106,18 @@ func (ui *UserInfoHandler) UpdateUserInfo(c *gin.Context) {
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		utils.Fail(c, 400, model.StatusBadRequest)
+		return
+	}
+
+	userId, _, err := GetUserInfoByContext(c)
+	if err != nil {
+		utils.Fail(c, 400, err.Error())
+		return
+	}
+
+	if userId != id {
+		utils.Fail(c, 400, model.UserInfoError.Error())
+		c.Abort()
 		return
 	}
 
@@ -127,6 +155,17 @@ func (ui *UserInfoHandler) DeleteUserInfo(c *gin.Context) {
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		utils.Fail(c, 400, model.StatusBadRequest)
+		return
+	}
+	userId, _, err := GetUserInfoByContext(c)
+	if err != nil {
+		utils.Fail(c, 400, err.Error())
+		return
+	}
+
+	if userId != id {
+		utils.Fail(c, 400, model.UserInfoError.Error())
+		c.Abort()
 		return
 	}
 	if err = ui.UserInfoService.DeleteUserInfo(id); err != nil {

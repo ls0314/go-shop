@@ -22,4 +22,4 @@ type UserPayment struct {
 	UpdateAdt time.Time      `gorm:"column:updated_at" json:"updated_at"`
 }
 
-func (u UserPayment) TableName() string { return "user_payment_record" }
+func (UserPayment) TableName() string { return "user_payment_record" }

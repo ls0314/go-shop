@@ -19,4 +19,4 @@ type UserAddress struct {
 	UpdatedAt     time.Time `gorm:"column:updated_at" json:"updated_at"`
 }
 
-func (*UserAddress) TableName() string { return "user_address" }
+func (UserAddress) TableName() string { return "user_address" }

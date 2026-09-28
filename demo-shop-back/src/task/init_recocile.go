@@ -14,6 +14,8 @@ func Init(deps service.ServiceDeps) {
 	go reconcile.Start(5*time.Minute, 12*time.Hour)
 	stockReconcile := NewStockReconcileService(deps)
 	go stockReconcile.Start(5 * time.Minute)
+	couponReconcile := NewCouponReconcileService(deps)
+	go couponReconcile.Start(5 * time.Minute)
 	orderTimeoutScan := NewOrderTimeoutScanService(deps)
 	go orderTimeoutScan.Start(scanInterval)
 

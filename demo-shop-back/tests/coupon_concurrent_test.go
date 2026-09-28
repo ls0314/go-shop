@@ -88,7 +88,8 @@ func TestReceiveCoupon_WithGate_NoOversell(t *testing.T) {
 	}
 
 	// ---- 阶段二:对账收敛 ----
-	task.NewStockReconcileServiceWithCache(testDepsWithCache(rdb), rdb).ReconcileOnce()
+	// 用券闸门对账(收敛 coupon:stock:*);库存对账只管 sku:stock:*,对券是空操作
+	task.NewCouponReconcileServiceWithCache(testDepsWithCache(rdb), rdb).ReconcileOnce()
 	extra := 10 - int(received) // 突发期被闸门误拦的余量
 	if extra > 0 {
 		ids := mustCreateUsers(t, extra)

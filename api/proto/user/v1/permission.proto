@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "demo-shop/api/gen/user/v1;userv1";
+
+// RBAC 判权数据源。
+// 表的所有权在 user-service,调用方每次取数都经此获取;
+// 是否缓存、缓存多久由调用方决定。
+service PermissionService {
+  // 取用户拥有的全部权限码
+  rpc ListPermCodesByUserId(ListPermCodesByUserIdReq) returns (ListPermCodesByUserIdResp);
+  // 取某接口(路径 + 方法)要求的权限码
+  rpc ListPermCodesByApi(ListPermCodesByApiReq) returns (ListPermCodesByApiResp);
+  // 取权限版本号,权限/角色变更时递增
+  rpc GetPermVersion(GetPermVersionReq) returns (GetPermVersionResp);
+}
+
+message ListPermCodesByUserIdReq {
+  int64 user_id = 1;
+}
+
+message ListPermCodesByUserIdResp {
+  // 无任何权限时返回空数组,不返回错误
+  repeated string perm_codes = 1;
+}
+
+message ListPermCodesByApiReq {
+  // 接口路径,与 sys_permission.api_path 一致,带 /api/v1 前缀
+  string api_path = 1;
+  // HTTP 方法,大写,与 sys_permission.request_method 一致
+  string request_method = 2;
+}
+
+message ListPermCodesByApiResp {
+  // 无权限码时返回空数组,不返回错误
+  repeated string perm_codes = 1;
+}
+
+message GetPermVersionReq {}
+
+message GetPermVersionResp {
+  // 单调递增,初值为 0
+  int64 version = 1;
+}

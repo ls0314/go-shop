@@ -1,0 +1,14 @@
+version: v2
+modules:
+  - path: api/proto
+lint:
+  use:
+    - STANDARD
+  except:
+    # go-zero 生态约定用 Req / Resp 后缀(goctl 生成物同风格),
+    # 与 buf STANDARD 要求的 Request / Response 冲突,按项目约定放行。
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+breaking:
+  use:
+    - FILE

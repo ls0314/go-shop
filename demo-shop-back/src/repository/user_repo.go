@@ -130,8 +130,8 @@ func (ur *UserRepo) DeleteUser(id int64) error {
 // 接收值：log - 登录日志(login_time/created_at 等由 DB 默认值填充)
 // 返回值：error - 错误信息
 //
-// 为什么放在 repo 层:B0 去全局化之前,这段 INSERT 是 service 里直接 db.DB.Exec 的裸 SQL,
-// 既绕过了数据层、又把全局连接耦合进了业务代码。收敛到这里后 service 只依赖 UserRepo。
+// 为什么放在 repo 层:B0 去全局化之前,这段 INSERT 是 services 里直接 db.DB.Exec 的裸 SQL,
+// 既绕过了数据层、又把全局连接耦合进了业务代码。收敛到这里后 services 只依赖 UserRepo。
 func (ur *UserRepo) InsertLoginLog(log *model.UserLoginLog) error {
 	return ur.DB.Select(
 		"user_id", "login_ip", "login_device", "login_status", "failure_reason",

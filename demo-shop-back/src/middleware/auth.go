@@ -26,7 +26,7 @@ func InitJWT(secretKey string) {
 
 func GetJWTService() *utils.JWTService {
 	if globalJWTService == nil {
-		panic("jwt service not initialized, call InitJWT first")
+		panic("jwt services not initialized, call InitJWT first")
 	}
 	return globalJWTService
 }

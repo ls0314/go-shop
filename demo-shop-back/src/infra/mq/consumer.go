@@ -11,11 +11,11 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 )
 
-//// DefaultCanceller 全局订单取消回调——由 service.NewOrderService 通过 RegisterCanceller 注入
+//// DefaultCanceller 全局订单取消回调——由 services.NewOrderService 通过 RegisterCanceller 注入
 //var DefaultCanceller OrderCanceller
 //
 //// RegisterCanceller 注册订单取消回调实现
-//// 接收值：c - OrderCanceller 接口实现（通常为 *service.OrderService）
+//// 接收值：c - OrderCanceller 接口实现（通常为 *services.OrderService）
 //func RegisterCanceller(c OrderCanceller) {
 //	DefaultCanceller = c
 //}

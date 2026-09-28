@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// ServiceDeps 服务层依赖集合(composition root 构造一次,注入所有 service)。
+// ServiceDeps 服务层依赖集合(composition root 构造一次,注入所有 services)。
 // 语义约定:
 //   - DB 必填;其余可为 nil,表示该中间件未配置,调用方必须判空(降级路径);
 //   - Cache 与 GateCache 是**两个不同语义**的字段,不可混用:

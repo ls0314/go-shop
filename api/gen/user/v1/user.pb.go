@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: user/v1/user.proto
 
-package userv1
+package v1_userv1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -316,7 +316,7 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2\x8b\x01\n" +
 	"\vUserService\x124\n" +
 	"\aGetUser\x12\x13.user.v1.GetUserReq\x1a\x14.user.v1.GetUserResp\x12F\n" +
-	"\rBatchGetUsers\x12\x19.user.v1.BatchGetUsersReq\x1a\x1a.user.v1.BatchGetUsersRespB\"Z demo-shop/api/gen/user/v1;userv1b\x06proto3"
+	"\rBatchGetUsers\x12\x19.user.v1.BatchGetUsersReq\x1a\x1a.user.v1.BatchGetUsersRespB%Z#demo-shop/api/gen/user/v1;v1_userv1b\x06proto3"
 
 var (
 	file_user_v1_user_proto_rawDescOnce sync.Once

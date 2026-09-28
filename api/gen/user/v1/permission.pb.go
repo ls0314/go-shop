@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: user/v1/permission.proto
 
-package userv1
+package v1_userv1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -312,7 +312,7 @@ const file_user_v1_permission_proto_rawDesc = "" +
 	"\x11PermissionService\x12^\n" +
 	"\x15ListPermCodesByUserId\x12!.user.v1.ListPermCodesByUserIdReq\x1a\".user.v1.ListPermCodesByUserIdResp\x12U\n" +
 	"\x12ListPermCodesByApi\x12\x1e.user.v1.ListPermCodesByApiReq\x1a\x1f.user.v1.ListPermCodesByApiResp\x12I\n" +
-	"\x0eGetPermVersion\x12\x1a.user.v1.GetPermVersionReq\x1a\x1b.user.v1.GetPermVersionRespB\"Z demo-shop/api/gen/user/v1;userv1b\x06proto3"
+	"\x0eGetPermVersion\x12\x1a.user.v1.GetPermVersionReq\x1a\x1b.user.v1.GetPermVersionRespB%Z#demo-shop/api/gen/user/v1;v1_userv1b\x06proto3"
 
 var (
 	file_user_v1_permission_proto_rawDescOnce sync.Once

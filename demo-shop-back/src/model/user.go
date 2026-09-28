@@ -67,7 +67,7 @@ type UserLoginInfo struct {
 	PasswordHash string
 }
 
-// UserLoginLog 登录日志(B0 去全局化时从 service 里的裸 SQL 收敛为模型)。
+// UserLoginLog 登录日志(B0 去全局化时从 services 里的裸 SQL 收敛为模型)。
 //
 // 只声明写入路径需要的字段:login_time / login_type / location / created_at
 // 均由 DB 默认值填充(见 000001 迁移),无需在 Go 侧赋值 —— 这样也避免了

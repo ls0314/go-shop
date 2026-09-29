@@ -1,13 +1,28 @@
 package svc
 
-import "demo-shop/services/user/internal/config"
+import (
+	"demo-shop/services/user/internal/config"
+
+	"github.com/zeromicro/go-zero/core/stores/redis"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+)
 
 type ServiceContext struct {
 	Config config.Config
+	DB     *gorm.DB
+	Redis  *redis.Redis
 }
 
 func NewServiceContext(config config.Config) *ServiceContext {
+	db, err := gorm.Open(postgres.Open(config.DataSource), &gorm.Config{})
+	if err != nil {
+		panic("连接user_db失败：" + err.Error())
+	}
+
 	return &ServiceContext{
 		Config: config,
+		DB:     db,
+		Redis:  redis.MustNewRedis(config.Redis.RedisConf),
 	}
 }

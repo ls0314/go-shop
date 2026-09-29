@@ -2,6 +2,7 @@ package svc
 
 import (
 	"demo-shop/services/user/internal/config"
+	"demo-shop/services/user/internal/repository"
 
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"gorm.io/driver/postgres"
@@ -12,6 +13,8 @@ type ServiceContext struct {
 	Config config.Config
 	DB     *gorm.DB
 	Redis  *redis.Redis
+
+	PermRepo *repository.PermissionRepo
 }
 
 func NewServiceContext(config config.Config) *ServiceContext {
@@ -24,5 +27,7 @@ func NewServiceContext(config config.Config) *ServiceContext {
 		Config: config,
 		DB:     db,
 		Redis:  redis.MustNewRedis(config.Redis.RedisConf),
+
+		PermRepo: repository.NewPermissionRepo(db),
 	}
 }

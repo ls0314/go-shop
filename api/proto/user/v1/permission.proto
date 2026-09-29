@@ -14,6 +14,16 @@ service PermissionService {
   rpc ListPermCodesByApi(ListPermCodesByApiReq) returns (ListPermCodesByApiResp);
   // 取权限版本号,权限/角色变更时递增
   rpc GetPermVersion(GetPermVersionReq) returns (GetPermVersionResp);
+  // 取权限
+  rpc GetPermission(GetPermissionReq) returns (GetPermissionResp);
+  // 取权限列表
+  rpc ListPermissions(ListPermissionsReq) returns (ListPermissionsResp);
+  // 新建权限
+  rpc CreatePermission(CreatePermissionReq) returns (CreatePermissionResp);
+  // 更新权限
+  rpc UpdatePermission(UpdatePermissionReq) returns (UpdatePermissionResp);
+  // 删除权限
+  rpc DeletePermission(DeletePermissionReq) returns (DeletePermissionResp);
 }
 
 message ListPermCodesByUserIdReq {
@@ -42,4 +52,83 @@ message GetPermVersionReq {}
 message GetPermVersionResp {
   // 单调递增,初值为 0
   int64 version = 1;
+}
+
+// Permission 权限点快照。
+message Permission {
+  int64 permission_id = 1;
+  string permission_code = 2;
+  string permission_name = 3;
+  // api / menu / button
+  string permission_type = 4;
+  // GET / POST / PUT / DELETE,非 api 类型为空
+  string request_method = 5;
+  // 与 sys_permission.api_path 一致,带 /api/v1 前缀
+  string api_path = 6;
+  string description = 7;
+  // 系统内置权限不可改、不可删
+  bool is_system = 8;
+}
+
+message FieldValue {
+  oneof value {
+    string string_value = 1;
+    int64  int64_value  = 2;
+    bool   bool_value   = 3;
+  }
+}
+
+// FieldUpdate 局部更新的一个字段:field 为 JSON 字段名(如 permission_name)。
+message FieldUpdate {
+  string field = 1;
+  FieldValue value = 2;
+}
+
+message GetPermissionReq {
+  int64 permission_id = 1;
+}
+
+message GetPermissionResp {
+  Permission permission = 1;
+  string error_msg = 2;
+}
+
+message ListPermissionsReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 为空表示不过滤
+  string permission_type = 3;
+}
+
+message ListPermissionsResp {
+  repeated Permission items = 1;
+  int64 total = 2;
+  string error_msg = 3;
+}
+
+message CreatePermissionReq {
+  Permission permission = 1;
+}
+
+message CreatePermissionResp {
+  Permission permission = 1;
+  string error_msg = 2;
+}
+
+message UpdatePermissionReq {
+  int64 permission_id = 1;
+  repeated FieldUpdate updates = 2;
+}
+
+message UpdatePermissionResp {
+  Permission permission = 1;
+  string error_msg = 2;
+}
+
+message DeletePermissionReq {
+  int64 permission_id = 1;
+}
+
+message DeletePermissionResp {
+  string error_msg = 1;
 }

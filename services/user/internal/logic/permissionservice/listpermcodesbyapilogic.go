@@ -23,10 +23,7 @@ func NewListPermCodesByApiLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 }
 
 func (l *ListPermCodesByApiLogic) ListPermCodesByApi(in *v1_userv1.ListPermCodesByApiReq) (*v1_userv1.ListPermCodesByApiResp, error) {
-	var codes []string
-	err := l.svcCtx.DB.Table("sys_permission").
-		Where("api_path = ? AND request_method = ?", in.ApiPath, in.RequestMethod).
-		Pluck("permission_code", &codes).Error
+	codes, err := l.svcCtx.PermRepo.GetPermCodesByApi(in.ApiPath, in.RequestMethod)
 	if err != nil {
 		return nil, err
 	}

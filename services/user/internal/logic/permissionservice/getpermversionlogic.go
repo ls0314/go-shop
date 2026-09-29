@@ -4,6 +4,7 @@ import (
 	"context"
 	"demo-shop/api/gen/user/v1"
 	"demo-shop/services/user/internal/svc"
+	"strconv"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -23,5 +24,13 @@ func NewGetPermVersionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ge
 }
 
 func (l *GetPermVersionLogic) GetPermVersion(in *v1_userv1.GetPermVersionReq) (*v1_userv1.GetPermVersionResp, error) {
-	return &v1_userv1.GetPermVersionResp{Version: 0}, nil
+	v, err := l.svcCtx.Redis.Get("api:perm:version")
+	if err != nil {
+		return &v1_userv1.GetPermVersionResp{Version: 0}, nil
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return &v1_userv1.GetPermVersionResp{Version: 0}, nil
+	}
+	return &v1_userv1.GetPermVersionResp{Version: n}, nil
 }

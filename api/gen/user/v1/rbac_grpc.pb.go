@@ -32,6 +32,13 @@ const (
 	RBACService_CreateRole_FullMethodName            = "/user.v1.RBACService/CreateRole"
 	RBACService_UpdateRole_FullMethodName            = "/user.v1.RBACService/UpdateRole"
 	RBACService_DeleteRole_FullMethodName            = "/user.v1.RBACService/DeleteRole"
+	RBACService_GetMenu_FullMethodName               = "/user.v1.RBACService/GetMenu"
+	RBACService_ListMenus_FullMethodName             = "/user.v1.RBACService/ListMenus"
+	RBACService_CreateMenu_FullMethodName            = "/user.v1.RBACService/CreateMenu"
+	RBACService_UpdateMenu_FullMethodName            = "/user.v1.RBACService/UpdateMenu"
+	RBACService_DeleteMenu_FullMethodName            = "/user.v1.RBACService/DeleteMenu"
+	RBACService_GetMenuTreeByUserId_FullMethodName   = "/user.v1.RBACService/GetMenuTreeByUserId"
+	RBACService_GetMenuTreeByRoleId_FullMethodName   = "/user.v1.RBACService/GetMenuTreeByRoleId"
 )
 
 // RBACServiceClient is the client API for RBACService service.
@@ -56,6 +63,14 @@ type RBACServiceClient interface {
 	CreateRole(ctx context.Context, in *CreateRoleReq, opts ...grpc.CallOption) (*CreateRoleResp, error)
 	UpdateRole(ctx context.Context, in *UpdateRoleReq, opts ...grpc.CallOption) (*UpdateRoleResp, error)
 	DeleteRole(ctx context.Context, in *DeleteRoleReq, opts ...grpc.CallOption) (*DeleteRoleResp, error)
+	// ---- 菜单管理 ----
+	GetMenu(ctx context.Context, in *GetMenuReq, opts ...grpc.CallOption) (*GetMenuResp, error)
+	ListMenus(ctx context.Context, in *ListMenusReq, opts ...grpc.CallOption) (*ListMenusResp, error)
+	CreateMenu(ctx context.Context, in *CreateMenuReq, opts ...grpc.CallOption) (*CreateMenuResp, error)
+	UpdateMenu(ctx context.Context, in *UpdateMenuReq, opts ...grpc.CallOption) (*UpdateMenuResp, error)
+	DeleteMenu(ctx context.Context, in *DeleteMenuReq, opts ...grpc.CallOption) (*DeleteMenuResp, error)
+	GetMenuTreeByUserId(ctx context.Context, in *GetMenuTreeByUserIdReq, opts ...grpc.CallOption) (*GetMenuTreeByUserIdResp, error)
+	GetMenuTreeByRoleId(ctx context.Context, in *GetMenuTreeByRoleIdReq, opts ...grpc.CallOption) (*GetMenuTreeByRoleIdResp, error)
 }
 
 type rBACServiceClient struct {
@@ -196,6 +211,76 @@ func (c *rBACServiceClient) DeleteRole(ctx context.Context, in *DeleteRoleReq, o
 	return out, nil
 }
 
+func (c *rBACServiceClient) GetMenu(ctx context.Context, in *GetMenuReq, opts ...grpc.CallOption) (*GetMenuResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetMenuResp)
+	err := c.cc.Invoke(ctx, RBACService_GetMenu_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ListMenus(ctx context.Context, in *ListMenusReq, opts ...grpc.CallOption) (*ListMenusResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListMenusResp)
+	err := c.cc.Invoke(ctx, RBACService_ListMenus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) CreateMenu(ctx context.Context, in *CreateMenuReq, opts ...grpc.CallOption) (*CreateMenuResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateMenuResp)
+	err := c.cc.Invoke(ctx, RBACService_CreateMenu_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) UpdateMenu(ctx context.Context, in *UpdateMenuReq, opts ...grpc.CallOption) (*UpdateMenuResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateMenuResp)
+	err := c.cc.Invoke(ctx, RBACService_UpdateMenu_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) DeleteMenu(ctx context.Context, in *DeleteMenuReq, opts ...grpc.CallOption) (*DeleteMenuResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteMenuResp)
+	err := c.cc.Invoke(ctx, RBACService_DeleteMenu_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) GetMenuTreeByUserId(ctx context.Context, in *GetMenuTreeByUserIdReq, opts ...grpc.CallOption) (*GetMenuTreeByUserIdResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetMenuTreeByUserIdResp)
+	err := c.cc.Invoke(ctx, RBACService_GetMenuTreeByUserId_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) GetMenuTreeByRoleId(ctx context.Context, in *GetMenuTreeByRoleIdReq, opts ...grpc.CallOption) (*GetMenuTreeByRoleIdResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetMenuTreeByRoleIdResp)
+	err := c.cc.Invoke(ctx, RBACService_GetMenuTreeByRoleId_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RBACServiceServer is the server API for RBACService service.
 // All implementations must embed UnimplementedRBACServiceServer
 // for forward compatibility.
@@ -218,6 +303,14 @@ type RBACServiceServer interface {
 	CreateRole(context.Context, *CreateRoleReq) (*CreateRoleResp, error)
 	UpdateRole(context.Context, *UpdateRoleReq) (*UpdateRoleResp, error)
 	DeleteRole(context.Context, *DeleteRoleReq) (*DeleteRoleResp, error)
+	// ---- 菜单管理 ----
+	GetMenu(context.Context, *GetMenuReq) (*GetMenuResp, error)
+	ListMenus(context.Context, *ListMenusReq) (*ListMenusResp, error)
+	CreateMenu(context.Context, *CreateMenuReq) (*CreateMenuResp, error)
+	UpdateMenu(context.Context, *UpdateMenuReq) (*UpdateMenuResp, error)
+	DeleteMenu(context.Context, *DeleteMenuReq) (*DeleteMenuResp, error)
+	GetMenuTreeByUserId(context.Context, *GetMenuTreeByUserIdReq) (*GetMenuTreeByUserIdResp, error)
+	GetMenuTreeByRoleId(context.Context, *GetMenuTreeByRoleIdReq) (*GetMenuTreeByRoleIdResp, error)
 	mustEmbedUnimplementedRBACServiceServer()
 }
 
@@ -266,6 +359,27 @@ func (UnimplementedRBACServiceServer) UpdateRole(context.Context, *UpdateRoleReq
 }
 func (UnimplementedRBACServiceServer) DeleteRole(context.Context, *DeleteRoleReq) (*DeleteRoleResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteRole not implemented")
+}
+func (UnimplementedRBACServiceServer) GetMenu(context.Context, *GetMenuReq) (*GetMenuResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMenu not implemented")
+}
+func (UnimplementedRBACServiceServer) ListMenus(context.Context, *ListMenusReq) (*ListMenusResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListMenus not implemented")
+}
+func (UnimplementedRBACServiceServer) CreateMenu(context.Context, *CreateMenuReq) (*CreateMenuResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateMenu not implemented")
+}
+func (UnimplementedRBACServiceServer) UpdateMenu(context.Context, *UpdateMenuReq) (*UpdateMenuResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateMenu not implemented")
+}
+func (UnimplementedRBACServiceServer) DeleteMenu(context.Context, *DeleteMenuReq) (*DeleteMenuResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteMenu not implemented")
+}
+func (UnimplementedRBACServiceServer) GetMenuTreeByUserId(context.Context, *GetMenuTreeByUserIdReq) (*GetMenuTreeByUserIdResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMenuTreeByUserId not implemented")
+}
+func (UnimplementedRBACServiceServer) GetMenuTreeByRoleId(context.Context, *GetMenuTreeByRoleIdReq) (*GetMenuTreeByRoleIdResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMenuTreeByRoleId not implemented")
 }
 func (UnimplementedRBACServiceServer) mustEmbedUnimplementedRBACServiceServer() {}
 func (UnimplementedRBACServiceServer) testEmbeddedByValue()                     {}
@@ -522,6 +636,132 @@ func _RBACService_DeleteRole_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RBACService_GetMenu_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMenuReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).GetMenu(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_GetMenu_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).GetMenu(ctx, req.(*GetMenuReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ListMenus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListMenusReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ListMenus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ListMenus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ListMenus(ctx, req.(*ListMenusReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_CreateMenu_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateMenuReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).CreateMenu(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_CreateMenu_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).CreateMenu(ctx, req.(*CreateMenuReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_UpdateMenu_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateMenuReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).UpdateMenu(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_UpdateMenu_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).UpdateMenu(ctx, req.(*UpdateMenuReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_DeleteMenu_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteMenuReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).DeleteMenu(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_DeleteMenu_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).DeleteMenu(ctx, req.(*DeleteMenuReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_GetMenuTreeByUserId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMenuTreeByUserIdReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).GetMenuTreeByUserId(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_GetMenuTreeByUserId_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).GetMenuTreeByUserId(ctx, req.(*GetMenuTreeByUserIdReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_GetMenuTreeByRoleId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMenuTreeByRoleIdReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).GetMenuTreeByRoleId(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_GetMenuTreeByRoleId_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).GetMenuTreeByRoleId(ctx, req.(*GetMenuTreeByRoleIdReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RBACService_ServiceDesc is the grpc.ServiceDesc for RBACService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -580,6 +820,34 @@ var RBACService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteRole",
 			Handler:    _RBACService_DeleteRole_Handler,
+		},
+		{
+			MethodName: "GetMenu",
+			Handler:    _RBACService_GetMenu_Handler,
+		},
+		{
+			MethodName: "ListMenus",
+			Handler:    _RBACService_ListMenus_Handler,
+		},
+		{
+			MethodName: "CreateMenu",
+			Handler:    _RBACService_CreateMenu_Handler,
+		},
+		{
+			MethodName: "UpdateMenu",
+			Handler:    _RBACService_UpdateMenu_Handler,
+		},
+		{
+			MethodName: "DeleteMenu",
+			Handler:    _RBACService_DeleteMenu_Handler,
+		},
+		{
+			MethodName: "GetMenuTreeByUserId",
+			Handler:    _RBACService_GetMenuTreeByUserId_Handler,
+		},
+		{
+			MethodName: "GetMenuTreeByRoleId",
+			Handler:    _RBACService_GetMenuTreeByRoleId_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

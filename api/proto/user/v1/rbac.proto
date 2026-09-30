@@ -6,6 +6,7 @@ option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
 
 import "user/v1/permission.proto";
 import "user/v1/role.proto";
+import "user/v1/menu.proto";
 
 
 // RBACService 平台 RBAC 管理。表的所有权在 user-service
@@ -28,4 +29,13 @@ service RBACService {
   rpc CreateRole(CreateRoleReq) returns (CreateRoleResp);
   rpc UpdateRole(UpdateRoleReq) returns (UpdateRoleResp);
   rpc DeleteRole(DeleteRoleReq) returns (DeleteRoleResp);
+
+  // ---- 菜单管理 ----
+  rpc GetMenu(GetMenuReq) returns (GetMenuResp);
+  rpc ListMenus(ListMenusReq) returns (ListMenusResp);
+  rpc CreateMenu(CreateMenuReq) returns (CreateMenuResp);
+  rpc UpdateMenu(UpdateMenuReq) returns (UpdateMenuResp);
+  rpc DeleteMenu(DeleteMenuReq) returns (DeleteMenuResp);
+  rpc GetMenuTreeByUserId(GetMenuTreeByUserIdReq) returns (GetMenuTreeByUserIdResp);
+  rpc GetMenuTreeByRoleId(GetMenuTreeByRoleIdReq) returns (GetMenuTreeByRoleIdResp);
 }

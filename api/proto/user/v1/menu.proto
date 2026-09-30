@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "user/v1/common.proto";
+
+// Menu 菜单节点。children 递归,树查询时填充,列表查询时为空。
+message Menu {
+  int64 menu_id = 1;
+  int64 parent_id = 2;
+  string menu_name = 3;
+  // M(目录) / C(菜单) / F(按钮)
+  string menu_type = 4;
+  string icon = 5;
+  string route_path = 6;
+  string component = 7;
+  bool is_visible = 8;
+  bool is_cache = 9;
+  int64 sort_order = 10;
+  // 前端只读,用于渲染标题/图标/缓存策略
+  google.protobuf.Struct meta_info = 11;
+  google.protobuf.Timestamp created_at = 12;
+  repeated Menu children = 13;
+}
+
+message GetMenuReq {
+  int64 menu_id = 1;
+}
+
+message GetMenuResp {
+  Menu menu = 1;
+  string error_msg = 2;
+}
+
+message ListMenusReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 为空表示不过滤
+  string menu_type = 3;
+}
+
+message ListMenusResp {
+  repeated Menu items = 1;
+  int64 total = 2;
+  string error_msg = 3;
+}
+
+message CreateMenuReq {
+  Menu menu = 1;
+}
+
+message CreateMenuResp {
+  Menu menu = 1;
+  string error_msg = 2;
+}
+
+message UpdateMenuReq {
+  int64 menu_id = 1;
+  repeated FieldUpdate updates = 2;
+}
+
+// UpdateMenuResp.menu 返回合并后的完整对象,调用方无需再查一次。
+message UpdateMenuResp {
+  Menu menu = 1;
+  string error_msg = 2;
+}
+
+message DeleteMenuReq {
+  int64 menu_id = 1;
+}
+
+message DeleteMenuResp {
+  string error_msg = 1;
+}
+
+// GetMenuTreeByUserId 供前端登录后生成动态路由。
+message GetMenuTreeByUserIdReq {
+  int64 user_id = 1;
+}
+
+message GetMenuTreeByUserIdResp {
+  repeated Menu items = 1;
+  string error_msg = 2;
+}
+
+// GetMenuTreeByRoleId 供角色分配菜单页回显已选菜单。
+message GetMenuTreeByRoleIdReq {
+  int64 role_id = 1;
+}
+
+message GetMenuTreeByRoleIdResp {
+  repeated Menu items = 1;
+  string error_msg = 2;
+}

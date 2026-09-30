@@ -14,10 +14,19 @@ type ServiceContext struct {
 	DB     *gorm.DB
 	Redis  *redis.Redis
 
-	PermRepo *repository.PermissionRepo
-	RoleRepo *repository.RoleRepo
-	MenuRepo *repository.MenuRepo
-	DeptRepo *repository.DeptRepo
+	PermRepo  *repository.PermissionRepo
+	RoleRepo  *repository.RoleRepo
+	MenuRepo  *repository.MenuRepo
+	DeptRepo  *repository.DeptRepo
+	ScopeRepo *repository.ScopeRepo
+
+	RolePermRepo *repository.RolePermRepo
+	RoleMenuRepo *repository.RoleMenuRepo
+	MenuPermRepo *repository.MenuPermRepo
+	UserRoleRepo *repository.UserRoleRepo
+	UserDeptRepo *repository.UserDeptRepo
+
+	UserRepo *repository.UserRepo
 }
 
 func NewServiceContext(config config.Config) *ServiceContext {
@@ -31,9 +40,18 @@ func NewServiceContext(config config.Config) *ServiceContext {
 		DB:     db,
 		Redis:  redis.MustNewRedis(config.Redis.RedisConf),
 
-		PermRepo: repository.NewPermissionRepo(db),
-		RoleRepo: repository.NewRoleRepo(db),
-		MenuRepo: repository.NewMenuRepo(db),
-		DeptRepo: repository.NewDeptRepo(db),
+		PermRepo:  repository.NewPermissionRepo(db),
+		RoleRepo:  repository.NewRoleRepo(db),
+		MenuRepo:  repository.NewMenuRepo(db),
+		DeptRepo:  repository.NewDeptRepo(db),
+		ScopeRepo: repository.NewScopeRepo(db),
+
+		RolePermRepo: repository.NewRolePermRepo(db),
+		RoleMenuRepo: repository.NewRoleMenuRepo(db),
+		MenuPermRepo: repository.NewMenuPermRepo(db),
+		UserRoleRepo: repository.NewUserRoleRepo(db),
+		UserDeptRepo: repository.NewUserDeptRepo(db),
+
+		UserRepo: repository.NewUserRepo(db),
 	}
 }

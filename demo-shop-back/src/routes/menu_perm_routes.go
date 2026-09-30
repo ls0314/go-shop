@@ -13,7 +13,7 @@ var menuPermissionCtrl *handler.MenuPermissionHandler
 
 // InitMenuPermModule 初始化菜单权限模块
 func InitMenuPermModule(deps service.ServiceDeps) {
-	menuPermissionCtrl = handler.NewMenuPermissionHandler(deps)
+	menuPermissionCtrl = handler.NewMenuPermissionHandler(deps.UserRPC)
 }
 
 // RegisterMenuPermRoutes 注册菜单权限相关路由

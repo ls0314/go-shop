@@ -100,6 +100,16 @@ func (r *RoleRepo) GetRoleList(page, pageSize int, roleType string) ([]model.Sys
 	return roleList, total, nil
 }
 
+// ListRolesByIds 按角色ID列表批量查询,按 role_id 升序
+func (r *RoleRepo) ListRolesByIds(roleIds []int64) ([]*model.SysRole, error) {
+	var roles []*model.SysRole
+	err := r.DB.Where("role_id IN ?", roleIds).Order("role_id asc").Find(&roles).Error
+	if err != nil {
+		return nil, err
+	}
+	return roles, nil
+}
+
 // UpdateRole 更新角色信息
 // 接收值：role - 角色对象指针
 // 返回值：error - 错误信息

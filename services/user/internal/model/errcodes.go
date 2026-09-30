@@ -29,4 +29,13 @@ var (
 	DeptExist    = errors.New("此级目录内该部门已存在")
 	DeptNotExist = errors.New("部门不存在")
 	DeptHasRel   = errors.New("部门存在用户关联")
+
+	// 数据权限域
+	ScopeExist    = errors.New("数据权限标识已存在")
+	ScopeNotExist = errors.New("数据权限不存在")
+	ScopeNotRole  = errors.New("数据权限所关联的角色不存在")
+	ScopeIsRole   = errors.New("禁止修改关联角色")
+
+	// 用户域(绑定域校验用)
+	UserNotExist = errors.New("用户不存在")
 )

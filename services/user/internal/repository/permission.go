@@ -111,6 +111,16 @@ func (r *PermissionRepo) DeletePerm(id int64) error {
 	return r.DB.Delete(&model.SysPermission{}, id).Error
 }
 
+// ListPermsByIds 按权限ID列表批量查询
+func (r *PermissionRepo) ListPermsByIds(permIds []int64) ([]*model.SysPermission, error) {
+	var perms []*model.SysPermission
+	err := r.DB.Where("permission_id IN ?", permIds).Find(&perms).Error
+	if err != nil {
+		return nil, err
+	}
+	return perms, nil
+}
+
 // CheckRoleRelPerm 检查是否有角色关联该权限
 // 接收值：
 //

@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
+
+import "google/protobuf/timestamp.proto";
+import "user/v1/common.proto";
+
+// Scope 数据权限范围。角色名由前端用角色列表本地映射,不由本接口返回。
+message Scope {
+  int64 scope_id = 1;
+  int64 role_id = 2;
+  string resource_type = 3;
+  string field_name = 4;
+  string condition_type = 5;
+  string condition_value = 6;
+  string description = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message GetScopeReq {
+  int64 scope_id = 1;
+}
+
+message GetScopeResp {
+  Scope scope = 1;
+  string error_msg = 2;
+}
+
+message ListScopesReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 为空表示不过滤
+  string resource_type = 3;
+}
+
+message ListScopesResp {
+  repeated Scope items = 1;
+  int64 total = 2;
+  string error_msg = 3;
+}
+
+message CreateScopeReq {
+  Scope scope = 1;
+}
+
+message CreateScopeResp {
+  Scope scope = 1;
+  string error_msg = 2;
+}
+
+message UpdateScopeReq {
+  int64 scope_id = 1;
+  repeated FieldUpdate updates = 2;
+}
+
+// UpdateScopeResp.scope 返回合并后的完整对象,调用方无需再查一次。
+message UpdateScopeResp {
+  Scope scope = 1;
+  string error_msg = 2;
+}
+
+message DeleteScopeReq {
+  int64 scope_id = 1;
+}
+
+message DeleteScopeResp {
+  string error_msg = 1;
+}

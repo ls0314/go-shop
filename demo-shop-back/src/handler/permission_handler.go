@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"demo-shop-back/src/infra/userclient"
 	"demo-shop-back/src/model"
-	"demo-shop-back/src/service"
 	"demo-shop-back/src/utils"
 	"strconv"
 
@@ -11,14 +11,14 @@ import (
 
 // PermissionHandler 权限表handler层实例
 type PermissionHandler struct {
-	PermService *service.PermissionService // 权限表服务层对象指针
+	userRPC *userclient.PermCodesClient
 }
 
 // NewPermissionHandler 构建权限表中的HTTP中handler实例
 // 接收值：permService - 权限服务层对象指针
 // 返回值：*PermissionHandler - 权限handler指针
-func NewPermissionHandler(permService *service.PermissionService) *PermissionHandler {
-	return &PermissionHandler{permService}
+func NewPermissionHandler(userRPC *userclient.PermCodesClient) *PermissionHandler {
+	return &PermissionHandler{userRPC: userRPC}
 }
 
 // CreatePermission 创建权限接口、
@@ -31,8 +31,13 @@ func (p *PermissionHandler) CreatePermission(c *gin.Context) {
 		return
 	}
 	// 调用服务层创建菜单
-	if err := p.PermService.CreatePermission(&perm); err != nil {
+	_, errMsg, err := p.userRPC.CreatePermission(&perm)
+	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 创建成功，返回新建菜单数据
@@ -50,9 +55,13 @@ func (p *PermissionHandler) GetPermission(c *gin.Context) {
 		return
 	}
 	// 调用服务层查找权限信息
-	perm, err := p.PermService.GetPermission(id)
+	perm, errMsg, err := p.userRPC.GetPermission(id)
 	if err != nil {
-		utils.Fail(c, 400, err.Error())
+		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 查询成功，返回所查询权限信息
@@ -70,9 +79,13 @@ func (p *PermissionHandler) GetPermissionList(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 	permType := c.Query("permType")
 	// 调用服务层分页查询权限
-	perms, total, err := p.PermService.GetPermissionList(page, pageSize, permType)
+	perms, total, errMsg, err := p.userRPC.ListPermissions(page, pageSize, permType)
 	if err != nil {
-		utils.Error(c, 500, "查询失败")
+		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 
@@ -102,14 +115,24 @@ func (p *PermissionHandler) UpdatePermission(c *gin.Context) {
 		return
 	}
 	//调用服务层更新权限部分信息
-	if err := p.PermService.UpdatePermission(id, updatePerm); err != nil {
+	_, errMsg, err := p.userRPC.UpdatePermission(id, updatePerm)
+	if err != nil {
 		utils.Error(c, 500, err.Error())
 		return
 	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
+		return
+	}
 	// 获取权限更新后的完整信息
-	perm, err := p.PermService.GetPermission(id)
+	perm, errMsg, err := p.userRPC.GetPermission(id)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
+		return
 	}
 	// 更新成功,返回更新后完整权限信息
 	utils.Success(c, perm)
@@ -126,8 +149,13 @@ func (p *PermissionHandler) DeletePermission(c *gin.Context) {
 		return
 	}
 	//调用service层删除权限
-	if err := p.PermService.DeletePermission(id); err != nil {
+	errMsg, err := p.userRPC.DeletePermission(id)
+	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 删除成功

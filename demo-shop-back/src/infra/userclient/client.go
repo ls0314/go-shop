@@ -4,6 +4,7 @@ import (
 	"context"
 	"demo-shop-back/src/contracts"
 	"demo-shop-back/src/infra/cache"
+	"demo-shop-back/src/model"
 	"demo-shop/api/gen/user/v1"
 	"errors"
 	"fmt"
@@ -119,4 +120,175 @@ func (c *PermCodesClient) GetPermCodesByApi(path, method string) ([]string, erro
 		_ = c.cache.SetJSON(context.Background(), key, resp.PermCodes, permCacheTTL)
 	}
 	return resp.PermCodes, nil
+}
+
+// ============ 权限点 CRUD ============
+
+// GetPermission 按 ID 取权限点
+func (c *PermCodesClient) GetPermission(id int64) (*model.SysPermission, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.perm.GetPermission(ctx, &v1_userv1.GetPermissionReq{PermissionId: id})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelPermission(resp.Permission), "", nil
+}
+
+// ListPermissions 分页取权限点
+func (c *PermCodesClient) ListPermissions(page, pageSize int, permType string) ([]model.SysPermission, int64, string, error) {
+	if c == nil {
+		return nil, 0, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.perm.ListPermissions(ctx, &v1_userv1.ListPermissionsReq{
+		Page:           int32(page),
+		PageSize:       int32(pageSize),
+		PermissionType: permType,
+	})
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, 0, resp.ErrorMsg, nil
+	}
+
+	perms := make([]model.SysPermission, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		if item == nil {
+			continue
+		}
+		perms = append(perms, *toModelPermission(item))
+	}
+	return perms, resp.Total, "", nil
+}
+
+// CreatePermission 创建权限点
+func (c *PermCodesClient) CreatePermission(perm *model.SysPermission) (*model.SysPermission, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.perm.CreatePermission(ctx, &v1_userv1.CreatePermissionReq{
+		Permission: toProtoPermission(perm),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelPermission(resp.Permission), "", nil
+}
+
+// UpdatePermission 局部更新权限点,updates 的 key 为 JSON 字段名
+func (c *PermCodesClient) UpdatePermission(id int64, updates map[string]interface{}) (*model.SysPermission, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	fields := make([]*v1_userv1.FieldUpdate, 0, len(updates))
+	for k, v := range updates {
+		fv, ok := toProtoFieldValue(v)
+		if !ok {
+			continue
+		}
+		fields = append(fields, &v1_userv1.FieldUpdate{Field: k, Value: fv})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.perm.UpdatePermission(ctx, &v1_userv1.UpdatePermissionReq{
+		PermissionId: id,
+		Updates:      fields,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelPermission(resp.Permission), "", nil
+}
+
+// DeletePermission 删除权限点
+func (c *PermCodesClient) DeletePermission(id int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.perm.DeletePermission(ctx, &v1_userv1.DeletePermissionReq{PermissionId: id})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// ============ 类型转换 ============
+
+// toModelPermission proto -> 单体 model。created_at 不在 proto 中,取零值。
+func toModelPermission(p *v1_userv1.Permission) *model.SysPermission {
+	if p == nil {
+		return nil
+	}
+	return &model.SysPermission{
+		PermissionID:   p.PermissionId,
+		PermissionCode: p.PermissionCode,
+		PermissionName: p.PermissionName,
+		PermissionType: p.PermissionType,
+		RequestMethod:  p.RequestMethod,
+		ApiPath:        p.ApiPath,
+		Description:    p.Description,
+		IsSystem:       p.IsSystem,
+	}
+}
+
+// toProtoPermission 单体 model -> proto
+func toProtoPermission(p *model.SysPermission) *v1_userv1.Permission {
+	if p == nil {
+		return nil
+	}
+	return &v1_userv1.Permission{
+		PermissionId:   p.PermissionID,
+		PermissionCode: p.PermissionCode,
+		PermissionName: p.PermissionName,
+		PermissionType: p.PermissionType,
+		RequestMethod:  p.RequestMethod,
+		ApiPath:        p.ApiPath,
+		Description:    p.Description,
+		IsSystem:       p.IsSystem,
+	}
+}
+
+// toProtoFieldValue 把 JSON 反序列化出的值装进 oneof。
+// 只支持 string/int64/bool —— sys_permission 的可更新字段只有这三类。
+func toProtoFieldValue(v interface{}) (*v1_userv1.FieldValue, bool) {
+	switch x := v.(type) {
+	case string:
+		return &v1_userv1.FieldValue{Value: &v1_userv1.FieldValue_StringValue{StringValue: x}}, true
+	case bool:
+		return &v1_userv1.FieldValue{Value: &v1_userv1.FieldValue_BoolValue{BoolValue: x}}, true
+	case float64:
+		// JSON 数字默认解析为 float64
+		return &v1_userv1.FieldValue{Value: &v1_userv1.FieldValue_Int64Value{Int64Value: int64(x)}}, true
+	}
+	return nil, false
 }

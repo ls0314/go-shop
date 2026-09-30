@@ -24,7 +24,7 @@ const (
 )
 
 type PermCodesClient struct {
-	perm  v1_userv1.PermissionServiceClient
+	rbac  v1_userv1.RBACServiceClient
 	cache *cache.RedisService
 	conn  *grpc.ClientConn
 }
@@ -39,7 +39,7 @@ func NewPermCodesClient(etcdHosts []string, etcdKey string, cch *cache.RedisServ
 		return nil, err
 	}
 	return &PermCodesClient{
-		perm:  v1_userv1.NewPermissionServiceClient(client.Conn()),
+		rbac:  v1_userv1.NewRBACServiceClient(client.Conn()),
 		cache: cch,
 		conn:  client.Conn(),
 	}, nil
@@ -65,7 +65,7 @@ func (c *PermCodesClient) GetPermCodesByUserId(userId int64) ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
 	defer cancel()
 
-	resp, err := c.perm.ListPermCodesByUserId(ctx, &v1_userv1.ListPermCodesByUserIdReq{UserId: userId})
+	resp, err := c.rbac.ListPermCodesByUserId(ctx, &v1_userv1.ListPermCodesByUserIdReq{UserId: userId})
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (c *PermCodesClient) GetPermCodesByApi(path, method string) ([]string, erro
 	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
 	defer cancel()
 
-	resp, err := c.perm.ListPermCodesByApi(ctx, &v1_userv1.ListPermCodesByApiReq{
+	resp, err := c.rbac.ListPermCodesByApi(ctx, &v1_userv1.ListPermCodesByApiReq{
 		ApiPath:       path,
 		RequestMethod: method,
 	})
@@ -133,7 +133,7 @@ func (c *PermCodesClient) GetPermission(id int64) (*model.SysPermission, string,
 	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
 	defer cancel()
 
-	resp, err := c.perm.GetPermission(ctx, &v1_userv1.GetPermissionReq{PermissionId: id})
+	resp, err := c.rbac.GetPermission(ctx, &v1_userv1.GetPermissionReq{PermissionId: id})
 	if err != nil {
 		return nil, "", err
 	}
@@ -152,7 +152,7 @@ func (c *PermCodesClient) ListPermissions(page, pageSize int, permType string) (
 	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
 	defer cancel()
 
-	resp, err := c.perm.ListPermissions(ctx, &v1_userv1.ListPermissionsReq{
+	resp, err := c.rbac.ListPermissions(ctx, &v1_userv1.ListPermissionsReq{
 		Page:           int32(page),
 		PageSize:       int32(pageSize),
 		PermissionType: permType,
@@ -183,7 +183,7 @@ func (c *PermCodesClient) CreatePermission(perm *model.SysPermission) (*model.Sy
 	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
 	defer cancel()
 
-	resp, err := c.perm.CreatePermission(ctx, &v1_userv1.CreatePermissionReq{
+	resp, err := c.rbac.CreatePermission(ctx, &v1_userv1.CreatePermissionReq{
 		Permission: toProtoPermission(perm),
 	})
 	if err != nil {
@@ -213,7 +213,7 @@ func (c *PermCodesClient) UpdatePermission(id int64, updates map[string]interfac
 	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
 	defer cancel()
 
-	resp, err := c.perm.UpdatePermission(ctx, &v1_userv1.UpdatePermissionReq{
+	resp, err := c.rbac.UpdatePermission(ctx, &v1_userv1.UpdatePermissionReq{
 		PermissionId: id,
 		Updates:      fields,
 	})
@@ -235,7 +235,7 @@ func (c *PermCodesClient) DeletePermission(id int64) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
 	defer cancel()
 
-	resp, err := c.perm.DeletePermission(ctx, &v1_userv1.DeletePermissionReq{PermissionId: id})
+	resp, err := c.rbac.DeletePermission(ctx, &v1_userv1.DeletePermissionReq{PermissionId: id})
 	if err != nil {
 		return "", err
 	}

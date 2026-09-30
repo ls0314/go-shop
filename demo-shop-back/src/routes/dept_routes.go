@@ -18,7 +18,7 @@ var deptCtrl *handler.DeptHandler
 func InitDeptModule(deps service.ServiceDeps) {
 
 	// 初始化部门控制器，赋值给全局控制器变量
-	deptCtrl = handler.NewDeptHandler(deps)
+	deptCtrl = handler.NewDeptHandler(deps.UserRPC)
 
 }
 

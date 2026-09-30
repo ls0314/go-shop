@@ -404,6 +404,145 @@ func (c *PermCodesClient) GetMenuTreeByRoleId(roleId int64) ([]*model.SysMenu, e
 	return toModelMenuTree(resp.Items), nil
 }
 
+// ============ 部门 CRUD ============
+
+// GetDept 按 ID 取部门
+func (c *PermCodesClient) GetDept(id int64) (*model.SysDept, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.GetDept(ctx, &v1_userv1.GetDeptReq{DeptId: id})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelDept(resp.Dept), "", nil
+}
+
+// ListDepts 分页取部门,返回扁平列表(children 为空)
+func (c *PermCodesClient) ListDepts(page, pageSize int, deptType string) ([]model.SysDept, int64, string, error) {
+	if c == nil {
+		return nil, 0, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ListDepts(ctx, &v1_userv1.ListDeptsReq{
+		Page:     int32(page),
+		PageSize: int32(pageSize),
+		DeptType: deptType,
+	})
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, 0, resp.ErrorMsg, nil
+	}
+
+	depts := make([]model.SysDept, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		if item == nil {
+			continue
+		}
+		depts = append(depts, *toModelDept(item))
+	}
+	return depts, resp.Total, "", nil
+}
+
+// CreateDept 创建部门
+func (c *PermCodesClient) CreateDept(dept *model.SysDept) (*model.SysDept, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.CreateDept(ctx, &v1_userv1.CreateDeptReq{
+		Dept: toProtoDept(dept),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelDept(resp.Dept), "", nil
+}
+
+// UpdateDept 局部更新部门,updates 的 key 为 JSON 字段名
+func (c *PermCodesClient) UpdateDept(id int64, updates map[string]interface{}) (*model.SysDept, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	fields := make([]*v1_userv1.FieldUpdate, 0, len(updates))
+	for k, v := range updates {
+		fv, ok := toProtoFieldValue(v)
+		if !ok {
+			continue
+		}
+		fields = append(fields, &v1_userv1.FieldUpdate{Field: k, Value: fv})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.UpdateDept(ctx, &v1_userv1.UpdateDeptReq{
+		DeptId:  id,
+		Updates: fields,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelDept(resp.Dept), "", nil
+}
+
+// DeleteDept 删除部门
+func (c *PermCodesClient) DeleteDept(id int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.DeleteDept(ctx, &v1_userv1.DeleteDeptReq{DeptId: id})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// GetDeptTreeByUserId 取指定用户所属部门的树
+func (c *PermCodesClient) GetDeptTreeByUserId(userId int64) ([]*model.SysDept, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.GetDeptTreeByUserId(ctx, &v1_userv1.GetDeptTreeByUserIdReq{UserId: userId})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelDeptTree(resp.Items), "", nil
+}
+
 // ============ 权限点 CRUD ============
 
 // GetPermission 按 ID 取权限点
@@ -662,6 +801,59 @@ func toProtoMenu(m *model.SysMenu) *v1_userv1.Menu {
 		SortOrder: m.SortOrder,
 		MetaInfo:  meta,
 		CreatedAt: timestamppb.New(m.CreatedAt),
+		Children:  children,
+	}
+}
+
+// toModelDept proto -> 单体 model。
+func toModelDept(p *v1_userv1.Dept) *model.SysDept {
+	if p == nil {
+		return nil
+	}
+	return &model.SysDept{
+		DeptId:    p.DeptId,
+		ParentId:  p.ParentId,
+		DeptName:  p.DeptName,
+		DeptType:  p.DeptType,
+		LeaderId:  p.LeaderId,
+		SortOrder: p.SortOrder,
+		Status:    p.Status,
+		CreatedAt: p.GetCreatedAt().AsTime(),
+	}
+}
+
+// toModelDeptTree 递归转换部门树。
+func toModelDeptTree(items []*v1_userv1.Dept) []*model.SysDept {
+	out := make([]*model.SysDept, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		node := toModelDept(item)
+		node.Children = toModelDeptTree(item.Children)
+		out = append(out, node)
+	}
+	return out
+}
+
+// toProtoDept 单体 model -> proto,children 递归转换。
+func toProtoDept(d *model.SysDept) *v1_userv1.Dept {
+	if d == nil {
+		return nil
+	}
+	children := make([]*v1_userv1.Dept, 0, len(d.Children))
+	for _, c := range d.Children {
+		children = append(children, toProtoDept(c))
+	}
+	return &v1_userv1.Dept{
+		DeptId:    d.DeptId,
+		ParentId:  d.ParentId,
+		DeptName:  d.DeptName,
+		DeptType:  d.DeptType,
+		LeaderId:  d.LeaderId,
+		SortOrder: d.SortOrder,
+		Status:    d.Status,
+		CreatedAt: timestamppb.New(d.CreatedAt),
 		Children:  children,
 	}
 }

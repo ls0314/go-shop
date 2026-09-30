@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
+
+import "user/v1/role.proto";
+
+// AssignUserRoles 全量替换用户的角色绑定(先清空再写入)。
+message AssignUserRolesReq {
+  int64 user_id = 1;
+  repeated int64 role_ids = 2;
+}
+
+message AssignUserRolesResp {
+  string error_msg = 1;
+}
+
+message ListUserRolesReq {
+  int64 user_id = 1;
+}
+
+message ListUserRolesResp {
+  repeated Role items = 1;
+  int64 total = 2;
+  string error_msg = 3;
+}
+
+message ClearUserRolesReq {
+  int64 user_id = 1;
+}
+
+message ClearUserRolesResp {
+  string error_msg = 1;
+}

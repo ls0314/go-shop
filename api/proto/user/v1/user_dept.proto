@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
+
+import "user/v1/dept.proto";
+
+// AssignUserDepts 全量替换用户的部门绑定(先清空再写入)。
+message AssignUserDeptsReq {
+  int64 user_id = 1;
+  repeated int64 dept_ids = 2;
+  // 主部门在 dept_ids 中的下标,不是部门ID。越界或为负表示无主部门。
+  int64 primary_index = 3;
+}
+
+message AssignUserDeptsResp {
+  string error_msg = 1;
+}
+
+message ListUserDeptsReq {
+  int64 user_id = 1;
+}
+
+message ListUserDeptsResp {
+  repeated Dept items = 1;
+  int64 total = 2;
+  // 主部门的部门ID,无主部门时为 0
+  int64 primary_dept_id = 3;
+  string error_msg = 4;
+}
+
+message ClearUserDeptsReq {
+  int64 user_id = 1;
+}
+
+message ClearUserDeptsResp {
+  string error_msg = 1;
+}

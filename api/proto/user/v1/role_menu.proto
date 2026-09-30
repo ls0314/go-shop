@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
+
+import "user/v1/menu.proto";
+
+// AssignRoleMenus 全量替换角色的菜单绑定(先清空再写入)。
+message AssignRoleMenusReq {
+  int64 role_id = 1;
+  repeated int64 menu_ids = 2;
+}
+
+message AssignRoleMenusResp {
+  string error_msg = 1;
+}
+
+message ListRoleMenusReq {
+  int64 role_id = 1;
+}
+
+message ListRoleMenusResp {
+  repeated Menu items = 1;
+  int64 total = 2;
+  string error_msg = 3;
+}
+
+message ClearRoleMenusReq {
+  int64 role_id = 1;
+}
+
+message ClearRoleMenusResp {
+  string error_msg = 1;
+}

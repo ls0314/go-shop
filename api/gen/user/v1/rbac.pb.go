@@ -24,7 +24,7 @@ var File_user_v1_rbac_proto protoreflect.FileDescriptor
 
 const file_user_v1_rbac_proto_rawDesc = "" +
 	"\n" +
-	"\x12user/v1/rbac.proto\x12\auser.v1\x1a\x18user/v1/permission.proto\x1a\x12user/v1/role.proto\x1a\x12user/v1/menu.proto\x1a\x12user/v1/dept.proto2\xb3\x0e\n" +
+	"\x12user/v1/rbac.proto\x12\auser.v1\x1a\x18user/v1/permission.proto\x1a\x12user/v1/role.proto\x1a\x12user/v1/menu.proto\x1a\x12user/v1/dept.proto\x1a\x13user/v1/scope.proto\x1a\x17user/v1/role_perm.proto\x1a\x17user/v1/role_menu.proto\x1a\x17user/v1/menu_perm.proto\x1a\x17user/v1/user_role.proto\x1a\x17user/v1/user_dept.proto2\xd6\x19\n" +
 	"\vRBACService\x12^\n" +
 	"\x15ListPermCodesByUserId\x12!.user.v1.ListPermCodesByUserIdReq\x1a\".user.v1.ListPermCodesByUserIdResp\x12U\n" +
 	"\x12ListPermCodesByApi\x12\x1e.user.v1.ListPermCodesByApiReq\x1a\x1f.user.v1.ListPermCodesByApiResp\x12I\n" +
@@ -60,7 +60,28 @@ const file_user_v1_rbac_proto_rawDesc = "" +
 	"UpdateDept\x12\x16.user.v1.UpdateDeptReq\x1a\x17.user.v1.UpdateDeptResp\x12=\n" +
 	"\n" +
 	"DeleteDept\x12\x16.user.v1.DeleteDeptReq\x1a\x17.user.v1.DeleteDeptResp\x12X\n" +
-	"\x13GetDeptTreeByUserId\x12\x1f.user.v1.GetDeptTreeByUserIdReq\x1a .user.v1.GetDeptTreeByUserIdRespB%Z#demo-shop/api/gen/user/v1;v1_userv1b\x06proto3"
+	"\x13GetDeptTreeByUserId\x12\x1f.user.v1.GetDeptTreeByUserIdReq\x1a .user.v1.GetDeptTreeByUserIdResp\x127\n" +
+	"\bGetScope\x12\x14.user.v1.GetScopeReq\x1a\x15.user.v1.GetScopeResp\x12=\n" +
+	"\n" +
+	"ListScopes\x12\x16.user.v1.ListScopesReq\x1a\x17.user.v1.ListScopesResp\x12@\n" +
+	"\vCreateScope\x12\x17.user.v1.CreateScopeReq\x1a\x18.user.v1.CreateScopeResp\x12@\n" +
+	"\vUpdateScope\x12\x17.user.v1.UpdateScopeReq\x1a\x18.user.v1.UpdateScopeResp\x12@\n" +
+	"\vDeleteScope\x12\x17.user.v1.DeleteScopeReq\x1a\x18.user.v1.DeleteScopeResp\x12L\n" +
+	"\x0fAssignRolePerms\x12\x1b.user.v1.AssignRolePermsReq\x1a\x1c.user.v1.AssignRolePermsResp\x12F\n" +
+	"\rListRolePerms\x12\x19.user.v1.ListRolePermsReq\x1a\x1a.user.v1.ListRolePermsResp\x12I\n" +
+	"\x0eClearRolePerms\x12\x1a.user.v1.ClearRolePermsReq\x1a\x1b.user.v1.ClearRolePermsResp\x12L\n" +
+	"\x0fAssignRoleMenus\x12\x1b.user.v1.AssignRoleMenusReq\x1a\x1c.user.v1.AssignRoleMenusResp\x12F\n" +
+	"\rListRoleMenus\x12\x19.user.v1.ListRoleMenusReq\x1a\x1a.user.v1.ListRoleMenusResp\x12I\n" +
+	"\x0eClearRoleMenus\x12\x1a.user.v1.ClearRoleMenusReq\x1a\x1b.user.v1.ClearRoleMenusResp\x12L\n" +
+	"\x0fAssignMenuPerms\x12\x1b.user.v1.AssignMenuPermsReq\x1a\x1c.user.v1.AssignMenuPermsResp\x12F\n" +
+	"\rListMenuPerms\x12\x19.user.v1.ListMenuPermsReq\x1a\x1a.user.v1.ListMenuPermsResp\x12I\n" +
+	"\x0eClearMenuPerms\x12\x1a.user.v1.ClearMenuPermsReq\x1a\x1b.user.v1.ClearMenuPermsResp\x12L\n" +
+	"\x0fAssignUserRoles\x12\x1b.user.v1.AssignUserRolesReq\x1a\x1c.user.v1.AssignUserRolesResp\x12F\n" +
+	"\rListUserRoles\x12\x19.user.v1.ListUserRolesReq\x1a\x1a.user.v1.ListUserRolesResp\x12I\n" +
+	"\x0eClearUserRoles\x12\x1a.user.v1.ClearUserRolesReq\x1a\x1b.user.v1.ClearUserRolesResp\x12L\n" +
+	"\x0fAssignUserDepts\x12\x1b.user.v1.AssignUserDeptsReq\x1a\x1c.user.v1.AssignUserDeptsResp\x12F\n" +
+	"\rListUserDepts\x12\x19.user.v1.ListUserDeptsReq\x1a\x1a.user.v1.ListUserDeptsResp\x12I\n" +
+	"\x0eClearUserDepts\x12\x1a.user.v1.ClearUserDeptsReq\x1a\x1b.user.v1.ClearUserDeptsRespB%Z#demo-shop/api/gen/user/v1;v1_userv1b\x06proto3"
 
 var file_user_v1_rbac_proto_goTypes = []any{
 	(*ListPermCodesByUserIdReq)(nil),  // 0: user.v1.ListPermCodesByUserIdReq
@@ -89,32 +110,72 @@ var file_user_v1_rbac_proto_goTypes = []any{
 	(*UpdateDeptReq)(nil),             // 23: user.v1.UpdateDeptReq
 	(*DeleteDeptReq)(nil),             // 24: user.v1.DeleteDeptReq
 	(*GetDeptTreeByUserIdReq)(nil),    // 25: user.v1.GetDeptTreeByUserIdReq
-	(*ListPermCodesByUserIdResp)(nil), // 26: user.v1.ListPermCodesByUserIdResp
-	(*ListPermCodesByApiResp)(nil),    // 27: user.v1.ListPermCodesByApiResp
-	(*GetPermVersionResp)(nil),        // 28: user.v1.GetPermVersionResp
-	(*GetPermissionResp)(nil),         // 29: user.v1.GetPermissionResp
-	(*ListPermissionsResp)(nil),       // 30: user.v1.ListPermissionsResp
-	(*CreatePermissionResp)(nil),      // 31: user.v1.CreatePermissionResp
-	(*UpdatePermissionResp)(nil),      // 32: user.v1.UpdatePermissionResp
-	(*DeletePermissionResp)(nil),      // 33: user.v1.DeletePermissionResp
-	(*GetRoleResp)(nil),               // 34: user.v1.GetRoleResp
-	(*ListRolesResp)(nil),             // 35: user.v1.ListRolesResp
-	(*CreateRoleResp)(nil),            // 36: user.v1.CreateRoleResp
-	(*UpdateRoleResp)(nil),            // 37: user.v1.UpdateRoleResp
-	(*DeleteRoleResp)(nil),            // 38: user.v1.DeleteRoleResp
-	(*GetMenuResp)(nil),               // 39: user.v1.GetMenuResp
-	(*ListMenusResp)(nil),             // 40: user.v1.ListMenusResp
-	(*CreateMenuResp)(nil),            // 41: user.v1.CreateMenuResp
-	(*UpdateMenuResp)(nil),            // 42: user.v1.UpdateMenuResp
-	(*DeleteMenuResp)(nil),            // 43: user.v1.DeleteMenuResp
-	(*GetMenuTreeByUserIdResp)(nil),   // 44: user.v1.GetMenuTreeByUserIdResp
-	(*GetMenuTreeByRoleIdResp)(nil),   // 45: user.v1.GetMenuTreeByRoleIdResp
-	(*GetDeptResp)(nil),               // 46: user.v1.GetDeptResp
-	(*ListDeptsResp)(nil),             // 47: user.v1.ListDeptsResp
-	(*CreateDeptResp)(nil),            // 48: user.v1.CreateDeptResp
-	(*UpdateDeptResp)(nil),            // 49: user.v1.UpdateDeptResp
-	(*DeleteDeptResp)(nil),            // 50: user.v1.DeleteDeptResp
-	(*GetDeptTreeByUserIdResp)(nil),   // 51: user.v1.GetDeptTreeByUserIdResp
+	(*GetScopeReq)(nil),               // 26: user.v1.GetScopeReq
+	(*ListScopesReq)(nil),             // 27: user.v1.ListScopesReq
+	(*CreateScopeReq)(nil),            // 28: user.v1.CreateScopeReq
+	(*UpdateScopeReq)(nil),            // 29: user.v1.UpdateScopeReq
+	(*DeleteScopeReq)(nil),            // 30: user.v1.DeleteScopeReq
+	(*AssignRolePermsReq)(nil),        // 31: user.v1.AssignRolePermsReq
+	(*ListRolePermsReq)(nil),          // 32: user.v1.ListRolePermsReq
+	(*ClearRolePermsReq)(nil),         // 33: user.v1.ClearRolePermsReq
+	(*AssignRoleMenusReq)(nil),        // 34: user.v1.AssignRoleMenusReq
+	(*ListRoleMenusReq)(nil),          // 35: user.v1.ListRoleMenusReq
+	(*ClearRoleMenusReq)(nil),         // 36: user.v1.ClearRoleMenusReq
+	(*AssignMenuPermsReq)(nil),        // 37: user.v1.AssignMenuPermsReq
+	(*ListMenuPermsReq)(nil),          // 38: user.v1.ListMenuPermsReq
+	(*ClearMenuPermsReq)(nil),         // 39: user.v1.ClearMenuPermsReq
+	(*AssignUserRolesReq)(nil),        // 40: user.v1.AssignUserRolesReq
+	(*ListUserRolesReq)(nil),          // 41: user.v1.ListUserRolesReq
+	(*ClearUserRolesReq)(nil),         // 42: user.v1.ClearUserRolesReq
+	(*AssignUserDeptsReq)(nil),        // 43: user.v1.AssignUserDeptsReq
+	(*ListUserDeptsReq)(nil),          // 44: user.v1.ListUserDeptsReq
+	(*ClearUserDeptsReq)(nil),         // 45: user.v1.ClearUserDeptsReq
+	(*ListPermCodesByUserIdResp)(nil), // 46: user.v1.ListPermCodesByUserIdResp
+	(*ListPermCodesByApiResp)(nil),    // 47: user.v1.ListPermCodesByApiResp
+	(*GetPermVersionResp)(nil),        // 48: user.v1.GetPermVersionResp
+	(*GetPermissionResp)(nil),         // 49: user.v1.GetPermissionResp
+	(*ListPermissionsResp)(nil),       // 50: user.v1.ListPermissionsResp
+	(*CreatePermissionResp)(nil),      // 51: user.v1.CreatePermissionResp
+	(*UpdatePermissionResp)(nil),      // 52: user.v1.UpdatePermissionResp
+	(*DeletePermissionResp)(nil),      // 53: user.v1.DeletePermissionResp
+	(*GetRoleResp)(nil),               // 54: user.v1.GetRoleResp
+	(*ListRolesResp)(nil),             // 55: user.v1.ListRolesResp
+	(*CreateRoleResp)(nil),            // 56: user.v1.CreateRoleResp
+	(*UpdateRoleResp)(nil),            // 57: user.v1.UpdateRoleResp
+	(*DeleteRoleResp)(nil),            // 58: user.v1.DeleteRoleResp
+	(*GetMenuResp)(nil),               // 59: user.v1.GetMenuResp
+	(*ListMenusResp)(nil),             // 60: user.v1.ListMenusResp
+	(*CreateMenuResp)(nil),            // 61: user.v1.CreateMenuResp
+	(*UpdateMenuResp)(nil),            // 62: user.v1.UpdateMenuResp
+	(*DeleteMenuResp)(nil),            // 63: user.v1.DeleteMenuResp
+	(*GetMenuTreeByUserIdResp)(nil),   // 64: user.v1.GetMenuTreeByUserIdResp
+	(*GetMenuTreeByRoleIdResp)(nil),   // 65: user.v1.GetMenuTreeByRoleIdResp
+	(*GetDeptResp)(nil),               // 66: user.v1.GetDeptResp
+	(*ListDeptsResp)(nil),             // 67: user.v1.ListDeptsResp
+	(*CreateDeptResp)(nil),            // 68: user.v1.CreateDeptResp
+	(*UpdateDeptResp)(nil),            // 69: user.v1.UpdateDeptResp
+	(*DeleteDeptResp)(nil),            // 70: user.v1.DeleteDeptResp
+	(*GetDeptTreeByUserIdResp)(nil),   // 71: user.v1.GetDeptTreeByUserIdResp
+	(*GetScopeResp)(nil),              // 72: user.v1.GetScopeResp
+	(*ListScopesResp)(nil),            // 73: user.v1.ListScopesResp
+	(*CreateScopeResp)(nil),           // 74: user.v1.CreateScopeResp
+	(*UpdateScopeResp)(nil),           // 75: user.v1.UpdateScopeResp
+	(*DeleteScopeResp)(nil),           // 76: user.v1.DeleteScopeResp
+	(*AssignRolePermsResp)(nil),       // 77: user.v1.AssignRolePermsResp
+	(*ListRolePermsResp)(nil),         // 78: user.v1.ListRolePermsResp
+	(*ClearRolePermsResp)(nil),        // 79: user.v1.ClearRolePermsResp
+	(*AssignRoleMenusResp)(nil),       // 80: user.v1.AssignRoleMenusResp
+	(*ListRoleMenusResp)(nil),         // 81: user.v1.ListRoleMenusResp
+	(*ClearRoleMenusResp)(nil),        // 82: user.v1.ClearRoleMenusResp
+	(*AssignMenuPermsResp)(nil),       // 83: user.v1.AssignMenuPermsResp
+	(*ListMenuPermsResp)(nil),         // 84: user.v1.ListMenuPermsResp
+	(*ClearMenuPermsResp)(nil),        // 85: user.v1.ClearMenuPermsResp
+	(*AssignUserRolesResp)(nil),       // 86: user.v1.AssignUserRolesResp
+	(*ListUserRolesResp)(nil),         // 87: user.v1.ListUserRolesResp
+	(*ClearUserRolesResp)(nil),        // 88: user.v1.ClearUserRolesResp
+	(*AssignUserDeptsResp)(nil),       // 89: user.v1.AssignUserDeptsResp
+	(*ListUserDeptsResp)(nil),         // 90: user.v1.ListUserDeptsResp
+	(*ClearUserDeptsResp)(nil),        // 91: user.v1.ClearUserDeptsResp
 }
 var file_user_v1_rbac_proto_depIdxs = []int32{
 	0,  // 0: user.v1.RBACService.ListPermCodesByUserId:input_type -> user.v1.ListPermCodesByUserIdReq
@@ -143,34 +204,74 @@ var file_user_v1_rbac_proto_depIdxs = []int32{
 	23, // 23: user.v1.RBACService.UpdateDept:input_type -> user.v1.UpdateDeptReq
 	24, // 24: user.v1.RBACService.DeleteDept:input_type -> user.v1.DeleteDeptReq
 	25, // 25: user.v1.RBACService.GetDeptTreeByUserId:input_type -> user.v1.GetDeptTreeByUserIdReq
-	26, // 26: user.v1.RBACService.ListPermCodesByUserId:output_type -> user.v1.ListPermCodesByUserIdResp
-	27, // 27: user.v1.RBACService.ListPermCodesByApi:output_type -> user.v1.ListPermCodesByApiResp
-	28, // 28: user.v1.RBACService.GetPermVersion:output_type -> user.v1.GetPermVersionResp
-	29, // 29: user.v1.RBACService.GetPermission:output_type -> user.v1.GetPermissionResp
-	30, // 30: user.v1.RBACService.ListPermissions:output_type -> user.v1.ListPermissionsResp
-	31, // 31: user.v1.RBACService.CreatePermission:output_type -> user.v1.CreatePermissionResp
-	32, // 32: user.v1.RBACService.UpdatePermission:output_type -> user.v1.UpdatePermissionResp
-	33, // 33: user.v1.RBACService.DeletePermission:output_type -> user.v1.DeletePermissionResp
-	34, // 34: user.v1.RBACService.GetRole:output_type -> user.v1.GetRoleResp
-	35, // 35: user.v1.RBACService.ListRoles:output_type -> user.v1.ListRolesResp
-	36, // 36: user.v1.RBACService.CreateRole:output_type -> user.v1.CreateRoleResp
-	37, // 37: user.v1.RBACService.UpdateRole:output_type -> user.v1.UpdateRoleResp
-	38, // 38: user.v1.RBACService.DeleteRole:output_type -> user.v1.DeleteRoleResp
-	39, // 39: user.v1.RBACService.GetMenu:output_type -> user.v1.GetMenuResp
-	40, // 40: user.v1.RBACService.ListMenus:output_type -> user.v1.ListMenusResp
-	41, // 41: user.v1.RBACService.CreateMenu:output_type -> user.v1.CreateMenuResp
-	42, // 42: user.v1.RBACService.UpdateMenu:output_type -> user.v1.UpdateMenuResp
-	43, // 43: user.v1.RBACService.DeleteMenu:output_type -> user.v1.DeleteMenuResp
-	44, // 44: user.v1.RBACService.GetMenuTreeByUserId:output_type -> user.v1.GetMenuTreeByUserIdResp
-	45, // 45: user.v1.RBACService.GetMenuTreeByRoleId:output_type -> user.v1.GetMenuTreeByRoleIdResp
-	46, // 46: user.v1.RBACService.GetDept:output_type -> user.v1.GetDeptResp
-	47, // 47: user.v1.RBACService.ListDepts:output_type -> user.v1.ListDeptsResp
-	48, // 48: user.v1.RBACService.CreateDept:output_type -> user.v1.CreateDeptResp
-	49, // 49: user.v1.RBACService.UpdateDept:output_type -> user.v1.UpdateDeptResp
-	50, // 50: user.v1.RBACService.DeleteDept:output_type -> user.v1.DeleteDeptResp
-	51, // 51: user.v1.RBACService.GetDeptTreeByUserId:output_type -> user.v1.GetDeptTreeByUserIdResp
-	26, // [26:52] is the sub-list for method output_type
-	0,  // [0:26] is the sub-list for method input_type
+	26, // 26: user.v1.RBACService.GetScope:input_type -> user.v1.GetScopeReq
+	27, // 27: user.v1.RBACService.ListScopes:input_type -> user.v1.ListScopesReq
+	28, // 28: user.v1.RBACService.CreateScope:input_type -> user.v1.CreateScopeReq
+	29, // 29: user.v1.RBACService.UpdateScope:input_type -> user.v1.UpdateScopeReq
+	30, // 30: user.v1.RBACService.DeleteScope:input_type -> user.v1.DeleteScopeReq
+	31, // 31: user.v1.RBACService.AssignRolePerms:input_type -> user.v1.AssignRolePermsReq
+	32, // 32: user.v1.RBACService.ListRolePerms:input_type -> user.v1.ListRolePermsReq
+	33, // 33: user.v1.RBACService.ClearRolePerms:input_type -> user.v1.ClearRolePermsReq
+	34, // 34: user.v1.RBACService.AssignRoleMenus:input_type -> user.v1.AssignRoleMenusReq
+	35, // 35: user.v1.RBACService.ListRoleMenus:input_type -> user.v1.ListRoleMenusReq
+	36, // 36: user.v1.RBACService.ClearRoleMenus:input_type -> user.v1.ClearRoleMenusReq
+	37, // 37: user.v1.RBACService.AssignMenuPerms:input_type -> user.v1.AssignMenuPermsReq
+	38, // 38: user.v1.RBACService.ListMenuPerms:input_type -> user.v1.ListMenuPermsReq
+	39, // 39: user.v1.RBACService.ClearMenuPerms:input_type -> user.v1.ClearMenuPermsReq
+	40, // 40: user.v1.RBACService.AssignUserRoles:input_type -> user.v1.AssignUserRolesReq
+	41, // 41: user.v1.RBACService.ListUserRoles:input_type -> user.v1.ListUserRolesReq
+	42, // 42: user.v1.RBACService.ClearUserRoles:input_type -> user.v1.ClearUserRolesReq
+	43, // 43: user.v1.RBACService.AssignUserDepts:input_type -> user.v1.AssignUserDeptsReq
+	44, // 44: user.v1.RBACService.ListUserDepts:input_type -> user.v1.ListUserDeptsReq
+	45, // 45: user.v1.RBACService.ClearUserDepts:input_type -> user.v1.ClearUserDeptsReq
+	46, // 46: user.v1.RBACService.ListPermCodesByUserId:output_type -> user.v1.ListPermCodesByUserIdResp
+	47, // 47: user.v1.RBACService.ListPermCodesByApi:output_type -> user.v1.ListPermCodesByApiResp
+	48, // 48: user.v1.RBACService.GetPermVersion:output_type -> user.v1.GetPermVersionResp
+	49, // 49: user.v1.RBACService.GetPermission:output_type -> user.v1.GetPermissionResp
+	50, // 50: user.v1.RBACService.ListPermissions:output_type -> user.v1.ListPermissionsResp
+	51, // 51: user.v1.RBACService.CreatePermission:output_type -> user.v1.CreatePermissionResp
+	52, // 52: user.v1.RBACService.UpdatePermission:output_type -> user.v1.UpdatePermissionResp
+	53, // 53: user.v1.RBACService.DeletePermission:output_type -> user.v1.DeletePermissionResp
+	54, // 54: user.v1.RBACService.GetRole:output_type -> user.v1.GetRoleResp
+	55, // 55: user.v1.RBACService.ListRoles:output_type -> user.v1.ListRolesResp
+	56, // 56: user.v1.RBACService.CreateRole:output_type -> user.v1.CreateRoleResp
+	57, // 57: user.v1.RBACService.UpdateRole:output_type -> user.v1.UpdateRoleResp
+	58, // 58: user.v1.RBACService.DeleteRole:output_type -> user.v1.DeleteRoleResp
+	59, // 59: user.v1.RBACService.GetMenu:output_type -> user.v1.GetMenuResp
+	60, // 60: user.v1.RBACService.ListMenus:output_type -> user.v1.ListMenusResp
+	61, // 61: user.v1.RBACService.CreateMenu:output_type -> user.v1.CreateMenuResp
+	62, // 62: user.v1.RBACService.UpdateMenu:output_type -> user.v1.UpdateMenuResp
+	63, // 63: user.v1.RBACService.DeleteMenu:output_type -> user.v1.DeleteMenuResp
+	64, // 64: user.v1.RBACService.GetMenuTreeByUserId:output_type -> user.v1.GetMenuTreeByUserIdResp
+	65, // 65: user.v1.RBACService.GetMenuTreeByRoleId:output_type -> user.v1.GetMenuTreeByRoleIdResp
+	66, // 66: user.v1.RBACService.GetDept:output_type -> user.v1.GetDeptResp
+	67, // 67: user.v1.RBACService.ListDepts:output_type -> user.v1.ListDeptsResp
+	68, // 68: user.v1.RBACService.CreateDept:output_type -> user.v1.CreateDeptResp
+	69, // 69: user.v1.RBACService.UpdateDept:output_type -> user.v1.UpdateDeptResp
+	70, // 70: user.v1.RBACService.DeleteDept:output_type -> user.v1.DeleteDeptResp
+	71, // 71: user.v1.RBACService.GetDeptTreeByUserId:output_type -> user.v1.GetDeptTreeByUserIdResp
+	72, // 72: user.v1.RBACService.GetScope:output_type -> user.v1.GetScopeResp
+	73, // 73: user.v1.RBACService.ListScopes:output_type -> user.v1.ListScopesResp
+	74, // 74: user.v1.RBACService.CreateScope:output_type -> user.v1.CreateScopeResp
+	75, // 75: user.v1.RBACService.UpdateScope:output_type -> user.v1.UpdateScopeResp
+	76, // 76: user.v1.RBACService.DeleteScope:output_type -> user.v1.DeleteScopeResp
+	77, // 77: user.v1.RBACService.AssignRolePerms:output_type -> user.v1.AssignRolePermsResp
+	78, // 78: user.v1.RBACService.ListRolePerms:output_type -> user.v1.ListRolePermsResp
+	79, // 79: user.v1.RBACService.ClearRolePerms:output_type -> user.v1.ClearRolePermsResp
+	80, // 80: user.v1.RBACService.AssignRoleMenus:output_type -> user.v1.AssignRoleMenusResp
+	81, // 81: user.v1.RBACService.ListRoleMenus:output_type -> user.v1.ListRoleMenusResp
+	82, // 82: user.v1.RBACService.ClearRoleMenus:output_type -> user.v1.ClearRoleMenusResp
+	83, // 83: user.v1.RBACService.AssignMenuPerms:output_type -> user.v1.AssignMenuPermsResp
+	84, // 84: user.v1.RBACService.ListMenuPerms:output_type -> user.v1.ListMenuPermsResp
+	85, // 85: user.v1.RBACService.ClearMenuPerms:output_type -> user.v1.ClearMenuPermsResp
+	86, // 86: user.v1.RBACService.AssignUserRoles:output_type -> user.v1.AssignUserRolesResp
+	87, // 87: user.v1.RBACService.ListUserRoles:output_type -> user.v1.ListUserRolesResp
+	88, // 88: user.v1.RBACService.ClearUserRoles:output_type -> user.v1.ClearUserRolesResp
+	89, // 89: user.v1.RBACService.AssignUserDepts:output_type -> user.v1.AssignUserDeptsResp
+	90, // 90: user.v1.RBACService.ListUserDepts:output_type -> user.v1.ListUserDeptsResp
+	91, // 91: user.v1.RBACService.ClearUserDepts:output_type -> user.v1.ClearUserDeptsResp
+	46, // [46:92] is the sub-list for method output_type
+	0,  // [0:46] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -185,6 +286,12 @@ func file_user_v1_rbac_proto_init() {
 	file_user_v1_role_proto_init()
 	file_user_v1_menu_proto_init()
 	file_user_v1_dept_proto_init()
+	file_user_v1_scope_proto_init()
+	file_user_v1_role_perm_proto_init()
+	file_user_v1_role_menu_proto_init()
+	file_user_v1_menu_perm_proto_init()
+	file_user_v1_user_role_proto_init()
+	file_user_v1_user_dept_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

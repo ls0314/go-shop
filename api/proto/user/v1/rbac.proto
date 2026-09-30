@@ -8,6 +8,12 @@ import "user/v1/permission.proto";
 import "user/v1/role.proto";
 import "user/v1/menu.proto";
 import "user/v1/dept.proto";
+import "user/v1/scope.proto";
+import "user/v1/role_perm.proto";
+import "user/v1/role_menu.proto";
+import "user/v1/menu_perm.proto";
+import "user/v1/user_role.proto";
+import "user/v1/user_dept.proto";
 
 
 // RBACService 平台 RBAC 管理。表的所有权在 user-service
@@ -47,4 +53,36 @@ service RBACService {
   rpc UpdateDept(UpdateDeptReq) returns (UpdateDeptResp);
   rpc DeleteDept(DeleteDeptReq) returns (DeleteDeptResp);
   rpc GetDeptTreeByUserId(GetDeptTreeByUserIdReq) returns (GetDeptTreeByUserIdResp);
+
+  // ---- 数据权限管理 ----
+  rpc GetScope(GetScopeReq) returns (GetScopeResp);
+  rpc ListScopes(ListScopesReq) returns (ListScopesResp);
+  rpc CreateScope(CreateScopeReq) returns (CreateScopeResp);
+  rpc UpdateScope(UpdateScopeReq) returns (UpdateScopeResp);
+  rpc DeleteScope(DeleteScopeReq) returns (DeleteScopeResp);
+
+  // ---- 角色-权限绑定 ----
+  rpc AssignRolePerms(AssignRolePermsReq) returns (AssignRolePermsResp);
+  rpc ListRolePerms(ListRolePermsReq) returns (ListRolePermsResp);
+  rpc ClearRolePerms(ClearRolePermsReq) returns (ClearRolePermsResp);
+
+  // ---- 角色-菜单绑定 ----
+  rpc AssignRoleMenus(AssignRoleMenusReq) returns (AssignRoleMenusResp);
+  rpc ListRoleMenus(ListRoleMenusReq) returns (ListRoleMenusResp);
+  rpc ClearRoleMenus(ClearRoleMenusReq) returns (ClearRoleMenusResp);
+
+  // ---- 菜单-权限绑定 ----
+  rpc AssignMenuPerms(AssignMenuPermsReq) returns (AssignMenuPermsResp);
+  rpc ListMenuPerms(ListMenuPermsReq) returns (ListMenuPermsResp);
+  rpc ClearMenuPerms(ClearMenuPermsReq) returns (ClearMenuPermsResp);
+
+  // ---- 用户-角色绑定 ----
+  rpc AssignUserRoles(AssignUserRolesReq) returns (AssignUserRolesResp);
+  rpc ListUserRoles(ListUserRolesReq) returns (ListUserRolesResp);
+  rpc ClearUserRoles(ClearUserRolesReq) returns (ClearUserRolesResp);
+
+  // ---- 用户-部门绑定 ----
+  rpc AssignUserDepts(AssignUserDeptsReq) returns (AssignUserDeptsResp);
+  rpc ListUserDepts(ListUserDeptsReq) returns (ListUserDeptsResp);
+  rpc ClearUserDepts(ClearUserDeptsReq) returns (ClearUserDeptsResp);
 }

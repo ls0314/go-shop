@@ -45,6 +45,26 @@ const (
 	RBACService_UpdateDept_FullMethodName            = "/user.v1.RBACService/UpdateDept"
 	RBACService_DeleteDept_FullMethodName            = "/user.v1.RBACService/DeleteDept"
 	RBACService_GetDeptTreeByUserId_FullMethodName   = "/user.v1.RBACService/GetDeptTreeByUserId"
+	RBACService_GetScope_FullMethodName              = "/user.v1.RBACService/GetScope"
+	RBACService_ListScopes_FullMethodName            = "/user.v1.RBACService/ListScopes"
+	RBACService_CreateScope_FullMethodName           = "/user.v1.RBACService/CreateScope"
+	RBACService_UpdateScope_FullMethodName           = "/user.v1.RBACService/UpdateScope"
+	RBACService_DeleteScope_FullMethodName           = "/user.v1.RBACService/DeleteScope"
+	RBACService_AssignRolePerms_FullMethodName       = "/user.v1.RBACService/AssignRolePerms"
+	RBACService_ListRolePerms_FullMethodName         = "/user.v1.RBACService/ListRolePerms"
+	RBACService_ClearRolePerms_FullMethodName        = "/user.v1.RBACService/ClearRolePerms"
+	RBACService_AssignRoleMenus_FullMethodName       = "/user.v1.RBACService/AssignRoleMenus"
+	RBACService_ListRoleMenus_FullMethodName         = "/user.v1.RBACService/ListRoleMenus"
+	RBACService_ClearRoleMenus_FullMethodName        = "/user.v1.RBACService/ClearRoleMenus"
+	RBACService_AssignMenuPerms_FullMethodName       = "/user.v1.RBACService/AssignMenuPerms"
+	RBACService_ListMenuPerms_FullMethodName         = "/user.v1.RBACService/ListMenuPerms"
+	RBACService_ClearMenuPerms_FullMethodName        = "/user.v1.RBACService/ClearMenuPerms"
+	RBACService_AssignUserRoles_FullMethodName       = "/user.v1.RBACService/AssignUserRoles"
+	RBACService_ListUserRoles_FullMethodName         = "/user.v1.RBACService/ListUserRoles"
+	RBACService_ClearUserRoles_FullMethodName        = "/user.v1.RBACService/ClearUserRoles"
+	RBACService_AssignUserDepts_FullMethodName       = "/user.v1.RBACService/AssignUserDepts"
+	RBACService_ListUserDepts_FullMethodName         = "/user.v1.RBACService/ListUserDepts"
+	RBACService_ClearUserDepts_FullMethodName        = "/user.v1.RBACService/ClearUserDepts"
 )
 
 // RBACServiceClient is the client API for RBACService service.
@@ -84,6 +104,32 @@ type RBACServiceClient interface {
 	UpdateDept(ctx context.Context, in *UpdateDeptReq, opts ...grpc.CallOption) (*UpdateDeptResp, error)
 	DeleteDept(ctx context.Context, in *DeleteDeptReq, opts ...grpc.CallOption) (*DeleteDeptResp, error)
 	GetDeptTreeByUserId(ctx context.Context, in *GetDeptTreeByUserIdReq, opts ...grpc.CallOption) (*GetDeptTreeByUserIdResp, error)
+	// ---- 数据权限管理 ----
+	GetScope(ctx context.Context, in *GetScopeReq, opts ...grpc.CallOption) (*GetScopeResp, error)
+	ListScopes(ctx context.Context, in *ListScopesReq, opts ...grpc.CallOption) (*ListScopesResp, error)
+	CreateScope(ctx context.Context, in *CreateScopeReq, opts ...grpc.CallOption) (*CreateScopeResp, error)
+	UpdateScope(ctx context.Context, in *UpdateScopeReq, opts ...grpc.CallOption) (*UpdateScopeResp, error)
+	DeleteScope(ctx context.Context, in *DeleteScopeReq, opts ...grpc.CallOption) (*DeleteScopeResp, error)
+	// ---- 角色-权限绑定 ----
+	AssignRolePerms(ctx context.Context, in *AssignRolePermsReq, opts ...grpc.CallOption) (*AssignRolePermsResp, error)
+	ListRolePerms(ctx context.Context, in *ListRolePermsReq, opts ...grpc.CallOption) (*ListRolePermsResp, error)
+	ClearRolePerms(ctx context.Context, in *ClearRolePermsReq, opts ...grpc.CallOption) (*ClearRolePermsResp, error)
+	// ---- 角色-菜单绑定 ----
+	AssignRoleMenus(ctx context.Context, in *AssignRoleMenusReq, opts ...grpc.CallOption) (*AssignRoleMenusResp, error)
+	ListRoleMenus(ctx context.Context, in *ListRoleMenusReq, opts ...grpc.CallOption) (*ListRoleMenusResp, error)
+	ClearRoleMenus(ctx context.Context, in *ClearRoleMenusReq, opts ...grpc.CallOption) (*ClearRoleMenusResp, error)
+	// ---- 菜单-权限绑定 ----
+	AssignMenuPerms(ctx context.Context, in *AssignMenuPermsReq, opts ...grpc.CallOption) (*AssignMenuPermsResp, error)
+	ListMenuPerms(ctx context.Context, in *ListMenuPermsReq, opts ...grpc.CallOption) (*ListMenuPermsResp, error)
+	ClearMenuPerms(ctx context.Context, in *ClearMenuPermsReq, opts ...grpc.CallOption) (*ClearMenuPermsResp, error)
+	// ---- 用户-角色绑定 ----
+	AssignUserRoles(ctx context.Context, in *AssignUserRolesReq, opts ...grpc.CallOption) (*AssignUserRolesResp, error)
+	ListUserRoles(ctx context.Context, in *ListUserRolesReq, opts ...grpc.CallOption) (*ListUserRolesResp, error)
+	ClearUserRoles(ctx context.Context, in *ClearUserRolesReq, opts ...grpc.CallOption) (*ClearUserRolesResp, error)
+	// ---- 用户-部门绑定 ----
+	AssignUserDepts(ctx context.Context, in *AssignUserDeptsReq, opts ...grpc.CallOption) (*AssignUserDeptsResp, error)
+	ListUserDepts(ctx context.Context, in *ListUserDeptsReq, opts ...grpc.CallOption) (*ListUserDeptsResp, error)
+	ClearUserDepts(ctx context.Context, in *ClearUserDeptsReq, opts ...grpc.CallOption) (*ClearUserDeptsResp, error)
 }
 
 type rBACServiceClient struct {
@@ -354,6 +400,206 @@ func (c *rBACServiceClient) GetDeptTreeByUserId(ctx context.Context, in *GetDept
 	return out, nil
 }
 
+func (c *rBACServiceClient) GetScope(ctx context.Context, in *GetScopeReq, opts ...grpc.CallOption) (*GetScopeResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetScopeResp)
+	err := c.cc.Invoke(ctx, RBACService_GetScope_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ListScopes(ctx context.Context, in *ListScopesReq, opts ...grpc.CallOption) (*ListScopesResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListScopesResp)
+	err := c.cc.Invoke(ctx, RBACService_ListScopes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) CreateScope(ctx context.Context, in *CreateScopeReq, opts ...grpc.CallOption) (*CreateScopeResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateScopeResp)
+	err := c.cc.Invoke(ctx, RBACService_CreateScope_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) UpdateScope(ctx context.Context, in *UpdateScopeReq, opts ...grpc.CallOption) (*UpdateScopeResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateScopeResp)
+	err := c.cc.Invoke(ctx, RBACService_UpdateScope_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) DeleteScope(ctx context.Context, in *DeleteScopeReq, opts ...grpc.CallOption) (*DeleteScopeResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteScopeResp)
+	err := c.cc.Invoke(ctx, RBACService_DeleteScope_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) AssignRolePerms(ctx context.Context, in *AssignRolePermsReq, opts ...grpc.CallOption) (*AssignRolePermsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AssignRolePermsResp)
+	err := c.cc.Invoke(ctx, RBACService_AssignRolePerms_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ListRolePerms(ctx context.Context, in *ListRolePermsReq, opts ...grpc.CallOption) (*ListRolePermsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListRolePermsResp)
+	err := c.cc.Invoke(ctx, RBACService_ListRolePerms_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ClearRolePerms(ctx context.Context, in *ClearRolePermsReq, opts ...grpc.CallOption) (*ClearRolePermsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClearRolePermsResp)
+	err := c.cc.Invoke(ctx, RBACService_ClearRolePerms_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) AssignRoleMenus(ctx context.Context, in *AssignRoleMenusReq, opts ...grpc.CallOption) (*AssignRoleMenusResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AssignRoleMenusResp)
+	err := c.cc.Invoke(ctx, RBACService_AssignRoleMenus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ListRoleMenus(ctx context.Context, in *ListRoleMenusReq, opts ...grpc.CallOption) (*ListRoleMenusResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListRoleMenusResp)
+	err := c.cc.Invoke(ctx, RBACService_ListRoleMenus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ClearRoleMenus(ctx context.Context, in *ClearRoleMenusReq, opts ...grpc.CallOption) (*ClearRoleMenusResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClearRoleMenusResp)
+	err := c.cc.Invoke(ctx, RBACService_ClearRoleMenus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) AssignMenuPerms(ctx context.Context, in *AssignMenuPermsReq, opts ...grpc.CallOption) (*AssignMenuPermsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AssignMenuPermsResp)
+	err := c.cc.Invoke(ctx, RBACService_AssignMenuPerms_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ListMenuPerms(ctx context.Context, in *ListMenuPermsReq, opts ...grpc.CallOption) (*ListMenuPermsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListMenuPermsResp)
+	err := c.cc.Invoke(ctx, RBACService_ListMenuPerms_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ClearMenuPerms(ctx context.Context, in *ClearMenuPermsReq, opts ...grpc.CallOption) (*ClearMenuPermsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClearMenuPermsResp)
+	err := c.cc.Invoke(ctx, RBACService_ClearMenuPerms_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) AssignUserRoles(ctx context.Context, in *AssignUserRolesReq, opts ...grpc.CallOption) (*AssignUserRolesResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AssignUserRolesResp)
+	err := c.cc.Invoke(ctx, RBACService_AssignUserRoles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ListUserRoles(ctx context.Context, in *ListUserRolesReq, opts ...grpc.CallOption) (*ListUserRolesResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListUserRolesResp)
+	err := c.cc.Invoke(ctx, RBACService_ListUserRoles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ClearUserRoles(ctx context.Context, in *ClearUserRolesReq, opts ...grpc.CallOption) (*ClearUserRolesResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClearUserRolesResp)
+	err := c.cc.Invoke(ctx, RBACService_ClearUserRoles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) AssignUserDepts(ctx context.Context, in *AssignUserDeptsReq, opts ...grpc.CallOption) (*AssignUserDeptsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AssignUserDeptsResp)
+	err := c.cc.Invoke(ctx, RBACService_AssignUserDepts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ListUserDepts(ctx context.Context, in *ListUserDeptsReq, opts ...grpc.CallOption) (*ListUserDeptsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListUserDeptsResp)
+	err := c.cc.Invoke(ctx, RBACService_ListUserDepts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ClearUserDepts(ctx context.Context, in *ClearUserDeptsReq, opts ...grpc.CallOption) (*ClearUserDeptsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClearUserDeptsResp)
+	err := c.cc.Invoke(ctx, RBACService_ClearUserDepts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RBACServiceServer is the server API for RBACService service.
 // All implementations must embed UnimplementedRBACServiceServer
 // for forward compatibility.
@@ -391,6 +637,32 @@ type RBACServiceServer interface {
 	UpdateDept(context.Context, *UpdateDeptReq) (*UpdateDeptResp, error)
 	DeleteDept(context.Context, *DeleteDeptReq) (*DeleteDeptResp, error)
 	GetDeptTreeByUserId(context.Context, *GetDeptTreeByUserIdReq) (*GetDeptTreeByUserIdResp, error)
+	// ---- 数据权限管理 ----
+	GetScope(context.Context, *GetScopeReq) (*GetScopeResp, error)
+	ListScopes(context.Context, *ListScopesReq) (*ListScopesResp, error)
+	CreateScope(context.Context, *CreateScopeReq) (*CreateScopeResp, error)
+	UpdateScope(context.Context, *UpdateScopeReq) (*UpdateScopeResp, error)
+	DeleteScope(context.Context, *DeleteScopeReq) (*DeleteScopeResp, error)
+	// ---- 角色-权限绑定 ----
+	AssignRolePerms(context.Context, *AssignRolePermsReq) (*AssignRolePermsResp, error)
+	ListRolePerms(context.Context, *ListRolePermsReq) (*ListRolePermsResp, error)
+	ClearRolePerms(context.Context, *ClearRolePermsReq) (*ClearRolePermsResp, error)
+	// ---- 角色-菜单绑定 ----
+	AssignRoleMenus(context.Context, *AssignRoleMenusReq) (*AssignRoleMenusResp, error)
+	ListRoleMenus(context.Context, *ListRoleMenusReq) (*ListRoleMenusResp, error)
+	ClearRoleMenus(context.Context, *ClearRoleMenusReq) (*ClearRoleMenusResp, error)
+	// ---- 菜单-权限绑定 ----
+	AssignMenuPerms(context.Context, *AssignMenuPermsReq) (*AssignMenuPermsResp, error)
+	ListMenuPerms(context.Context, *ListMenuPermsReq) (*ListMenuPermsResp, error)
+	ClearMenuPerms(context.Context, *ClearMenuPermsReq) (*ClearMenuPermsResp, error)
+	// ---- 用户-角色绑定 ----
+	AssignUserRoles(context.Context, *AssignUserRolesReq) (*AssignUserRolesResp, error)
+	ListUserRoles(context.Context, *ListUserRolesReq) (*ListUserRolesResp, error)
+	ClearUserRoles(context.Context, *ClearUserRolesReq) (*ClearUserRolesResp, error)
+	// ---- 用户-部门绑定 ----
+	AssignUserDepts(context.Context, *AssignUserDeptsReq) (*AssignUserDeptsResp, error)
+	ListUserDepts(context.Context, *ListUserDeptsReq) (*ListUserDeptsResp, error)
+	ClearUserDepts(context.Context, *ClearUserDeptsReq) (*ClearUserDeptsResp, error)
 	mustEmbedUnimplementedRBACServiceServer()
 }
 
@@ -478,6 +750,66 @@ func (UnimplementedRBACServiceServer) DeleteDept(context.Context, *DeleteDeptReq
 }
 func (UnimplementedRBACServiceServer) GetDeptTreeByUserId(context.Context, *GetDeptTreeByUserIdReq) (*GetDeptTreeByUserIdResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDeptTreeByUserId not implemented")
+}
+func (UnimplementedRBACServiceServer) GetScope(context.Context, *GetScopeReq) (*GetScopeResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetScope not implemented")
+}
+func (UnimplementedRBACServiceServer) ListScopes(context.Context, *ListScopesReq) (*ListScopesResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListScopes not implemented")
+}
+func (UnimplementedRBACServiceServer) CreateScope(context.Context, *CreateScopeReq) (*CreateScopeResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateScope not implemented")
+}
+func (UnimplementedRBACServiceServer) UpdateScope(context.Context, *UpdateScopeReq) (*UpdateScopeResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateScope not implemented")
+}
+func (UnimplementedRBACServiceServer) DeleteScope(context.Context, *DeleteScopeReq) (*DeleteScopeResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteScope not implemented")
+}
+func (UnimplementedRBACServiceServer) AssignRolePerms(context.Context, *AssignRolePermsReq) (*AssignRolePermsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AssignRolePerms not implemented")
+}
+func (UnimplementedRBACServiceServer) ListRolePerms(context.Context, *ListRolePermsReq) (*ListRolePermsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListRolePerms not implemented")
+}
+func (UnimplementedRBACServiceServer) ClearRolePerms(context.Context, *ClearRolePermsReq) (*ClearRolePermsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearRolePerms not implemented")
+}
+func (UnimplementedRBACServiceServer) AssignRoleMenus(context.Context, *AssignRoleMenusReq) (*AssignRoleMenusResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AssignRoleMenus not implemented")
+}
+func (UnimplementedRBACServiceServer) ListRoleMenus(context.Context, *ListRoleMenusReq) (*ListRoleMenusResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListRoleMenus not implemented")
+}
+func (UnimplementedRBACServiceServer) ClearRoleMenus(context.Context, *ClearRoleMenusReq) (*ClearRoleMenusResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearRoleMenus not implemented")
+}
+func (UnimplementedRBACServiceServer) AssignMenuPerms(context.Context, *AssignMenuPermsReq) (*AssignMenuPermsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AssignMenuPerms not implemented")
+}
+func (UnimplementedRBACServiceServer) ListMenuPerms(context.Context, *ListMenuPermsReq) (*ListMenuPermsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListMenuPerms not implemented")
+}
+func (UnimplementedRBACServiceServer) ClearMenuPerms(context.Context, *ClearMenuPermsReq) (*ClearMenuPermsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearMenuPerms not implemented")
+}
+func (UnimplementedRBACServiceServer) AssignUserRoles(context.Context, *AssignUserRolesReq) (*AssignUserRolesResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AssignUserRoles not implemented")
+}
+func (UnimplementedRBACServiceServer) ListUserRoles(context.Context, *ListUserRolesReq) (*ListUserRolesResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListUserRoles not implemented")
+}
+func (UnimplementedRBACServiceServer) ClearUserRoles(context.Context, *ClearUserRolesReq) (*ClearUserRolesResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearUserRoles not implemented")
+}
+func (UnimplementedRBACServiceServer) AssignUserDepts(context.Context, *AssignUserDeptsReq) (*AssignUserDeptsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AssignUserDepts not implemented")
+}
+func (UnimplementedRBACServiceServer) ListUserDepts(context.Context, *ListUserDeptsReq) (*ListUserDeptsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListUserDepts not implemented")
+}
+func (UnimplementedRBACServiceServer) ClearUserDepts(context.Context, *ClearUserDeptsReq) (*ClearUserDeptsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearUserDepts not implemented")
 }
 func (UnimplementedRBACServiceServer) mustEmbedUnimplementedRBACServiceServer() {}
 func (UnimplementedRBACServiceServer) testEmbeddedByValue()                     {}
@@ -968,6 +1300,366 @@ func _RBACService_GetDeptTreeByUserId_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RBACService_GetScope_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetScopeReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).GetScope(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_GetScope_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).GetScope(ctx, req.(*GetScopeReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ListScopes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListScopesReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ListScopes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ListScopes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ListScopes(ctx, req.(*ListScopesReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_CreateScope_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateScopeReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).CreateScope(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_CreateScope_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).CreateScope(ctx, req.(*CreateScopeReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_UpdateScope_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateScopeReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).UpdateScope(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_UpdateScope_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).UpdateScope(ctx, req.(*UpdateScopeReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_DeleteScope_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteScopeReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).DeleteScope(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_DeleteScope_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).DeleteScope(ctx, req.(*DeleteScopeReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_AssignRolePerms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AssignRolePermsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).AssignRolePerms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_AssignRolePerms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).AssignRolePerms(ctx, req.(*AssignRolePermsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ListRolePerms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRolePermsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ListRolePerms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ListRolePerms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ListRolePerms(ctx, req.(*ListRolePermsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ClearRolePerms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearRolePermsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ClearRolePerms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ClearRolePerms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ClearRolePerms(ctx, req.(*ClearRolePermsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_AssignRoleMenus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AssignRoleMenusReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).AssignRoleMenus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_AssignRoleMenus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).AssignRoleMenus(ctx, req.(*AssignRoleMenusReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ListRoleMenus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRoleMenusReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ListRoleMenus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ListRoleMenus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ListRoleMenus(ctx, req.(*ListRoleMenusReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ClearRoleMenus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearRoleMenusReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ClearRoleMenus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ClearRoleMenus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ClearRoleMenus(ctx, req.(*ClearRoleMenusReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_AssignMenuPerms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AssignMenuPermsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).AssignMenuPerms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_AssignMenuPerms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).AssignMenuPerms(ctx, req.(*AssignMenuPermsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ListMenuPerms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListMenuPermsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ListMenuPerms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ListMenuPerms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ListMenuPerms(ctx, req.(*ListMenuPermsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ClearMenuPerms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearMenuPermsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ClearMenuPerms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ClearMenuPerms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ClearMenuPerms(ctx, req.(*ClearMenuPermsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_AssignUserRoles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AssignUserRolesReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).AssignUserRoles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_AssignUserRoles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).AssignUserRoles(ctx, req.(*AssignUserRolesReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ListUserRoles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListUserRolesReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ListUserRoles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ListUserRoles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ListUserRoles(ctx, req.(*ListUserRolesReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ClearUserRoles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearUserRolesReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ClearUserRoles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ClearUserRoles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ClearUserRoles(ctx, req.(*ClearUserRolesReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_AssignUserDepts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AssignUserDeptsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).AssignUserDepts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_AssignUserDepts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).AssignUserDepts(ctx, req.(*AssignUserDeptsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ListUserDepts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListUserDeptsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ListUserDepts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ListUserDepts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ListUserDepts(ctx, req.(*ListUserDeptsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ClearUserDepts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearUserDeptsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ClearUserDepts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ClearUserDepts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ClearUserDepts(ctx, req.(*ClearUserDeptsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RBACService_ServiceDesc is the grpc.ServiceDesc for RBACService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1078,6 +1770,86 @@ var RBACService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDeptTreeByUserId",
 			Handler:    _RBACService_GetDeptTreeByUserId_Handler,
+		},
+		{
+			MethodName: "GetScope",
+			Handler:    _RBACService_GetScope_Handler,
+		},
+		{
+			MethodName: "ListScopes",
+			Handler:    _RBACService_ListScopes_Handler,
+		},
+		{
+			MethodName: "CreateScope",
+			Handler:    _RBACService_CreateScope_Handler,
+		},
+		{
+			MethodName: "UpdateScope",
+			Handler:    _RBACService_UpdateScope_Handler,
+		},
+		{
+			MethodName: "DeleteScope",
+			Handler:    _RBACService_DeleteScope_Handler,
+		},
+		{
+			MethodName: "AssignRolePerms",
+			Handler:    _RBACService_AssignRolePerms_Handler,
+		},
+		{
+			MethodName: "ListRolePerms",
+			Handler:    _RBACService_ListRolePerms_Handler,
+		},
+		{
+			MethodName: "ClearRolePerms",
+			Handler:    _RBACService_ClearRolePerms_Handler,
+		},
+		{
+			MethodName: "AssignRoleMenus",
+			Handler:    _RBACService_AssignRoleMenus_Handler,
+		},
+		{
+			MethodName: "ListRoleMenus",
+			Handler:    _RBACService_ListRoleMenus_Handler,
+		},
+		{
+			MethodName: "ClearRoleMenus",
+			Handler:    _RBACService_ClearRoleMenus_Handler,
+		},
+		{
+			MethodName: "AssignMenuPerms",
+			Handler:    _RBACService_AssignMenuPerms_Handler,
+		},
+		{
+			MethodName: "ListMenuPerms",
+			Handler:    _RBACService_ListMenuPerms_Handler,
+		},
+		{
+			MethodName: "ClearMenuPerms",
+			Handler:    _RBACService_ClearMenuPerms_Handler,
+		},
+		{
+			MethodName: "AssignUserRoles",
+			Handler:    _RBACService_AssignUserRoles_Handler,
+		},
+		{
+			MethodName: "ListUserRoles",
+			Handler:    _RBACService_ListUserRoles_Handler,
+		},
+		{
+			MethodName: "ClearUserRoles",
+			Handler:    _RBACService_ClearUserRoles_Handler,
+		},
+		{
+			MethodName: "AssignUserDepts",
+			Handler:    _RBACService_AssignUserDepts_Handler,
+		},
+		{
+			MethodName: "ListUserDepts",
+			Handler:    _RBACService_ListUserDepts_Handler,
+		},
+		{
+			MethodName: "ClearUserDepts",
+			Handler:    _RBACService_ClearUserDepts_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

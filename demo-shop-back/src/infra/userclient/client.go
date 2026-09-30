@@ -13,7 +13,9 @@ import (
 	"github.com/zeromicro/go-zero/core/discov"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/datatypes"
 )
 
 const (
@@ -243,6 +245,165 @@ func (c *PermCodesClient) DeleteRole(id int64) (string, error) {
 	return resp.ErrorMsg, nil
 }
 
+// ============ 菜单 CRUD ============
+
+// GetMenu 按 ID 取菜单
+func (c *PermCodesClient) GetMenu(id int64) (*model.SysMenu, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.GetMenu(ctx, &v1_userv1.GetMenuReq{MenuId: id})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelMenu(resp.Menu), "", nil
+}
+
+// ListMenus 分页取菜单,返回扁平列表(children 为空)
+func (c *PermCodesClient) ListMenus(page, pageSize int, menuType string) ([]model.SysMenu, int64, string, error) {
+	if c == nil {
+		return nil, 0, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ListMenus(ctx, &v1_userv1.ListMenusReq{
+		Page:     int32(page),
+		PageSize: int32(pageSize),
+		MenuType: menuType,
+	})
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, 0, resp.ErrorMsg, nil
+	}
+
+	menus := make([]model.SysMenu, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		if item == nil {
+			continue
+		}
+		menus = append(menus, *toModelMenu(item))
+	}
+	return menus, resp.Total, "", nil
+}
+
+// CreateMenu 创建菜单
+func (c *PermCodesClient) CreateMenu(menu *model.SysMenu) (*model.SysMenu, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.CreateMenu(ctx, &v1_userv1.CreateMenuReq{
+		Menu: toProtoMenu(menu),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelMenu(resp.Menu), "", nil
+}
+
+// UpdateMenu 局部更新菜单,updates 的 key 为 JSON 字段名
+func (c *PermCodesClient) UpdateMenu(id int64, updates map[string]interface{}) (*model.SysMenu, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	fields := make([]*v1_userv1.FieldUpdate, 0, len(updates))
+	for k, v := range updates {
+		fv, ok := toProtoFieldValue(v)
+		if !ok {
+			continue
+		}
+		fields = append(fields, &v1_userv1.FieldUpdate{Field: k, Value: fv})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.UpdateMenu(ctx, &v1_userv1.UpdateMenuReq{
+		MenuId:  id,
+		Updates: fields,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelMenu(resp.Menu), "", nil
+}
+
+// DeleteMenu 删除菜单
+func (c *PermCodesClient) DeleteMenu(id int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.DeleteMenu(ctx, &v1_userv1.DeleteMenuReq{MenuId: id})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// GetMenuTreeByUserId 取指定用户的菜单树(用户 → 角色 → 菜单并集)
+func (c *PermCodesClient) GetMenuTreeByUserId(userId int64) ([]*model.SysMenu, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.GetMenuTreeByUserId(ctx, &v1_userv1.GetMenuTreeByUserIdReq{UserId: userId})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelMenuTree(resp.Items), "", nil
+}
+
+// GetMenuTreeByRoleId 取指定角色的菜单树。
+// 当前前端由菜单列表接口自行建树,此方法暂无调用方,保留接口完整性。
+func (c *PermCodesClient) GetMenuTreeByRoleId(roleId int64) ([]*model.SysMenu, error) {
+	if c == nil {
+		return nil, errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.GetMenuTreeByRoleId(ctx, &v1_userv1.GetMenuTreeByRoleIdReq{RoleId: roleId})
+	if err != nil {
+		return nil, err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, errors.New(resp.ErrorMsg)
+	}
+	return toModelMenuTree(resp.Items), nil
+}
+
 // ============ 权限点 CRUD ============
 
 // GetPermission 按 ID 取权限点
@@ -430,6 +591,78 @@ func toProtoRole(r *model.SysRole) *v1_userv1.Role {
 		IsDefault:   r.IsDefault,
 		DataScope:   r.DataScope,
 		CreatedAt:   timestamppb.New(r.CreatedAt),
+	}
+}
+
+// toModelMenu proto -> 单体 model。
+func toModelMenu(p *v1_userv1.Menu) *model.SysMenu {
+	if p == nil {
+		return nil
+	}
+	var meta datatypes.JSONMap
+	if p.MetaInfo != nil {
+		meta = datatypes.JSONMap(p.MetaInfo.AsMap())
+	}
+	return &model.SysMenu{
+		MenuId:        p.MenuId,
+		ParentId:      p.ParentId,
+		MenuName:      p.MenuName,
+		MenuType:      p.MenuType,
+		Icon:          p.Icon,
+		RoutePath:     p.RoutePath,
+		ComponentPath: p.Component,
+		IsVisible:     p.IsVisible,
+		IsCache:       p.IsCache,
+		SortOrder:     p.SortOrder,
+		MetaInfo:      meta,
+		CreatedAt:     p.GetCreatedAt().AsTime(),
+	}
+}
+
+// toModelMenuTree 递归转换菜单树。
+func toModelMenuTree(items []*v1_userv1.Menu) []*model.SysMenu {
+	out := make([]*model.SysMenu, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		node := toModelMenu(item)
+		node.Children = toModelMenuTree(item.Children)
+		out = append(out, node)
+	}
+	return out
+}
+
+// toProtoMenu 单体 model -> proto,children 递归转换。
+func toProtoMenu(m *model.SysMenu) *v1_userv1.Menu {
+	if m == nil {
+		return nil
+	}
+	children := make([]*v1_userv1.Menu, 0, len(m.Children))
+	for _, c := range m.Children {
+		children = append(children, toProtoMenu(c))
+	}
+
+	var meta *structpb.Struct
+	if len(m.MetaInfo) > 0 {
+		// meta_info 是展示用字段,类型无法转换时降级为空,不让整个请求失败
+		meta, _ = structpb.NewStruct(m.MetaInfo)
+	}
+
+	return &v1_userv1.Menu{
+		MenuId:    m.MenuId,
+		ParentId:  m.ParentId,
+		MenuName:  m.MenuName,
+		MenuType:  m.MenuType,
+		Icon:      m.Icon,
+		RoutePath: m.RoutePath,
+		Component: m.ComponentPath,
+		IsVisible: m.IsVisible,
+		IsCache:   m.IsCache,
+		SortOrder: m.SortOrder,
+		MetaInfo:  meta,
+		CreatedAt: timestamppb.New(m.CreatedAt),
+		Children:  children,
 	}
 }
 

@@ -13,7 +13,7 @@ var menuCtrl *handler.MenuHandler
 
 // InitMenuModule 菜单模块初始化（在InitRoutes中调用）
 func InitMenuModule(deps service.ServiceDeps) {
-	menuCtrl = handler.NewMenuHandler(deps)
+	menuCtrl = handler.NewMenuHandler(deps.UserRPC)
 }
 
 // RegisterMenuRoutes 初始化菜单路由

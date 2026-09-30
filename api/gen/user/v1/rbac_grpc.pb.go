@@ -39,6 +39,12 @@ const (
 	RBACService_DeleteMenu_FullMethodName            = "/user.v1.RBACService/DeleteMenu"
 	RBACService_GetMenuTreeByUserId_FullMethodName   = "/user.v1.RBACService/GetMenuTreeByUserId"
 	RBACService_GetMenuTreeByRoleId_FullMethodName   = "/user.v1.RBACService/GetMenuTreeByRoleId"
+	RBACService_GetDept_FullMethodName               = "/user.v1.RBACService/GetDept"
+	RBACService_ListDepts_FullMethodName             = "/user.v1.RBACService/ListDepts"
+	RBACService_CreateDept_FullMethodName            = "/user.v1.RBACService/CreateDept"
+	RBACService_UpdateDept_FullMethodName            = "/user.v1.RBACService/UpdateDept"
+	RBACService_DeleteDept_FullMethodName            = "/user.v1.RBACService/DeleteDept"
+	RBACService_GetDeptTreeByUserId_FullMethodName   = "/user.v1.RBACService/GetDeptTreeByUserId"
 )
 
 // RBACServiceClient is the client API for RBACService service.
@@ -71,6 +77,13 @@ type RBACServiceClient interface {
 	DeleteMenu(ctx context.Context, in *DeleteMenuReq, opts ...grpc.CallOption) (*DeleteMenuResp, error)
 	GetMenuTreeByUserId(ctx context.Context, in *GetMenuTreeByUserIdReq, opts ...grpc.CallOption) (*GetMenuTreeByUserIdResp, error)
 	GetMenuTreeByRoleId(ctx context.Context, in *GetMenuTreeByRoleIdReq, opts ...grpc.CallOption) (*GetMenuTreeByRoleIdResp, error)
+	// ---- 部门管理 ----
+	GetDept(ctx context.Context, in *GetDeptReq, opts ...grpc.CallOption) (*GetDeptResp, error)
+	ListDepts(ctx context.Context, in *ListDeptsReq, opts ...grpc.CallOption) (*ListDeptsResp, error)
+	CreateDept(ctx context.Context, in *CreateDeptReq, opts ...grpc.CallOption) (*CreateDeptResp, error)
+	UpdateDept(ctx context.Context, in *UpdateDeptReq, opts ...grpc.CallOption) (*UpdateDeptResp, error)
+	DeleteDept(ctx context.Context, in *DeleteDeptReq, opts ...grpc.CallOption) (*DeleteDeptResp, error)
+	GetDeptTreeByUserId(ctx context.Context, in *GetDeptTreeByUserIdReq, opts ...grpc.CallOption) (*GetDeptTreeByUserIdResp, error)
 }
 
 type rBACServiceClient struct {
@@ -281,6 +294,66 @@ func (c *rBACServiceClient) GetMenuTreeByRoleId(ctx context.Context, in *GetMenu
 	return out, nil
 }
 
+func (c *rBACServiceClient) GetDept(ctx context.Context, in *GetDeptReq, opts ...grpc.CallOption) (*GetDeptResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDeptResp)
+	err := c.cc.Invoke(ctx, RBACService_GetDept_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) ListDepts(ctx context.Context, in *ListDeptsReq, opts ...grpc.CallOption) (*ListDeptsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListDeptsResp)
+	err := c.cc.Invoke(ctx, RBACService_ListDepts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) CreateDept(ctx context.Context, in *CreateDeptReq, opts ...grpc.CallOption) (*CreateDeptResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateDeptResp)
+	err := c.cc.Invoke(ctx, RBACService_CreateDept_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) UpdateDept(ctx context.Context, in *UpdateDeptReq, opts ...grpc.CallOption) (*UpdateDeptResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateDeptResp)
+	err := c.cc.Invoke(ctx, RBACService_UpdateDept_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) DeleteDept(ctx context.Context, in *DeleteDeptReq, opts ...grpc.CallOption) (*DeleteDeptResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteDeptResp)
+	err := c.cc.Invoke(ctx, RBACService_DeleteDept_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rBACServiceClient) GetDeptTreeByUserId(ctx context.Context, in *GetDeptTreeByUserIdReq, opts ...grpc.CallOption) (*GetDeptTreeByUserIdResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDeptTreeByUserIdResp)
+	err := c.cc.Invoke(ctx, RBACService_GetDeptTreeByUserId_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RBACServiceServer is the server API for RBACService service.
 // All implementations must embed UnimplementedRBACServiceServer
 // for forward compatibility.
@@ -311,6 +384,13 @@ type RBACServiceServer interface {
 	DeleteMenu(context.Context, *DeleteMenuReq) (*DeleteMenuResp, error)
 	GetMenuTreeByUserId(context.Context, *GetMenuTreeByUserIdReq) (*GetMenuTreeByUserIdResp, error)
 	GetMenuTreeByRoleId(context.Context, *GetMenuTreeByRoleIdReq) (*GetMenuTreeByRoleIdResp, error)
+	// ---- 部门管理 ----
+	GetDept(context.Context, *GetDeptReq) (*GetDeptResp, error)
+	ListDepts(context.Context, *ListDeptsReq) (*ListDeptsResp, error)
+	CreateDept(context.Context, *CreateDeptReq) (*CreateDeptResp, error)
+	UpdateDept(context.Context, *UpdateDeptReq) (*UpdateDeptResp, error)
+	DeleteDept(context.Context, *DeleteDeptReq) (*DeleteDeptResp, error)
+	GetDeptTreeByUserId(context.Context, *GetDeptTreeByUserIdReq) (*GetDeptTreeByUserIdResp, error)
 	mustEmbedUnimplementedRBACServiceServer()
 }
 
@@ -380,6 +460,24 @@ func (UnimplementedRBACServiceServer) GetMenuTreeByUserId(context.Context, *GetM
 }
 func (UnimplementedRBACServiceServer) GetMenuTreeByRoleId(context.Context, *GetMenuTreeByRoleIdReq) (*GetMenuTreeByRoleIdResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMenuTreeByRoleId not implemented")
+}
+func (UnimplementedRBACServiceServer) GetDept(context.Context, *GetDeptReq) (*GetDeptResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDept not implemented")
+}
+func (UnimplementedRBACServiceServer) ListDepts(context.Context, *ListDeptsReq) (*ListDeptsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListDepts not implemented")
+}
+func (UnimplementedRBACServiceServer) CreateDept(context.Context, *CreateDeptReq) (*CreateDeptResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateDept not implemented")
+}
+func (UnimplementedRBACServiceServer) UpdateDept(context.Context, *UpdateDeptReq) (*UpdateDeptResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateDept not implemented")
+}
+func (UnimplementedRBACServiceServer) DeleteDept(context.Context, *DeleteDeptReq) (*DeleteDeptResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteDept not implemented")
+}
+func (UnimplementedRBACServiceServer) GetDeptTreeByUserId(context.Context, *GetDeptTreeByUserIdReq) (*GetDeptTreeByUserIdResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDeptTreeByUserId not implemented")
 }
 func (UnimplementedRBACServiceServer) mustEmbedUnimplementedRBACServiceServer() {}
 func (UnimplementedRBACServiceServer) testEmbeddedByValue()                     {}
@@ -762,6 +860,114 @@ func _RBACService_GetMenuTreeByRoleId_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RBACService_GetDept_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDeptReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).GetDept(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_GetDept_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).GetDept(ctx, req.(*GetDeptReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_ListDepts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDeptsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).ListDepts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_ListDepts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).ListDepts(ctx, req.(*ListDeptsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_CreateDept_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateDeptReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).CreateDept(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_CreateDept_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).CreateDept(ctx, req.(*CreateDeptReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_UpdateDept_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateDeptReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).UpdateDept(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_UpdateDept_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).UpdateDept(ctx, req.(*UpdateDeptReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_DeleteDept_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteDeptReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).DeleteDept(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_DeleteDept_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).DeleteDept(ctx, req.(*DeleteDeptReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RBACService_GetDeptTreeByUserId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDeptTreeByUserIdReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RBACServiceServer).GetDeptTreeByUserId(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RBACService_GetDeptTreeByUserId_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RBACServiceServer).GetDeptTreeByUserId(ctx, req.(*GetDeptTreeByUserIdReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RBACService_ServiceDesc is the grpc.ServiceDesc for RBACService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -848,6 +1054,30 @@ var RBACService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetMenuTreeByRoleId",
 			Handler:    _RBACService_GetMenuTreeByRoleId_Handler,
+		},
+		{
+			MethodName: "GetDept",
+			Handler:    _RBACService_GetDept_Handler,
+		},
+		{
+			MethodName: "ListDepts",
+			Handler:    _RBACService_ListDepts_Handler,
+		},
+		{
+			MethodName: "CreateDept",
+			Handler:    _RBACService_CreateDept_Handler,
+		},
+		{
+			MethodName: "UpdateDept",
+			Handler:    _RBACService_UpdateDept_Handler,
+		},
+		{
+			MethodName: "DeleteDept",
+			Handler:    _RBACService_DeleteDept_Handler,
+		},
+		{
+			MethodName: "GetDeptTreeByUserId",
+			Handler:    _RBACService_GetDeptTreeByUserId_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
+
+import "google/protobuf/timestamp.proto";
+import "user/v1/common.proto";
+
+// Dept 部门节点。children 递归,部门树查询时填充。
+message Dept {
+  int64 dept_id = 1;
+  int64 parent_id = 2;
+  string dept_name = 3;
+  string dept_type = 4;
+  // 负责人用户ID
+  int64 leader_id = 5;
+  int64 sort_order = 6;
+  // active / disabled
+  string status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  repeated Dept children = 9;
+}
+
+message GetDeptReq {
+  int64 dept_id = 1;
+}
+
+message GetDeptResp {
+  Dept dept = 1;
+  string error_msg = 2;
+}
+
+message ListDeptsReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 为空表示不过滤
+  string dept_type = 3;
+}
+
+message ListDeptsResp {
+  repeated Dept items = 1;
+  int64 total = 2;
+  string error_msg = 3;
+}
+
+message CreateDeptReq {
+  Dept dept = 1;
+}
+
+message CreateDeptResp {
+  Dept dept = 1;
+  string error_msg = 2;
+}
+
+message UpdateDeptReq {
+  int64 dept_id = 1;
+  repeated FieldUpdate updates = 2;
+}
+
+// UpdateDeptResp.dept 返回合并后的完整对象,调用方无需再查一次。
+message UpdateDeptResp {
+  Dept dept = 1;
+  string error_msg = 2;
+}
+
+message DeleteDeptReq {
+  int64 dept_id = 1;
+}
+
+message DeleteDeptResp {
+  string error_msg = 1;
+}
+
+// GetDeptTreeByUserId 取用户所属部门的树。
+// 用户无所属部门时返回业务错误(与菜单树返回空数组的语义不同)。
+message GetDeptTreeByUserIdReq {
+  int64 user_id = 1;
+}
+
+message GetDeptTreeByUserIdResp {
+  repeated Dept items = 1;
+  string error_msg = 2;
+}

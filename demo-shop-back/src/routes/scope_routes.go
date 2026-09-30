@@ -16,10 +16,8 @@ var scopeCtrl *handler.ScopeHandler
 // 功能：完成数据权限模块 仓库层 → 服务层 → 控制层 的依赖注入与实例化
 // 执行顺序：创建数据访问层实例 → 创建业务逻辑层实例 → 创建控制器实例
 func InitScopeModule(deps service.ServiceDeps) {
-	// 初始化数据权限服务层
-	scopeService := service.NewScopeService(deps)
 	// 初始化数据权限控制器，赋值给全局控制器变量
-	scopeCtrl = handler.NewScopeHandler(scopeService)
+	scopeCtrl = handler.NewScopeHandler(deps.UserRPC)
 }
 
 // RegisterScopeRoutes 注册数据权限模块路由

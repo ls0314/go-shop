@@ -13,7 +13,7 @@ var rolePermCtrl *handler.RolePermHandler
 
 func InitRolePermModule(deps service.ServiceDeps) {
 
-	rolePermCtrl = handler.NewRolePermHandler(deps)
+	rolePermCtrl = handler.NewRolePermHandler(deps.UserRPC)
 }
 
 func RegisterRolePermRoutes(r *gin.Engine, deps service.ServiceDeps) {

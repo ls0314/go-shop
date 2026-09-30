@@ -12,7 +12,7 @@ import (
 var roleMenuCtrl *handler.RoleMenuHandler
 
 func InitRoleMenuModule(deps service.ServiceDeps) {
-	roleMenuCtrl = handler.NewRoleMenuHandler(deps)
+	roleMenuCtrl = handler.NewRoleMenuHandler(deps.UserRPC)
 }
 
 func RegisterRoleMenuRoutes(r *gin.Engine, deps service.ServiceDeps) {

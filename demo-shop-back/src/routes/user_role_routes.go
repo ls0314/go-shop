@@ -13,7 +13,7 @@ var userRoleCtrl *handler.UserRoleHandler
 
 func InitUserRoleModule(deps service.ServiceDeps) {
 
-	userRoleCtrl = handler.NewUserRoleHandler(deps)
+	userRoleCtrl = handler.NewUserRoleHandler(deps.UserRPC)
 }
 
 func RegisterUserRoleRoutes(r *gin.Engine, deps service.ServiceDeps) {

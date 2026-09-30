@@ -543,6 +543,423 @@ func (c *PermCodesClient) GetDeptTreeByUserId(userId int64) ([]*model.SysDept, s
 	return toModelDeptTree(resp.Items), "", nil
 }
 
+// ============ 数据权限 CRUD ============
+
+// GetScope 按 ID 取数据权限
+func (c *PermCodesClient) GetScope(id int64) (*model.SysScope, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.GetScope(ctx, &v1_userv1.GetScopeReq{ScopeId: id})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelScope(resp.Scope), "", nil
+}
+
+// ListScopes 分页取数据权限
+func (c *PermCodesClient) ListScopes(page, pageSize int, resourceType string) ([]*model.SysScope, int64, string, error) {
+	if c == nil {
+		return nil, 0, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ListScopes(ctx, &v1_userv1.ListScopesReq{
+		Page:         int32(page),
+		PageSize:     int32(pageSize),
+		ResourceType: resourceType,
+	})
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, 0, resp.ErrorMsg, nil
+	}
+
+	scopes := make([]*model.SysScope, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		if item == nil {
+			continue
+		}
+		scopes = append(scopes, toModelScope(item))
+	}
+	return scopes, resp.Total, "", nil
+}
+
+// CreateScope 创建数据权限
+func (c *PermCodesClient) CreateScope(scope *model.SysScope) (*model.SysScope, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.CreateScope(ctx, &v1_userv1.CreateScopeReq{
+		Scope: toProtoScope(scope),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelScope(resp.Scope), "", nil
+}
+
+// UpdateScope 局部更新数据权限,updates 的 key 为 JSON 字段名
+func (c *PermCodesClient) UpdateScope(id int64, updates map[string]interface{}) (*model.SysScope, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	fields := make([]*v1_userv1.FieldUpdate, 0, len(updates))
+	for k, v := range updates {
+		fv, ok := toProtoFieldValue(v)
+		if !ok {
+			continue
+		}
+		fields = append(fields, &v1_userv1.FieldUpdate{Field: k, Value: fv})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.UpdateScope(ctx, &v1_userv1.UpdateScopeReq{
+		ScopeId: id,
+		Updates: fields,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelScope(resp.Scope), "", nil
+}
+
+// DeleteScope 删除数据权限
+func (c *PermCodesClient) DeleteScope(id int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.DeleteScope(ctx, &v1_userv1.DeleteScopeReq{ScopeId: id})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// ============ 绑定关系 ============
+
+// AssignRolePerms 全量替换角色的权限绑定
+func (c *PermCodesClient) AssignRolePerms(roleId int64, permIds []int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.AssignRolePerms(ctx, &v1_userv1.AssignRolePermsReq{
+		RoleId:  roleId,
+		PermIds: permIds,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// ListRolePerms 查角色已绑定的权限
+func (c *PermCodesClient) ListRolePerms(roleId int64) ([]*model.SysPermission, int64, string, error) {
+	if c == nil {
+		return nil, 0, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ListRolePerms(ctx, &v1_userv1.ListRolePermsReq{RoleId: roleId})
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, 0, resp.ErrorMsg, nil
+	}
+
+	perms := make([]*model.SysPermission, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		if item == nil {
+			continue
+		}
+		perms = append(perms, toModelPermission(item))
+	}
+	return perms, resp.Total, "", nil
+}
+
+// ClearRolePerms 清空角色的权限绑定
+func (c *PermCodesClient) ClearRolePerms(roleId int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ClearRolePerms(ctx, &v1_userv1.ClearRolePermsReq{RoleId: roleId})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// AssignRoleMenus 全量替换角色的菜单绑定
+func (c *PermCodesClient) AssignRoleMenus(roleId int64, menuIds []int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.AssignRoleMenus(ctx, &v1_userv1.AssignRoleMenusReq{
+		RoleId:  roleId,
+		MenuIds: menuIds,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// ListRoleMenus 查角色已绑定的菜单
+func (c *PermCodesClient) ListRoleMenus(roleId int64) ([]*model.SysMenu, int64, string, error) {
+	if c == nil {
+		return nil, 0, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ListRoleMenus(ctx, &v1_userv1.ListRoleMenusReq{RoleId: roleId})
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, 0, resp.ErrorMsg, nil
+	}
+	return toModelMenuTree(resp.Items), resp.Total, "", nil
+}
+
+// ClearRoleMenus 清空角色的菜单绑定
+func (c *PermCodesClient) ClearRoleMenus(roleId int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ClearRoleMenus(ctx, &v1_userv1.ClearRoleMenusReq{RoleId: roleId})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// AssignMenuPerms 全量替换菜单的权限绑定
+func (c *PermCodesClient) AssignMenuPerms(menuId int64, permIds []int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.AssignMenuPerms(ctx, &v1_userv1.AssignMenuPermsReq{
+		MenuId:  menuId,
+		PermIds: permIds,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// ListMenuPerms 查菜单已绑定的权限
+func (c *PermCodesClient) ListMenuPerms(menuId int64) ([]*model.SysPermission, int64, string, error) {
+	if c == nil {
+		return nil, 0, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ListMenuPerms(ctx, &v1_userv1.ListMenuPermsReq{MenuId: menuId})
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, 0, resp.ErrorMsg, nil
+	}
+
+	perms := make([]*model.SysPermission, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		if item == nil {
+			continue
+		}
+		perms = append(perms, toModelPermission(item))
+	}
+	return perms, resp.Total, "", nil
+}
+
+// ClearMenuPerms 清空菜单的权限绑定
+func (c *PermCodesClient) ClearMenuPerms(menuId int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ClearMenuPerms(ctx, &v1_userv1.ClearMenuPermsReq{MenuId: menuId})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// AssignUserRoles 全量替换用户的角色绑定
+func (c *PermCodesClient) AssignUserRoles(userId int64, roleIds []int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.AssignUserRoles(ctx, &v1_userv1.AssignUserRolesReq{
+		UserId:  userId,
+		RoleIds: roleIds,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// ListUserRoles 查用户已绑定的角色
+func (c *PermCodesClient) ListUserRoles(userId int64) ([]*model.SysRole, int64, string, error) {
+	if c == nil {
+		return nil, 0, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ListUserRoles(ctx, &v1_userv1.ListUserRolesReq{UserId: userId})
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, 0, resp.ErrorMsg, nil
+	}
+
+	roles := make([]*model.SysRole, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		if item == nil {
+			continue
+		}
+		roles = append(roles, toModelRole(item))
+	}
+	return roles, resp.Total, "", nil
+}
+
+// ClearUserRoles 清空用户的角色绑定
+func (c *PermCodesClient) ClearUserRoles(userId int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ClearUserRoles(ctx, &v1_userv1.ClearUserRolesReq{UserId: userId})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// AssignUserDepts 全量替换用户的部门绑定,primaryIndex 是 deptIds 中的下标
+func (c *PermCodesClient) AssignUserDepts(userId int64, deptIds []int64, primaryIndex int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.AssignUserDepts(ctx, &v1_userv1.AssignUserDeptsReq{
+		UserId:       userId,
+		DeptIds:      deptIds,
+		PrimaryIndex: primaryIndex,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// ListUserDepts 查用户已绑定的部门,并返回主部门ID
+func (c *PermCodesClient) ListUserDepts(userId int64) ([]*model.SysDept, int64, int64, string, error) {
+	if c == nil {
+		return nil, 0, 0, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ListUserDepts(ctx, &v1_userv1.ListUserDeptsReq{UserId: userId})
+	if err != nil {
+		return nil, 0, 0, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, 0, 0, resp.ErrorMsg, nil
+	}
+	return toModelDeptTree(resp.Items), resp.Total, resp.PrimaryDeptId, "", nil
+}
+
+// ClearUserDepts 清空用户的部门绑定
+func (c *PermCodesClient) ClearUserDepts(userId int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ClearUserDepts(ctx, &v1_userv1.ClearUserDeptsReq{UserId: userId})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
 // ============ 权限点 CRUD ============
 
 // GetPermission 按 ID 取权限点
@@ -855,6 +1272,40 @@ func toProtoDept(d *model.SysDept) *v1_userv1.Dept {
 		Status:    d.Status,
 		CreatedAt: timestamppb.New(d.CreatedAt),
 		Children:  children,
+	}
+}
+
+// toModelScope proto -> 单体 model。
+func toModelScope(p *v1_userv1.Scope) *model.SysScope {
+	if p == nil {
+		return nil
+	}
+	return &model.SysScope{
+		ScopeId:        p.ScopeId,
+		RoleId:         p.RoleId,
+		ResourceType:   p.ResourceType,
+		FieldName:      p.FieldName,
+		ConditionType:  p.ConditionType,
+		ConditionValue: p.ConditionValue,
+		Description:    p.Description,
+		CreatedAt:      p.GetCreatedAt().AsTime(),
+	}
+}
+
+// toProtoScope 单体 model -> proto
+func toProtoScope(s *model.SysScope) *v1_userv1.Scope {
+	if s == nil {
+		return nil
+	}
+	return &v1_userv1.Scope{
+		ScopeId:        s.ScopeId,
+		RoleId:         s.RoleId,
+		ResourceType:   s.ResourceType,
+		FieldName:      s.FieldName,
+		ConditionType:  s.ConditionType,
+		ConditionValue: s.ConditionValue,
+		Description:    s.Description,
+		CreatedAt:      timestamppb.New(s.CreatedAt),
 	}
 }
 

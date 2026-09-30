@@ -30,5 +30,6 @@ func NewServiceContext(config config.Config) *ServiceContext {
 		Redis:  redis.MustNewRedis(config.Redis.RedisConf),
 
 		PermRepo: repository.NewPermissionRepo(db),
+		RoleRepo: repository.NewRoleRepo(db),
 	}
 }

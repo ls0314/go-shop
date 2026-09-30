@@ -13,6 +13,7 @@ import (
 	"github.com/zeromicro/go-zero/core/discov"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -120,6 +121,126 @@ func (c *PermCodesClient) GetPermCodesByApi(path, method string) ([]string, erro
 		_ = c.cache.SetJSON(context.Background(), key, resp.PermCodes, permCacheTTL)
 	}
 	return resp.PermCodes, nil
+}
+
+// ============ 角色 CRUD ============
+
+// GetRole 按 ID 取角色
+func (c *PermCodesClient) GetRole(id int64) (*model.SysRole, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.GetRole(ctx, &v1_userv1.GetRoleReq{RoleId: id})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelRole(resp.Role), "", nil
+}
+
+// ListRoles 分页取角色
+func (c *PermCodesClient) ListRoles(page, pageSize int, roleType string) ([]model.SysRole, int64, string, error) {
+	if c == nil {
+		return nil, 0, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.ListRoles(ctx, &v1_userv1.ListRolesReq{
+		Page:     int32(page),
+		PageSize: int32(pageSize),
+		RoleType: roleType,
+	})
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, 0, resp.ErrorMsg, nil
+	}
+
+	roles := make([]model.SysRole, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		if item == nil {
+			continue
+		}
+		roles = append(roles, *toModelRole(item))
+	}
+	return roles, resp.Total, "", nil
+}
+
+// CreateRole 创建角色
+func (c *PermCodesClient) CreateRole(role *model.SysRole) (*model.SysRole, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.CreateRole(ctx, &v1_userv1.CreateRoleReq{
+		Role: toProtoRole(role),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelRole(resp.Role), "", nil
+}
+
+// UpdateRole 局部更新角色,updates 的 key 为 JSON 字段名
+func (c *PermCodesClient) UpdateRole(id int64, updates map[string]interface{}) (*model.SysRole, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	fields := make([]*v1_userv1.FieldUpdate, 0, len(updates))
+	for k, v := range updates {
+		fv, ok := toProtoFieldValue(v)
+		if !ok {
+			continue
+		}
+		fields = append(fields, &v1_userv1.FieldUpdate{Field: k, Value: fv})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.UpdateRole(ctx, &v1_userv1.UpdateRoleReq{
+		RoleId:  id,
+		Updates: fields,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelRole(resp.Role), "", nil
+}
+
+// DeleteRole 删除角色
+func (c *PermCodesClient) DeleteRole(id int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.rbac.DeleteRole(ctx, &v1_userv1.DeleteRoleReq{RoleId: id})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
 }
 
 // ============ 权限点 CRUD ============
@@ -275,6 +396,40 @@ func toProtoPermission(p *model.SysPermission) *v1_userv1.Permission {
 		ApiPath:        p.ApiPath,
 		Description:    p.Description,
 		IsSystem:       p.IsSystem,
+	}
+}
+
+// toModelRole proto -> 单体 model。
+func toModelRole(r *v1_userv1.Role) *model.SysRole {
+	if r == nil {
+		return nil
+	}
+	return &model.SysRole{
+		RoleId:      r.RoleId,
+		RoleName:    r.RoleName,
+		RoleType:    r.RoleType,
+		Description: r.Description,
+		IsSystem:    r.IsSystem,
+		IsDefault:   r.IsDefault,
+		DataScope:   r.DataScope,
+		CreatedAt:   r.GetCreatedAt().AsTime(),
+	}
+}
+
+// toProtoRole 单体 model -> proto
+func toProtoRole(r *model.SysRole) *v1_userv1.Role {
+	if r == nil {
+		return nil
+	}
+	return &v1_userv1.Role{
+		RoleId:      r.RoleId,
+		RoleName:    r.RoleName,
+		RoleType:    r.RoleType,
+		Description: r.Description,
+		IsSystem:    r.IsSystem,
+		IsDefault:   r.IsDefault,
+		DataScope:   r.DataScope,
+		CreatedAt:   timestamppb.New(r.CreatedAt),
 	}
 }
 

@@ -17,10 +17,8 @@ var roleCtrl *handler.RoleHandler
 // 功能：完成角色模块 仓库层 → 服务层 → 控制层 的依赖注入与实例化
 // 执行顺序：创建数据访问层实例 → 创建业务逻辑层实例 → 创建控制器实例
 func InitRoleModule(deps service.ServiceDeps) {
-	// 初始化角色服务层
-	roleService := service.NewRoleService(deps)
-	// 初始化角色控制器，赋值给全局控制器变量
-	roleCtrl = handler.NewRoleHandler(roleService)
+	// 初始化角色控制器
+	roleCtrl = handler.NewRoleHandler(deps.UserRPC)
 }
 
 // RegisterRoleRoutes 注册角色模块路由

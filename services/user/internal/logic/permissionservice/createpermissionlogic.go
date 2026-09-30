@@ -26,15 +26,7 @@ func NewCreatePermissionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 }
 
 func (l *CreatePermissionLogic) CreatePermission(in *v1_userv1.CreatePermissionReq) (*v1_userv1.CreatePermissionResp, error) {
-	perm := &model.SysPermission{
-		PermissionCode: in.Permission.GetPermissionCode(),
-		PermissionName: in.Permission.GetPermissionName(),
-		PermissionType: in.Permission.GetPermissionType(),
-		RequestMethod:  in.Permission.GetRequestMethod(),
-		ApiPath:        in.Permission.GetApiPath(),
-		Description:    in.Permission.GetDescription(),
-		IsSystem:       in.Permission.GetIsSystem(),
-	}
+	perm := converter.FromProtoPerm(in.Permission)
 	existing, _ := l.svcCtx.PermRepo.GetPermByCodeUk(perm.ApiPath, perm.RequestMethod, perm.PermissionCode)
 	if existing != nil {
 		return &v1_userv1.CreatePermissionResp{ErrorMsg: model.PermissionExist.Error()}, nil

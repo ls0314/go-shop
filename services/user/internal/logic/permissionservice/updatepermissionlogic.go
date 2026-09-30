@@ -3,7 +3,7 @@ package permissionservicelogic
 import (
 	"context"
 	"demo-shop-back/src/model"
-	v1_userv1 "demo-shop/api/gen/user/v1"
+	"demo-shop/api/gen/user/v1"
 	"demo-shop/services/user/internal/converter"
 	"demo-shop/services/user/internal/svc"
 
@@ -44,7 +44,7 @@ func (l *UpdatePermissionLogic) UpdatePermission(in *v1_userv1.UpdatePermissionR
 	if err != nil {
 		return nil, err
 	}
-	if err := decoder.Decode(fieldUpdatesToMap(in.Updates)); err != nil {
+	if err := decoder.Decode(converter.FieldUpdatesToMap(in.Updates)); err != nil {
 		return &v1_userv1.UpdatePermissionResp{ErrorMsg: err.Error()}, err
 	}
 	if newPerm.PermissionCode != olderPerm.PermissionCode {
@@ -63,19 +63,4 @@ func (l *UpdatePermissionLogic) UpdatePermission(in *v1_userv1.UpdatePermissionR
 		l.Errorf("递增权限版本号失败：%v", err)
 	}
 	return &v1_userv1.UpdatePermissionResp{Permission: converter.ToProtoPermission(&newPerm)}, nil
-}
-
-func fieldUpdatesToMap(updates []*v1_userv1.FieldUpdate) map[string]interface{} {
-	out := make(map[string]interface{}, len(updates))
-	for _, u := range updates {
-		switch v := u.GetValue().GetValue().(type) {
-		case *v1_userv1.FieldValue_StringValue:
-			out[u.GetField()] = v.StringValue
-		case *v1_userv1.FieldValue_Int64Value:
-			out[u.GetField()] = v.Int64Value
-		case *v1_userv1.FieldValue_BoolValue:
-			out[u.GetField()] = v.BoolValue
-		}
-	}
-	return out
 }

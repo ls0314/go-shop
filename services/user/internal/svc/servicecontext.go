@@ -15,6 +15,7 @@ type ServiceContext struct {
 	Redis  *redis.Redis
 
 	PermRepo *repository.PermissionRepo
+	RoleRepo *repository.RoleRepo
 }
 
 func NewServiceContext(config config.Config) *ServiceContext {

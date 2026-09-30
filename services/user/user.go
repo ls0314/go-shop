@@ -3,7 +3,7 @@ package main
 import (
 	"demo-shop/api/gen/user/v1"
 	"demo-shop/services/user/internal/config"
-	PermissionServiceServer "demo-shop/services/user/internal/server/permissionservice"
+	rbacserviceserver "demo-shop/services/user/internal/server/rbacservice"
 	"demo-shop/services/user/internal/svc"
 	"flag"
 	"fmt"
@@ -26,7 +26,7 @@ func main() {
 	ctx := svc.NewServiceContext(c)
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
-		v1_userv1.RegisterPermissionServiceServer(grpcServer, PermissionServiceServer.NewPermissionServiceServer(ctx))
+		v1_userv1.RegisterRBACServiceServer(grpcServer, rbacserviceserver.NewRBACServiceServer(ctx))
 
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {
 			reflection.Register(grpcServer)

@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
+
+import "google/protobuf/timestamp.proto";
+import "user/v1/common.proto";
+
+// Role 角色快照。
+message Role {
+  int64 role_id = 1;
+  string role_name = 2;
+  // platform / seller / system
+  string role_type = 3;
+  string description = 4;
+  // 系统内置角色不可改、不可删
+  bool is_system = 5;
+  // 新用户是否自动分配该角色
+  bool is_default = 6;
+  // all / dept / self
+  string data_scope = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message GetRoleReq {
+  int64 role_id = 1;
+}
+
+message GetRoleResp {
+  Role role = 1;
+  string error_msg = 2;
+}
+
+message ListRolesReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 为空表示不过滤
+  string role_type = 3;
+}
+
+message ListRolesResp {
+  repeated Role items = 1;
+  int64 total = 2;
+  string error_msg = 3;
+}
+
+message CreateRoleReq {
+  Role role = 1;
+}
+
+message CreateRoleResp {
+  Role role = 1;
+  string error_msg = 2;
+}
+
+message UpdateRoleReq {
+  int64 role_id = 1;
+  repeated FieldUpdate updates = 2;
+}
+
+message UpdateRoleResp {
+  Role role = 1;
+  string error_msg = 2;
+}
+
+message DeleteRoleReq {
+  int64 role_id = 1;
+}
+
+message DeleteRoleResp {
+  string error_msg = 1;
+}

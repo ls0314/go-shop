@@ -4,55 +4,7 @@ package user.v1;
 
 option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
 
-// RBAC 判权数据源。
-// 表的所有权在 user-service,调用方每次取数都经此获取;
-// 是否缓存、缓存多久由调用方决定。
-service PermissionService {
-  // 取用户拥有的全部权限码
-  rpc ListPermCodesByUserId(ListPermCodesByUserIdReq) returns (ListPermCodesByUserIdResp);
-  // 取某接口(路径 + 方法)要求的权限码
-  rpc ListPermCodesByApi(ListPermCodesByApiReq) returns (ListPermCodesByApiResp);
-  // 取权限版本号,权限/角色变更时递增
-  rpc GetPermVersion(GetPermVersionReq) returns (GetPermVersionResp);
-  // 取权限
-  rpc GetPermission(GetPermissionReq) returns (GetPermissionResp);
-  // 取权限列表
-  rpc ListPermissions(ListPermissionsReq) returns (ListPermissionsResp);
-  // 新建权限
-  rpc CreatePermission(CreatePermissionReq) returns (CreatePermissionResp);
-  // 更新权限
-  rpc UpdatePermission(UpdatePermissionReq) returns (UpdatePermissionResp);
-  // 删除权限
-  rpc DeletePermission(DeletePermissionReq) returns (DeletePermissionResp);
-}
-
-message ListPermCodesByUserIdReq {
-  int64 user_id = 1;
-}
-
-message ListPermCodesByUserIdResp {
-  // 无任何权限时返回空数组,不返回错误
-  repeated string perm_codes = 1;
-}
-
-message ListPermCodesByApiReq {
-  // 接口路径,与 sys_permission.api_path 一致,带 /api/v1 前缀
-  string api_path = 1;
-  // HTTP 方法,大写,与 sys_permission.request_method 一致
-  string request_method = 2;
-}
-
-message ListPermCodesByApiResp {
-  // 无权限码时返回空数组,不返回错误
-  repeated string perm_codes = 1;
-}
-
-message GetPermVersionReq {}
-
-message GetPermVersionResp {
-  // 单调递增,初值为 0
-  int64 version = 1;
-}
+import "user/v1/common.proto";
 
 // Permission 权限点快照。
 message Permission {
@@ -68,20 +20,6 @@ message Permission {
   string description = 7;
   // 系统内置权限不可改、不可删
   bool is_system = 8;
-}
-
-message FieldValue {
-  oneof value {
-    string string_value = 1;
-    int64  int64_value  = 2;
-    bool   bool_value   = 3;
-  }
-}
-
-// FieldUpdate 局部更新的一个字段:field 为 JSON 字段名(如 permission_name)。
-message FieldUpdate {
-  string field = 1;
-  FieldValue value = 2;
 }
 
 message GetPermissionReq {
@@ -120,6 +58,8 @@ message UpdatePermissionReq {
   repeated FieldUpdate updates = 2;
 }
 
+// UpdatePermissionResp.permission 返回合并后的完整对象,
+// 调用方无需再查一次。
 message UpdatePermissionResp {
   Permission permission = 1;
   string error_msg = 2;
@@ -131,4 +71,35 @@ message DeletePermissionReq {
 
 message DeletePermissionResp {
   string error_msg = 1;
+}
+
+// 判权数据源。调用方每次取数都经此获取,
+// 是否缓存、缓存多久由调用方决定。
+
+message ListPermCodesByUserIdReq {
+  int64 user_id = 1;
+}
+
+message ListPermCodesByUserIdResp {
+  // 无任何权限时返回空数组,不返回错误
+  repeated string perm_codes = 1;
+}
+
+message ListPermCodesByApiReq {
+  // 接口路径,与 sys_permission.api_path 一致,带 /api/v1 前缀
+  string api_path = 1;
+  // HTTP 方法,大写,与 sys_permission.request_method 一致
+  string request_method = 2;
+}
+
+message ListPermCodesByApiResp {
+  // 无权限码时返回空数组,不返回错误
+  repeated string perm_codes = 1;
+}
+
+message GetPermVersionReq {}
+
+message GetPermVersionResp {
+  // 单调递增,初值为 0
+  int64 version = 1;
 }

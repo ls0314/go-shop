@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
+
+// FieldValue 承载局部更新的单个字段值。
+// 用 oneof 而非 optional:proto3 的 optional 依赖字段存在性追踪,
+// 跨语言生成物差异较大;oneof 语义直白且各语言一致。
+message FieldValue {
+  oneof value {
+    string string_value = 1;
+    int64  int64_value  = 2;
+    bool   bool_value   = 3;
+  }
+}
+
+// FieldUpdate 局部更新的一个字段:field 为 JSON 字段名(如 role_name)。
+message FieldUpdate {
+  string field = 1;
+  FieldValue value = 2;
+}

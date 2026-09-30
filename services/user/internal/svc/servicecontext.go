@@ -16,6 +16,7 @@ type ServiceContext struct {
 
 	PermRepo *repository.PermissionRepo
 	RoleRepo *repository.RoleRepo
+	MenuRepo *repository.MenuRepo
 }
 
 func NewServiceContext(config config.Config) *ServiceContext {
@@ -31,5 +32,6 @@ func NewServiceContext(config config.Config) *ServiceContext {
 
 		PermRepo: repository.NewPermissionRepo(db),
 		RoleRepo: repository.NewRoleRepo(db),
+		MenuRepo: repository.NewMenuRepo(db),
 	}
 }

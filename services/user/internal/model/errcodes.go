@@ -19,4 +19,9 @@ var (
 	RoleHasUserRel = errors.New("存在关联用户")
 	RoleHasMenuRel = errors.New("菜单存在角色关联")
 	RoleHasPermRel = errors.New("权限存在角色关联")
+
+	// 菜单域
+	MenuExist    = errors.New("此级目录内菜单已存在")
+	MenuNotExist = errors.New("菜单不存在")
+	MenuHasRel   = errors.New("菜单存在角色关联")
 )

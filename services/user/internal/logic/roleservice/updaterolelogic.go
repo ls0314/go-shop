@@ -1,4 +1,4 @@
-package roleservice
+package roleservicelogic
 
 import (
 	"context"

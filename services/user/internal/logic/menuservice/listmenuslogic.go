@@ -1,4 +1,4 @@
-package roleservicelogic
+package menuservicelogic
 
 import (
 	"context"
@@ -9,21 +9,21 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-type ListRolesLogic struct {
+type ListMenusLogic struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logx.Logger
 }
 
-func NewListRolesLogic(ctx context.Context, svc *svc.ServiceContext) *ListRolesLogic {
-	return &ListRolesLogic{
+func NewListMenusLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListMenusLogic {
+	return &ListMenusLogic{
 		ctx:    ctx,
-		svcCtx: svc,
+		svcCtx: svcCtx,
 		Logger: logx.WithContext(ctx),
 	}
 }
 
-func (l *ListRolesLogic) ListRoles(in *v1_userv1.ListRolesReq) (*v1_userv1.ListRolesResp, error) {
+func (l *ListMenusLogic) ListMenus(in *v1_userv1.ListMenusReq) (*v1_userv1.ListMenusResp, error) {
 	page := int(in.Page)
 	if page <= 0 {
 		page = 1
@@ -37,16 +37,18 @@ func (l *ListRolesLogic) ListRoles(in *v1_userv1.ListRolesReq) (*v1_userv1.ListR
 		pageSize = 100
 	}
 
-	roles, total, err := l.svcCtx.RoleRepo.GetRoleList(page, pageSize, in.RoleType)
+	menus, total, err := l.svcCtx.MenuRepo.GetMenuList(page, pageSize, in.GetMenuType())
 	if err != nil {
 		return nil, err
 	}
 
-	items := make([]*v1_userv1.Role, 0, len(roles))
-	for i := range roles {
-		items = append(items, converter.ToProtoRole(&roles[i]))
+	items := make([]*v1_userv1.Menu, 0, len(menus))
+
+	for i := range menus {
+		items = append(items, converter.ToProtoMenu(&menus[i]))
 	}
-	return &v1_userv1.ListRolesResp{
+
+	return &v1_userv1.ListMenusResp{
 		Items: items,
 		Total: total,
 	}, nil

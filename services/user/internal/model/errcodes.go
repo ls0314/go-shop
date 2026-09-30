@@ -24,4 +24,9 @@ var (
 	MenuExist    = errors.New("此级目录内菜单已存在")
 	MenuNotExist = errors.New("菜单不存在")
 	MenuHasRel   = errors.New("菜单存在角色关联")
+
+	// 部门域
+	DeptExist    = errors.New("此级目录内该部门已存在")
+	DeptNotExist = errors.New("部门不存在")
+	DeptHasRel   = errors.New("部门存在用户关联")
 )

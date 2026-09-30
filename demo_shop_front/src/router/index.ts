@@ -155,9 +155,7 @@ router.beforeEach(async (to, from) => {
     // 已登录，加载动态菜单路由
     if (!routerStore.isInitRouter) {
         try {
-            await routerStore.SetAsyncRouter({
-                user_id: userStore.userInfo.user_id,
-            })
+            await routerStore.SetAsyncRouter()
             // 无菜单用户（非管理员） → 跳商城首页
             if (!routerStore.hasAdmin) {
                 return '/shop/home'

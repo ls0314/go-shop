@@ -101,7 +101,7 @@ const avatarText = computed(() => {
 // 登录后自动检测管理端权限
 watch(isLogin, async (val) => {
   if (val) {
-    await routerStore.CheckAdminAccess(userStore.userInfo?.user_id)
+    await routerStore.CheckAdminAccess()
   }
 })
 
@@ -161,7 +161,7 @@ onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
   // 页面刷新后 watch 不会触发，需主动检查管理端权限
   if (isLogin.value) {
-    await routerStore.CheckAdminAccess(userStore.userInfo?.user_id)
+    await routerStore.CheckAdminAccess()
   }
 })
 

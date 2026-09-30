@@ -115,14 +115,14 @@ export const useRouterStore = defineStore('router', () => {
     const removeRouteFns = ref<Array<() => void>>([])
 
     // 初始化动态路由
-    async function SetAsyncRouter(userId?: string) {
+    async function SetAsyncRouter() {
         // 如果已经初始化过动态路由，就不重复执行
         if (isInitRouter.value) {
             return
         }
 
-        // 请求后端菜单树
-        const res = await asyncMenu(userId)
+        // 请求后端菜单树(身份取自 JWT)
+        const res = await asyncMenu()
 
         // 判断后端响应状态
         if (res.data.code !== 200) {
@@ -152,10 +152,10 @@ export const useRouterStore = defineStore('router', () => {
     }
 
     // 检查当前用户是否有管理端权限（轻量级，仅调菜单API不添加路由）
-    async function CheckAdminAccess(userId?: string) {
+    async function CheckAdminAccess() {
         if (hasAdmin.value) return true
         try {
-            const res = await asyncMenu({ user_id: userId })
+            const res = await asyncMenu()
             const menus = res.data.data || []
             hasAdmin.value = menus.length > 0
             return hasAdmin.value

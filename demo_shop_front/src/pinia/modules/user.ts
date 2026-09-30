@@ -107,12 +107,9 @@ export const useUserStore = defineStore('user', () => {
             //  拉取用户权限码(按钮级权限控制)
             await GetPerms()
 
-            // 初始化路由
+            // 初始化路由(菜单树按当前登录用户返回)
             const routerStore = useRouterStore()
-            // 根据用户ID实现动态路由
-            await routerStore.SetAsyncRouter({
-                user_id:userInfo.value.user_id
-            })
+            await routerStore.SetAsyncRouter()
 
             ElMessage.success('登录成功')
             // 登录成功后跳转到首页

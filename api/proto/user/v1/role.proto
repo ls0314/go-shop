@@ -59,6 +59,8 @@ message UpdateRoleReq {
   repeated FieldUpdate updates = 2;
 }
 
+// UpdateRoleResp.role 返回合并后的完整对象,
+// 调用方无需再查一次。
 message UpdateRoleResp {
   Role role = 1;
   string error_msg = 2;

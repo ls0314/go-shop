@@ -2,8 +2,8 @@ package menuservicelogic
 
 import (
 	"context"
-	"demo-shop-back/src/model"
 	"demo-shop/api/gen/user/v1"
+	"demo-shop/services/user/internal/model"
 	"demo-shop/services/user/internal/svc"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -28,6 +28,15 @@ func (l *DeleteMenuLogic) DeleteMenu(in *v1_userv1.DeleteMenuReq) (out *v1_userv
 	existing, _ := l.svcCtx.MenuRepo.GetMenuById(in.MenuId)
 	if existing == nil {
 		return &v1_userv1.DeleteMenuResp{ErrorMsg: model.MenuNotExist.Error()}, nil
+	}
+
+	// 有子菜单的菜单不允许删除,否则子菜单的 parent_id 会悬空
+	hasChildren, err := l.svcCtx.MenuRepo.HasChildren(in.MenuId)
+	if err != nil {
+		return nil, err
+	}
+	if hasChildren {
+		return &v1_userv1.DeleteMenuResp{ErrorMsg: model.MenuHasChildren.Error()}, nil
 	}
 
 	// 有角色关联的菜单不允许删除

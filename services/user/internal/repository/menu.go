@@ -113,6 +113,16 @@ func (m *MenuRepo) CheckRoleRelMenu(menuID int64) (bool, error) {
 	return count > 0, nil
 }
 
+// HasChildren 检查是否有其他菜单以该菜单为父节点
+func (m *MenuRepo) HasChildren(menuID int64) (bool, error) {
+	var count int64
+	err := m.DB.Model(&model.SysMenu{}).Where("parent_id = ?", menuID).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // ListRoleIdsByUserId 查询用户持有的全部角色ID,供菜单树取并集
 func (m *MenuRepo) ListRoleIdsByUserId(userId int64) ([]int64, error) {
 	var roleIds []int64

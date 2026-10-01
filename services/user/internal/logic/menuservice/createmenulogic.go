@@ -2,9 +2,9 @@ package menuservicelogic
 
 import (
 	"context"
-	"demo-shop-back/src/model"
 	"demo-shop/api/gen/user/v1"
 	"demo-shop/services/user/internal/converter"
+	"demo-shop/services/user/internal/model"
 	"demo-shop/services/user/internal/svc"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -38,7 +38,8 @@ func (l *CreateMenuLogic) CreateMenu(in *v1_userv1.CreateMenuReq) (*v1_userv1.Cr
 		if err != nil {
 			return nil, err
 		}
-		menu.SortOrder = sortId
+		// 追加到同级末尾;GetMaxSortId 无子节点时返回 0,故首个子菜单排序号为 1
+		menu.SortOrder = sortId + 1
 	}
 
 	err := l.svcCtx.DB.Transaction(func(tx *gorm.DB) error {

@@ -2,10 +2,11 @@ package menuservicelogic
 
 import (
 	"context"
-	"demo-shop-back/src/model"
 	v1_userv1 "demo-shop/api/gen/user/v1"
 	"demo-shop/services/user/internal/converter"
+	"demo-shop/services/user/internal/model"
 	"demo-shop/services/user/internal/svc"
+	"errors"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -44,9 +45,14 @@ func (l *UpdateMenuLogic) UpdateMenu(in *v1_userv1.UpdateMenuReq) (*v1_userv1.Up
 		return &v1_userv1.UpdateMenuResp{ErrorMsg: err.Error()}, nil
 	}
 
-	if newMenu.MenuName != oldMenu.MenuName {
-		existing, _ := l.svcCtx.MenuRepo.GetMenuByUk(newMenu.ParentId, newMenu.MenuName)
-		if existing != nil {
+	// 名字或父节点任一变化都可能在新父节点下撞名,故两者都变才跳过判重
+	if newMenu.MenuName != oldMenu.MenuName || newMenu.ParentId != oldMenu.ParentId {
+		existing, err := l.svcCtx.MenuRepo.GetMenuByUk(newMenu.ParentId, newMenu.MenuName)
+		// 只换父节点不改名时,查回的是自身,不算冲突
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+		if existing != nil && existing.MenuId != in.MenuId {
 			return &v1_userv1.UpdateMenuResp{ErrorMsg: model.MenuExist.Error()}, nil
 		}
 	}
@@ -56,7 +62,8 @@ func (l *UpdateMenuLogic) UpdateMenu(in *v1_userv1.UpdateMenuReq) (*v1_userv1.Up
 		if err != nil {
 			return nil, err
 		}
-		newMenu.SortOrder = sortId
+		// 挪到新父节点末尾
+		newMenu.SortOrder = sortId + 1
 	}
 
 	err = l.svcCtx.DB.Transaction(func(tx *gorm.DB) error {

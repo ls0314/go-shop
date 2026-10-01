@@ -1,0 +1,221 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
+
+import "google/protobuf/timestamp.proto";
+import "user/v1/common.proto";
+
+// ============ 认证 ============
+
+// Login 校验凭据并签发令牌。
+// username 与 phone 二选一,都为空时按用户名查询。
+message LoginReq {
+  string username = 1;
+  string phone = 2;
+  string password = 3;
+  // 登录日志用,由调用方从 HTTP 请求提取
+  string client_ip = 4;
+  string device = 5;
+}
+
+message LoginResp {
+  string access_token = 1;
+  string refresh_token = 2;
+  string error_msg = 3;
+}
+
+// RefreshToken 用 refresh 令牌换新的 access 令牌。
+message RefreshTokenReq {
+  string refresh_token = 1;
+}
+
+// RefreshTokenResp 只回新 access 令牌:refresh 令牌沿用原值不轮换,
+// 与既有前端行为一致(刷新后前端仍持有旧 refresh_token)。
+message RefreshTokenResp {
+  string access_token = 1;
+  string error_msg = 2;
+}
+
+// Register 注册新用户,同时创建 user_profile。
+message RegisterReq {
+  string username = 1;
+  string password = 2;
+  string phone = 3;
+  string email = 4;
+  string nickname = 5;
+}
+
+message RegisterResp {
+  User user = 1;
+  string error_msg = 2;
+}
+
+// ============ 用户 ============
+
+// User 用户快照。
+// 不含 password_hash / failed_attempts / lock_until 等凭据与内部状态字段。
+message User {
+  int64 user_id = 1;
+  string username = 2;
+  string email = 3;
+  string phone = 4;
+  // active / disabled
+  string status = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message GetUserReq {
+  int64 user_id = 1;
+}
+
+message GetUserResp {
+  User user = 1;
+  string error_msg = 2;
+}
+
+message ListUsersReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 为空表示不过滤
+  string status = 3;
+}
+
+message ListUsersResp {
+  repeated User items = 1;
+  int64 total = 2;
+  string error_msg = 3;
+}
+
+message CreateUserReq {
+  User user = 1;
+  // 明文口令,服务侧做 bcrypt 哈希后入库
+  string password = 2;
+}
+
+message CreateUserResp {
+  User user = 1;
+  string error_msg = 2;
+}
+
+message UpdateUserReq {
+  int64 user_id = 1;
+  repeated FieldUpdate updates = 2;
+}
+
+// UpdateUserResp.user 返回合并后的完整对象,调用方无需再查一次。
+message UpdateUserResp {
+  User user = 1;
+  string error_msg = 2;
+}
+
+message DeleteUserReq {
+  int64 user_id = 1;
+}
+
+message DeleteUserResp {
+  string error_msg = 1;
+}
+
+// ============ 当前登录用户 ============
+
+// GetSelfInfo 取当前登录用户的身份与档案。
+// user_id 由调用方从 JWT 解析后传入,不接受来自请求体的值。
+message GetSelfInfoReq {
+  int64 user_id = 1;
+}
+
+message GetSelfInfoResp {
+  User user = 1;
+  UserProfile profile = 2;
+  string error_msg = 3;
+}
+
+// ListSelfPermCodes 取当前登录用户的全部权限码(按钮级权限展示用)。
+message ListSelfPermCodesReq {
+  int64 user_id = 1;
+}
+
+message ListSelfPermCodesResp {
+  repeated string perm_codes = 1;
+  string error_msg = 2;
+}
+
+// ============ 用户档案 ============
+
+message UserProfile {
+  int64 user_info_id = 1;
+  int64 user_id = 2;
+  string nickname = 3;
+  string real_name = 4;
+  // male / female / unknown
+  string gender = 5;
+  string avatar_url = 6;
+  google.protobuf.Timestamp birthdate = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message GetUserProfileReq {
+  int64 user_id = 1;
+}
+
+message GetUserProfileResp {
+  UserProfile profile = 1;
+  string error_msg = 2;
+}
+
+message CreateUserProfileReq {
+  UserProfile profile = 1;
+}
+
+message CreateUserProfileResp {
+  UserProfile profile = 1;
+  string error_msg = 2;
+}
+
+message UpdateUserProfileReq {
+  int64 user_profile_id = 1;
+  repeated FieldUpdate updates = 2;
+}
+
+message UpdateUserProfileResp {
+  UserProfile profile = 1;
+  string error_msg = 2;
+}
+
+message DeleteUserProfileReq {
+  int64 user_profile_id = 1;
+}
+
+message DeleteUserProfileResp {
+  string error_msg = 1;
+}
+
+// UserService 用户身份与认证。
+// access/refresh 令牌的**唯一签发方**:调用方只做本地验签,不提供 VerifyToken。
+service UserService {
+  // ---- 认证 ----
+  rpc Login(LoginReq) returns (LoginResp);
+  rpc RefreshToken(RefreshTokenReq) returns (RefreshTokenResp);
+  rpc Register(RegisterReq) returns (RegisterResp);
+
+  // ---- 当前登录用户 ----
+  rpc GetSelfInfo(GetSelfInfoReq) returns (GetSelfInfoResp);
+  rpc ListSelfPermCodes(ListSelfPermCodesReq) returns (ListSelfPermCodesResp);
+
+  // ---- 用户管理 ----
+  rpc GetUser(GetUserReq) returns (GetUserResp);
+  rpc ListUsers(ListUsersReq) returns (ListUsersResp);
+  rpc CreateUser(CreateUserReq) returns (CreateUserResp);
+  rpc UpdateUser(UpdateUserReq) returns (UpdateUserResp);
+  rpc DeleteUser(DeleteUserReq) returns (DeleteUserResp);
+
+  // ---- 用户档案 ----
+  rpc GetUserProfile(GetUserProfileReq) returns (GetUserProfileResp);
+  rpc CreateUserProfile(CreateUserProfileReq) returns (CreateUserProfileResp);
+  rpc UpdateUserProfile(UpdateUserProfileReq) returns (UpdateUserProfileResp);
+  rpc DeleteUserProfile(DeleteUserProfileReq) returns (DeleteUserProfileResp);
+}

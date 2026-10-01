@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/response"
 	"demo-shop-back/src/repository"
+	"demo-shop-back/src/utils"
 	"errors"
 
 	"github.com/mitchellh/mapstructure"
@@ -32,7 +33,7 @@ func NewAddressService(deps ServiceDeps) *AddressService {
 // 返回值：addressId - 新建地址ID, error - 6002手机号格式/6001姓名手机非空/6003数量上限
 func (as *AddressService) CreateAddress(address *model.UserAddress) (addressId int64, err error) {
 	// 手机号格式校验（正则：^1[3-9]\d{9}$）
-	if !ValidatePhone(address.ReceiverPhone) {
+	if !utils.ValidatePhone(address.ReceiverPhone) {
 		return 0, model.PhoneMalformed
 	}
 

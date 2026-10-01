@@ -20,7 +20,7 @@ func RegisterUserRoutes(r *gin.Engine, deps service.ServiceDeps) {
 	permMW := middleware.PermissionMiddleware(deps.UserRPC, deps.Cache)
 	userPublic := r.Group("/api/v1/user")
 	{
-		userPublic.POST("/register", middleware.PerIPRateLimit(), userCtrl.CreateUserHandler)
+		userPublic.POST("/register", middleware.PerIPRateLimit(), userCtrl.RegisterHandler)
 		userPublic.POST("/login", middleware.PerIPRateLimit(), userCtrl.LoginHandler)
 		userPublic.POST("/refresh", userCtrl.RefreshHandler)
 	}

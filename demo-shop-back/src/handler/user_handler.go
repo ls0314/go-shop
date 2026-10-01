@@ -46,8 +46,8 @@ func GetUserInfoByContext(c *gin.Context) (int64, string, error) {
 	return userId, userName, nil
 }
 
-// CreateUserHandler 创建用户接口(注册与管理端新增共用)
-// 路由映射：POST /api/v1/user/register、POST /api/v1/admin/user
+// CreateUserHandler 创建用户接口(管理端新增用户)
+// 路由映射：POST /api/v1/admin/user
 func (u *UserHandler) CreateUserHandler(c *gin.Context) {
 	var req model.SysUser
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -62,6 +62,37 @@ func (u *UserHandler) CreateUserHandler(c *gin.Context) {
 	}
 	if errMsg != "" {
 		utils.Error(c, 500, errMsg)
+		return
+	}
+
+	utils.Success(c, user)
+}
+
+// RegisterHandler 自助注册接口
+// 路由映射：POST /api/v1/user/register
+// 与 CreateUserHandler(管理端建号)的区别：注册会校验手机号格式、查重用户名/手机号/邮箱,
+// 并在同一事务内创建 user_profile(nickname 为空时回落为用户名)。
+func (u *UserHandler) RegisterHandler(c *gin.Context) {
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Phone    string `json:"phone"`
+		Email    string `json:"email"`
+		Nickname string `json:"nickname"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Fail(c, 400, model.StatusBadRequest+err.Error())
+		return
+	}
+
+	user, errMsg, err := u.userRPC.Register(req.Username, req.Password, req.Phone, req.Email, req.Nickname)
+	if err != nil {
+		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		// 口令/手机号格式不合法、用户名或手机号已存在等均属业务失败,用 400
+		utils.Fail(c, 400, errMsg)
 		return
 	}
 

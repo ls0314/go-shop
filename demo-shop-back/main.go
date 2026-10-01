@@ -89,13 +89,13 @@ func main() {
 	// 操作日志初始化
 	middleware.InitLogWorker(repository.NewOperationLogRepo(deps.DB))
 
-	// JWT初始化
-	jwtSecret := os.Getenv("DEMO_SHOP_JWT_SECRET")
-	if jwtSecret == "" {
-		jwtSecret = "demo-shop"
-		//log.Fatal("JWT 未配置")
+	// JWT 验签初始化:只加载公钥,私钥仅存于 user-service。
+	// 默认路径按"工作目录 = demo-shop-back/"计算,退一级到仓库根。
+	jwtPublicKeyPath := os.Getenv("DEMO_SHOP_JWT_PUBLIC_KEY_PATH")
+	if jwtPublicKeyPath == "" {
+		jwtPublicKeyPath = "../jwt_keys/dev_public.pem"
 	}
-	middleware.InitJWT(jwtSecret)
+	middleware.InitJWT(jwtPublicKeyPath)
 	// 路由初始化
 	router := routes.InitRoutes(deps)
 

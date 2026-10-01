@@ -1,19 +1,22 @@
 package tests
 
 import (
-	"bytes"
-	"encoding/json"
+	"crypto/rand"
+	"crypto/rsa"
+	"demo-shop-back/src/utils"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"demo-shop-back/db"
 	"demo-shop-back/src/config"
 	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/routes"
 
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -35,6 +38,9 @@ var initOnce struct {
 	err error
 }
 
+// testPrivateKey 测试内生成的 RS256 私钥,用于直接签发测试 token。
+var testPrivateKey *rsa.PrivateKey
+
 // initTestGlobals 显式初始化全局依赖(幂等)。
 // 为什么不调 db.InitDB():它读 config.GlobalConfig,而测试从不 LoadConfig,
 // 会拿到空 DSN。这里用与 TestMain 相同的环境变量显式构造,保证自洽。
@@ -52,8 +58,15 @@ func initTestGlobals() error {
 			initOnce.err = err
 			return
 		}
-		// JWT 只在 main.go 初始化过;未初始化时 GetJWTService() 会 panic
-		middleware.InitJWT("test-only-secret-for-smoke")
+		// JWT 验签器需要公钥;测试内现生成一对,免去对 jwt_keys/ 磁盘文件的依赖。
+		// 私钥留作后续直接签发测试 token 用。
+		priv, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			initOnce.err = err
+			return
+		}
+		testPrivateKey = priv
+		middleware.InitJWTWithKey(&priv.PublicKey)
 	})
 	return initOnce.err
 }
@@ -75,26 +88,36 @@ func insertSmokeUser(t *testing.T, username, plainPassword string) {
 	}
 }
 
-func smokeLogin(t *testing.T, engine http.Handler, username, password string) string {
+// smokeUserID 查冒烟用户的 user_id,供签发测试 token 使用。
+func smokeUserID(t *testing.T, username string) int64 {
 	t.Helper()
-	body, _ := json.Marshal(map[string]string{"username": username, "password": password})
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/user/login", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	engine.ServeHTTP(w, req)
+	var id int64
+	if err := db.DB.Raw(`SELECT user_id FROM sys_user WHERE username = ?`, username).
+		Scan(&id).Error; err != nil {
+		t.Fatalf("查询冒烟用户ID失败: %v", err)
+	}
+	if id == 0 {
+		t.Fatalf("冒烟用户不存在: %s", username)
+	}
+	return id
+}
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("冒烟用户登录失败: %d body=%s", w.Code, trunc(w.Body.String()))
+// 测试内直接签发 access token,不走登录接口
+func issueTestToken(t *testing.T, priv *rsa.PrivateKey, userID int64, username string) string {
+	claims := utils.CustomClaims{
+		UserID:    userID,
+		Username:  username,
+		TokenType: "access",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		},
 	}
-	var lr struct {
-		Data struct {
-			AccessToken string `json:"access_token"`
-		} `json:"data"`
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	signed, err := token.SignedString(priv)
+	if err != nil {
+		t.Fatalf("签发测试 token 失败: %v", err)
 	}
-	if err := json.Unmarshal(w.Body.Bytes(), &lr); err != nil || lr.Data.AccessToken == "" {
-		t.Fatalf("登录响应无 token: %s", trunc(w.Body.String()))
-	}
-	return lr.Data.AccessToken
+	return signed
 }
 
 // TestWiring_HTTP_AllRegisteredRoutes 枚举全部已注册路由并逐个探测。
@@ -110,7 +133,10 @@ func TestWiring_HTTP_AllRegisteredRoutes(t *testing.T) {
 	insertSmokeUser(t, uname, "Smoke-Passw0rd-1")
 
 	engine := routes.InitRoutes(testDeps())
-	token := smokeLogin(t, engine, uname, "Smoke-Passw0rd-1")
+
+	// 直接签发 token:本测试只验证路由接线,不依赖登录接口与 user-service
+	userID := smokeUserID(t, uname)
+	token := issueTestToken(t, testPrivateKey, userID, uname)
 
 	checked := 0
 	for _, r := range engine.Routes() {

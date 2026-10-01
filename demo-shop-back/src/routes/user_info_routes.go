@@ -12,7 +12,7 @@ var userInfoCtrl *handler.UserInfoHandler
 
 func InitUserInfoModule(deps service.ServiceDeps) {
 
-	userInfoCtrl = handler.NewUserInfoHandler(deps)
+	userInfoCtrl = handler.NewUserInfoHandler(deps.UserRPC)
 }
 
 func RegisterUserInfoRoutes(r *gin.Engine, deps service.ServiceDeps) {

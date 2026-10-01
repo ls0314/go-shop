@@ -28,6 +28,7 @@ const (
 
 type PermCodesClient struct {
 	rbac  v1_userv1.RBACServiceClient
+	user  v1_userv1.UserServiceClient
 	cache *cache.RedisService
 	conn  *grpc.ClientConn
 }
@@ -43,6 +44,7 @@ func NewPermCodesClient(etcdHosts []string, etcdKey string, cch *cache.RedisServ
 	}
 	return &PermCodesClient{
 		rbac:  v1_userv1.NewRBACServiceClient(client.Conn()),
+		user:  v1_userv1.NewUserServiceClient(client.Conn()),
 		cache: cch,
 		conn:  client.Conn(),
 	}, nil
@@ -960,6 +962,307 @@ func (c *PermCodesClient) ClearUserDepts(userId int64) (string, error) {
 	return resp.ErrorMsg, nil
 }
 
+// ============ 用户身份与认证 ============
+
+// Login 校验凭据并签发令牌
+func (c *PermCodesClient) Login(username, phone, password, clientIP, device string) (*v1_userv1.LoginResp, error) {
+	if c == nil {
+		return nil, errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	return c.user.Login(ctx, &v1_userv1.LoginReq{
+		Username: username,
+		Phone:    phone,
+		Password: password,
+		ClientIp: clientIP,
+		Device:   device,
+	})
+}
+
+// RefreshToken 用 refresh 令牌换新 access 令牌
+func (c *PermCodesClient) RefreshToken(refreshToken string) (*v1_userv1.RefreshTokenResp, error) {
+	if c == nil {
+		return nil, errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	return c.user.RefreshToken(ctx, &v1_userv1.RefreshTokenReq{RefreshToken: refreshToken})
+}
+
+// Register 注册用户并创建默认档案
+func (c *PermCodesClient) Register(username, password, phone, email, nickname string) (*model.SysUser, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.Register(ctx, &v1_userv1.RegisterReq{
+		Username: username,
+		Password: password,
+		Phone:    phone,
+		Email:    email,
+		Nickname: nickname,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelUser(resp.User), "", nil
+}
+
+// GetSelfInfo 取当前登录用户身份与档案
+func (c *PermCodesClient) GetSelfInfo(userId int64) (*model.SysUser, *model.UserProfile, string, error) {
+	if c == nil {
+		return nil, nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.GetSelfInfo(ctx, &v1_userv1.GetSelfInfoReq{UserId: userId})
+	if err != nil {
+		return nil, nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, nil, resp.ErrorMsg, nil
+	}
+	return toModelUser(resp.User), toModelUserProfile(resp.Profile), "", nil
+}
+
+// ListSelfPermCodes 取当前登录用户全部权限码
+func (c *PermCodesClient) ListSelfPermCodes(userId int64) ([]string, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.ListSelfPermCodes(ctx, &v1_userv1.ListSelfPermCodesReq{UserId: userId})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return resp.PermCodes, "", nil
+}
+
+// GetUser 按 ID 取用户
+func (c *PermCodesClient) GetUser(userId int64) (*model.SysUser, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.GetUser(ctx, &v1_userv1.GetUserReq{UserId: userId})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelUser(resp.User), "", nil
+}
+
+// ListUsers 分页取用户
+func (c *PermCodesClient) ListUsers(page, pageSize int, status string) ([]model.SysUser, int64, string, error) {
+	if c == nil {
+		return nil, 0, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.ListUsers(ctx, &v1_userv1.ListUsersReq{
+		Page:     int32(page),
+		PageSize: int32(pageSize),
+		Status:   status,
+	})
+	if err != nil {
+		return nil, 0, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, 0, resp.ErrorMsg, nil
+	}
+
+	users := make([]model.SysUser, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		if item == nil {
+			continue
+		}
+		users = append(users, *toModelUser(item))
+	}
+	return users, resp.Total, "", nil
+}
+
+// CreateUser 管理端创建用户
+func (c *PermCodesClient) CreateUser(user *model.SysUser, password string) (*model.SysUser, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.CreateUser(ctx, &v1_userv1.CreateUserReq{
+		User:     toProtoUser(user),
+		Password: password,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelUser(resp.User), "", nil
+}
+
+// UpdateUser 局部更新用户
+func (c *PermCodesClient) UpdateUser(userId int64, updates map[string]interface{}) (*model.SysUser, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	fields := make([]*v1_userv1.FieldUpdate, 0, len(updates))
+	for k, v := range updates {
+		fv, ok := toProtoFieldValue(v)
+		if !ok {
+			continue
+		}
+		fields = append(fields, &v1_userv1.FieldUpdate{Field: k, Value: fv})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.UpdateUser(ctx, &v1_userv1.UpdateUserReq{
+		UserId:  userId,
+		Updates: fields,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelUser(resp.User), "", nil
+}
+
+// DeleteUser 删除用户
+func (c *PermCodesClient) DeleteUser(userId int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.DeleteUser(ctx, &v1_userv1.DeleteUserReq{UserId: userId})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
+// GetUserProfile 按用户ID取档案
+func (c *PermCodesClient) GetUserProfile(userId int64) (*model.UserProfile, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.GetUserProfile(ctx, &v1_userv1.GetUserProfileReq{UserId: userId})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelUserProfile(resp.Profile), "", nil
+}
+
+// CreateUserProfile 创建用户档案
+func (c *PermCodesClient) CreateUserProfile(profile *model.UserProfile) (*model.UserProfile, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.CreateUserProfile(ctx, &v1_userv1.CreateUserProfileReq{
+		Profile: toProtoUserProfile(profile),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelUserProfile(resp.Profile), "", nil
+}
+
+// UpdateUserProfile 局部更新档案,入参 id 是用户ID
+func (c *PermCodesClient) UpdateUserProfile(userId int64, updates map[string]interface{}) (*model.UserProfile, string, error) {
+	if c == nil {
+		return nil, "", errors.New("user-service 不可用")
+	}
+
+	fields := make([]*v1_userv1.FieldUpdate, 0, len(updates))
+	for k, v := range updates {
+		fv, ok := toProtoFieldValue(v)
+		if !ok {
+			continue
+		}
+		fields = append(fields, &v1_userv1.FieldUpdate{Field: k, Value: fv})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.UpdateUserProfile(ctx, &v1_userv1.UpdateUserProfileReq{
+		UserProfileId: userId,
+		Updates:       fields,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if resp.ErrorMsg != "" {
+		return nil, resp.ErrorMsg, nil
+	}
+	return toModelUserProfile(resp.Profile), "", nil
+}
+
+// DeleteUserProfile 按用户ID删除档案
+func (c *PermCodesClient) DeleteUserProfile(userId int64) (string, error) {
+	if c == nil {
+		return "", errors.New("user-service 不可用")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), permCallTimeout)
+	defer cancel()
+
+	resp, err := c.user.DeleteUserProfile(ctx, &v1_userv1.DeleteUserProfileReq{UserProfileId: userId})
+	if err != nil {
+		return "", err
+	}
+	return resp.ErrorMsg, nil
+}
+
 // ============ 权限点 CRUD ============
 
 // GetPermission 按 ID 取权限点
@@ -1306,6 +1609,83 @@ func toProtoScope(s *model.SysScope) *v1_userv1.Scope {
 		ConditionValue: s.ConditionValue,
 		Description:    s.Description,
 		CreatedAt:      timestamppb.New(s.CreatedAt),
+	}
+}
+
+// toModelUser proto -> 单体 model。
+func toModelUser(p *v1_userv1.User) *model.SysUser {
+	if p == nil {
+		return nil
+	}
+	return &model.SysUser{
+		UserID:    p.UserId,
+		Username:  p.Username,
+		Email:     p.Email,
+		Phone:     p.Phone,
+		Status:    p.Status,
+		CreatedAt: p.GetCreatedAt().AsTime(),
+		UpdatedAt: p.GetUpdatedAt().AsTime(),
+	}
+}
+
+// toProtoUser 单体 model -> proto
+func toProtoUser(u *model.SysUser) *v1_userv1.User {
+	if u == nil {
+		return nil
+	}
+	return &v1_userv1.User{
+		UserId:    u.UserID,
+		Username:  u.Username,
+		Email:     u.Email,
+		Phone:     u.Phone,
+		Status:    u.Status,
+		CreatedAt: timestamppb.New(u.CreatedAt),
+		UpdatedAt: timestamppb.New(u.UpdatedAt),
+	}
+}
+
+// toModelUserProfile proto -> 单体 model。
+func toModelUserProfile(p *v1_userv1.UserProfile) *model.UserProfile {
+	if p == nil {
+		return nil
+	}
+	var birthdate *time.Time
+	if p.Birthdate != nil {
+		t := p.Birthdate.AsTime()
+		birthdate = &t
+	}
+	return &model.UserProfile{
+		UserInfoID: p.UserInfoId,
+		UserId:     p.UserId,
+		Nickname:   p.Nickname,
+		RealName:   p.RealName,
+		Gender:     p.Gender,
+		AvatarURL:  p.AvatarUrl,
+		Birthdate:  birthdate,
+		CreatedAt:  p.GetCreatedAt().AsTime(),
+		UpdatedAt:  p.GetUpdatedAt().AsTime(),
+	}
+}
+
+// toProtoUserProfile 单体 model -> proto
+func toProtoUserProfile(p *model.UserProfile) *v1_userv1.UserProfile {
+	if p == nil {
+		return nil
+	}
+	var birthdate *timestamppb.Timestamp
+	if p.Birthdate != nil {
+		birthdate = timestamppb.New(*p.Birthdate)
+	}
+	return &v1_userv1.UserProfile{
+		UserInfoId: p.UserInfoID,
+		UserId:     p.UserId,
+		Nickname:   p.Nickname,
+		RealName:   p.RealName,
+		Gender:     p.Gender,
+		AvatarUrl:  p.AvatarURL,
+		Birthdate:  birthdate,
+		CreatedAt:  timestamppb.New(p.CreatedAt),
+		UpdatedAt:  timestamppb.New(p.UpdatedAt),
 	}
 }
 

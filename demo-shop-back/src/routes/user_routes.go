@@ -12,7 +12,7 @@ import (
 var userCtrl *handler.UserHandler
 
 func InitUserModule(deps service.ServiceDeps) {
-	userCtrl = handler.NewUserHandler(deps)
+	userCtrl = handler.NewUserHandler(deps.UserRPC)
 }
 
 func RegisterUserRoutes(r *gin.Engine, deps service.ServiceDeps) {

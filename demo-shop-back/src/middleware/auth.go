@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"crypto/rsa"
 	"demo-shop-back/src/contracts"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/model"
@@ -16,19 +17,29 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var globalJWTService *utils.JWTService
+// 改成
+var globalVerifier *utils.JWTVerifier
 
-func InitJWT(secretKey string) {
-	if globalJWTService == nil {
-		globalJWTService = utils.NewJWTService(secretKey)
+// InitJWT 从 PEM 公钥文件初始化验签器。
+// 加载失败直接 panic:验签不可用等于全站不可用,不该带病启动。
+func InitJWT(publicKeyPath string) {
+	pub, err := utils.LoadPublicKey(publicKeyPath)
+	if err != nil {
+		panic("加载 JWT 公钥失败: " + err.Error())
 	}
+	globalVerifier = utils.NewJWTVerifier(pub)
 }
 
-func GetJWTService() *utils.JWTService {
-	if globalJWTService == nil {
-		panic("jwt services not initialized, call InitJWT first")
+// InitJWTWithKey 直接注入公钥,供测试使用(免去磁盘密钥文件依赖)。
+func InitJWTWithKey(pub *rsa.PublicKey) {
+	globalVerifier = utils.NewJWTVerifier(pub)
+}
+
+func GetVerifier() *utils.JWTVerifier {
+	if globalVerifier == nil {
+		panic("jwt verifier not initialized, call InitJWT first")
 	}
-	return globalJWTService
+	return globalVerifier
 }
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -47,7 +58,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		claims, err := GetJWTService().ParseToken(tokenStr)
+		claims, err := GetVerifier().ParseAccessToken(tokenStr)
 		if err != nil {
 			var message string
 			switch {

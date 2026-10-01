@@ -1,7 +1,6 @@
 package service
 
 import (
-	"demo-shop-back/src/middleware"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/repository"
 	"regexp"
@@ -253,57 +252,5 @@ func (u *UserService) CreateUser(user *model.SysUser) error {
 
 	// 提交事务
 	return tx.Commit().Error
-
-}
-
-// Login 用户登录
-// 支持用户名/手机号登录，生成JWT令牌
-// 接收值：user - 登录请求对象, ip - 登录IP, device - 登录设备
-// 返回值：*model.LoginResponse - 登录响应，error - 错误信息
-func (u *UserService) Login(user *model.LoginRequest, ip string, device string) (*model.LoginResponse, error) {
-	var userExist *model.SysUser
-	var err error
-	// 根据用户名查询用户
-	if user.Username != "" {
-		userExist, err = u.UserRepo.GetUserByName(user.Username)
-		if err != nil || userExist == nil {
-			u.recordLoginLog(0, ip, device, "fail", "user not found")
-			return nil, model.UserNotExist
-		}
-	} else if user.Phone != "" {
-		// 根据手机号查询用户
-		userExist, err = u.UserRepo.GetUserByPhone(user.Phone)
-		if err != nil || userExist == nil {
-			u.recordLoginLog(0, ip, device, "fail", "user not found")
-			return nil, model.UserNotExist
-		}
-	}
-
-	// 校验密码
-	err = bcrypt.CompareHashAndPassword([]byte(userExist.PasswordHash), []byte(user.Password))
-	if err != nil {
-		return nil, model.LoginPasswordInvalid
-	}
-
-	// 记录登录成功日志
-	u.recordLoginLog(userExist.UserID, ip, device, "success", "")
-
-	// 生成JWT令牌
-	jwtService := middleware.GetJWTService()
-	accessToken, err := jwtService.GenerateAccessToken(userExist.UserID, user.Username)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshToken, err := jwtService.GenerateRefreshToken(userExist.UserID, user.Username)
-	if err != nil {
-		return nil, err
-	}
-
-	// 返回登录响应
-	return &model.LoginResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	}, nil
 
 }

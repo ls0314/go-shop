@@ -36,6 +36,19 @@ var (
 	ScopeNotRole  = errors.New("数据权限所关联的角色不存在")
 	ScopeIsRole   = errors.New("禁止修改关联角色")
 
-	// 用户域(绑定域校验用)
-	UserNotExist = errors.New("用户不存在")
+	// 用户域
+	UserNotExist         = errors.New("用户不存在")
+	UsernameExist        = errors.New("用户名已存在")
+	PhoneExist           = errors.New("手机号已注册")
+	EmailExist           = errors.New("邮箱已注册")
+	PhoneMalformed       = errors.New("手机号格式错误")
+	RegPasswordInvalid   = errors.New("密码必须同时包含字母数字标点符号且>=8位")
+	LoginPasswordInvalid = errors.New("用户名或密码错误")
+	UserProfileNotExist  = errors.New("用户档案不存在")
+	UserHasDeptRel       = errors.New("存在关联部门")
+	UserHasRoleRel       = errors.New("存在关联角色")
+
+	// 令牌校验
+	TokenExpired = errors.New("token已过期")
+	TokenInvalid = errors.New("token错误")
 )

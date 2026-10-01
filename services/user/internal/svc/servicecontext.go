@@ -3,6 +3,7 @@ package svc
 import (
 	"demo-shop/services/user/internal/config"
 	"demo-shop/services/user/internal/repository"
+	"demo-shop/services/user/internal/utils"
 
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"gorm.io/driver/postgres"
@@ -13,6 +14,7 @@ type ServiceContext struct {
 	Config config.Config
 	DB     *gorm.DB
 	Redis  *redis.Redis
+	JWT    *utils.JWTIssuer
 
 	PermRepo  *repository.PermissionRepo
 	RoleRepo  *repository.RoleRepo
@@ -26,7 +28,8 @@ type ServiceContext struct {
 	UserRoleRepo *repository.UserRoleRepo
 	UserDeptRepo *repository.UserDeptRepo
 
-	UserRepo *repository.UserRepo
+	UserRepo        *repository.UserRepo
+	UserProfileRepo *repository.UserProfileRepo
 }
 
 func NewServiceContext(config config.Config) *ServiceContext {
@@ -35,10 +38,16 @@ func NewServiceContext(config config.Config) *ServiceContext {
 		panic("连接user_db失败：" + err.Error())
 	}
 
+	issuer, err := utils.NewJWTIssuer(config.JwtPrivateKeyPath)
+	if err != nil {
+		panic("加载 JWT 私钥失败: " + err.Error())
+	}
+
 	return &ServiceContext{
 		Config: config,
 		DB:     db,
 		Redis:  redis.MustNewRedis(config.Redis.RedisConf),
+		JWT:    issuer,
 
 		PermRepo:  repository.NewPermissionRepo(db),
 		RoleRepo:  repository.NewRoleRepo(db),
@@ -52,6 +61,7 @@ func NewServiceContext(config config.Config) *ServiceContext {
 		UserRoleRepo: repository.NewUserRoleRepo(db),
 		UserDeptRepo: repository.NewUserDeptRepo(db),
 
-		UserRepo: repository.NewUserRepo(db),
+		UserRepo:        repository.NewUserRepo(db),
+		UserProfileRepo: repository.NewUserProfileRepo(db),
 	}
 }

@@ -11,3 +11,4 @@ Redis:
   Type: node
   Pass: demoShop
   Key: unused
+JwtPrivateKeyPath: ../../jwt_keys/dev_private.pem

@@ -4,6 +4,7 @@ import (
 	"demo-shop/api/gen/user/v1"
 	"demo-shop/services/user/internal/config"
 	rbacserviceserver "demo-shop/services/user/internal/server/rbacservice"
+	userserviceserver "demo-shop/services/user/internal/server/userservice"
 	"demo-shop/services/user/internal/svc"
 	"flag"
 	"fmt"
@@ -27,6 +28,7 @@ func main() {
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		v1_userv1.RegisterRBACServiceServer(grpcServer, rbacserviceserver.NewRBACServiceServer(ctx))
+		v1_userv1.RegisterUserServiceServer(grpcServer, userserviceserver.NewUserServiceServer(ctx))
 
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {
 			reflection.Register(grpcServer)

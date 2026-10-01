@@ -42,7 +42,12 @@ func (l *GetMenuTreeByUserIdLogic) GetMenuTreeByUserId(in *v1_userv1.GetMenuTree
 		return nil, err
 	}
 
+	tree, warnings := MakeTree(menuList)
+	if len(warnings) > 0 {
+		l.Errorf("菜单树数据异常(user_id=%d): %s", in.UserId, FormatTreeWarnings(warnings))
+	}
+
 	return &v1_userv1.GetMenuTreeByUserIdResp{
-		Items: converter.ToProtoMenuTree(MakeTree(menuList)),
+		Items: converter.ToProtoMenuTree(tree),
 	}, nil
 }

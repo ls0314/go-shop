@@ -2,9 +2,9 @@ package permissionservicelogic
 
 import (
 	"context"
-	"demo-shop-back/src/model"
 	"demo-shop/api/gen/user/v1"
 	"demo-shop/services/user/internal/converter"
+	"demo-shop/services/user/internal/model"
 	"demo-shop/services/user/internal/svc"
 
 	"github.com/mitchellh/mapstructure"

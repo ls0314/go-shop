@@ -37,7 +37,12 @@ func (l *GetMenuTreeByRoleIdLogic) GetMenuTreeByRoleId(in *v1_userv1.GetMenuTree
 		return nil, err
 	}
 
+	tree, warnings := MakeTree(menuList)
+	if len(warnings) > 0 {
+		l.Errorf("菜单树数据异常(role_id=%d): %s", in.RoleId, FormatTreeWarnings(warnings))
+	}
+
 	return &v1_userv1.GetMenuTreeByRoleIdResp{
-		Items: converter.ToProtoMenuTree(MakeTree(menuList)),
+		Items: converter.ToProtoMenuTree(tree),
 	}, nil
 }

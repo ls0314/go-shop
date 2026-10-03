@@ -1,0 +1,296 @@
+syntax = "proto3";
+
+package marketing.v1;
+
+option go_package = "demo-shop/api/gen/marketing/v1;v1_marketingv1";
+
+import "google/protobuf/timestamp.proto";
+
+// 券域实体与请求/响应。表的所有权在 marketing-service
+// (coupon_template / user_coupon),独立库 marketing_db。
+//
+// 命名与 user-service 的 proto 保持一致:
+//   - RPC 一律 <动词><实体>,动词只用 Get / List / Create / Update / Delete / Assign;
+//   - 消息名 = RPC 名 + Req / Resp;
+//   - 实体单独一个 message,Create 传实体、Update 传 repeated FieldUpdate;
+//   - 分页统一 page / page_size,响应统一 items / total;
+//   - error_msg 恒为最后一个字段。
+
+// ============================================================
+// 实体
+// ============================================================
+
+// CouponTemplate 优惠券模板。管理端创建时下发,用户端只读。
+message CouponTemplate {
+  int64 template_id = 1;
+  string coupon_name = 2;
+  // full_reduction(满减) / direct_discount(直减)
+  string coupon_type = 3;
+  double threshold_amount = 4;
+  // 满减为优惠金额;直减为折扣率(如 0.8)
+  double discount_amount = 5;
+  int64 total_count = 6;
+  int64 received_count = 7;
+  int64 per_user_limit = 8;
+  // 有效期模式二选一:
+  //   usable_days > 0 → 领取后 N 天有效(相对)
+  //   usable_days = 0 → 用 start_time / end_time(固定)
+  int64 usable_days = 9;
+  google.protobuf.Timestamp start_time = 10;
+  google.protobuf.Timestamp end_time = 11;
+  bool is_deleted = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+  // 服务端按当前时间推导的展示态:not_started / ongoing / ended。
+  // 由服务端算而非前端算 —— 两端各自判时间会因时钟漂移给出不同结论。
+  // 相对有效期(usable_days>0)的模板恒为 ongoing:券是领取后才计时的。
+  string status = 15;
+}
+
+// UserCoupon 用户持有的券实例。状态机:
+//   unused → used(核销)   / unused → expired(过期)
+//   used   → unused(取消订单归还)
+message UserCoupon {
+  int64 user_coupon_id = 1;
+  int64 template_id = 2;
+  int64 user_id = 3;
+  // unused / used / expired
+  string status = 4;
+  // 核销时写入的订单号;未使用为空
+  string order_no = 5;
+  google.protobuf.Timestamp used_at = 6;
+  google.protobuf.Timestamp expire_at = 7;
+  google.protobuf.Timestamp created_at = 8;
+  // 以下为联 coupon_template 取到的快照,便于调用方一次拿全(不必二次查询)
+  string coupon_name = 9;
+  string coupon_type = 10;
+  double threshold_amount = 11;
+  double discount_amount = 12;
+}
+
+// ============================================================
+// 管理端:模板
+// ============================================================
+
+message GetCouponTemplateReq {
+  int64 template_id = 1;
+}
+
+message GetCouponTemplateResp {
+  CouponTemplate template = 1;
+  string error_msg = 2;
+}
+
+message ListCouponTemplatesReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 为空表示不过滤(精确匹配,与单体行为一致)
+  string coupon_name = 3;
+  string coupon_type = 4;
+}
+
+message ListCouponTemplatesResp {
+  repeated CouponTemplate items = 1;
+  int64 total = 2;
+  // 回显实际生效的分页参数(服务端会把越界值归一化,前端据此校准页码控件)
+  int32 page = 3;
+  int32 page_size = 4;
+  string error_msg = 5;
+}
+
+message CreateCouponTemplateReq {
+  CouponTemplate template = 1;
+}
+
+// CreateCouponTemplateResp 返回完整实体(含服务端生成的 id 与 status),
+// 与 CreateScopeResp / CreateRoleResp 同风格。
+message CreateCouponTemplateResp {
+  CouponTemplate template = 1;
+  string error_msg = 2;
+}
+
+message UpdateCouponTemplateReq {
+  int64 template_id = 1;
+  repeated FieldUpdate updates = 2;
+}
+
+// UpdateCouponTemplateResp.template 返回合并后的完整对象,调用方无需再查一次。
+message UpdateCouponTemplateResp {
+  CouponTemplate template = 1;
+  string error_msg = 2;
+}
+
+message DeleteCouponTemplateReq {
+  int64 template_id = 1;
+}
+
+message DeleteCouponTemplateResp {
+  string error_msg = 1;
+}
+
+// ============================================================
+// 用户端:我的券 / 领券中心 / 结算可用券
+// ============================================================
+
+message ListUserCouponsReq {
+  int64 user_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  // unused / used / expired,为空表示不过滤
+  string status = 4;
+}
+
+message ListUserCouponsResp {
+  repeated UserCoupon items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  string error_msg = 5;
+}
+
+// ListCouponTemplatesForUserReq 领券中心。
+// user_id 用于算 held_count(该用户已领数量),前端据此置灰"领取"按钮。
+message ListCouponTemplatesForUserReq {
+  int64 user_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+// CouponTemplateForUser 领券中心的模板项:比管理端多两个按用户算的字段。
+message CouponTemplateForUser {
+  CouponTemplate template = 1;
+  // 当前用户在"未过期"口径下的已领数量
+  int64 held_count = 2;
+  // total_count - received_count,下限 0
+  int64 remaining_count = 3;
+}
+
+message ListCouponTemplatesForUserResp {
+  repeated CouponTemplateForUser items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  string error_msg = 5;
+}
+
+message ListAvailableCouponsReq {
+  int64 user_id = 1;
+  // 订单总金额(未抵扣前),用于门槛判断与实付计算
+  double order_amount = 2;
+}
+
+// AvailableCoupon 结算页可用券项。
+// pay_after 由服务端算:满减 = 金额 - 优惠;直减 = 金额 × 折扣率。
+// 列表按 pay_after 升序 —— 第一张即"最优券",由调用方标记展示。
+message AvailableCoupon {
+  int64 user_coupon_id = 1;
+  string coupon_name = 2;
+  string coupon_type = 3;
+  double threshold_amount = 4;
+  double discount_amount = 5;
+  double pay_after = 6;
+}
+
+message ListAvailableCouponsResp {
+  repeated AvailableCoupon items = 1;
+  string error_msg = 2;
+}
+
+// ============================================================
+// 领券与核销
+// ============================================================
+
+message ReceiveCouponReq {
+  int64 user_id = 1;
+  int64 template_id = 2;
+}
+
+message ReceiveCouponResp {
+  int64 user_coupon_id = 1;
+  google.protobuf.Timestamp expire_at = 2;
+  string error_msg = 3;
+}
+
+// UseCouponReq 下单核销。
+//
+// **幂等键是 order_no**:user_coupon.order_no 在核销时写入,
+// 同一订单重复调用只生效一次(订单链路会重试/重放)。
+// 之所以不用 order_id:该表只有 order_no 一列,不为此加列 ——
+// order_no 本身已唯一,且流水的语义本来就是"这张券用在哪张单上"。
+message UseCouponReq {
+  int64 user_coupon_id = 1;
+  // 调用方(trade)必须传自己的订单号,由本服务写入 user_coupon.order_no
+  string order_no = 2;
+  // 券的归属人。服务端校验 user_coupon.user_id 必须等于它 ——
+  // 防越权用他人券;校验放在表的所有权方这一侧
+  int64 user_id = 3;
+  // 订单总金额,用于门槛校验;不满足门槛时服务端拒绝
+  double order_amount = 4;
+}
+
+// UseCouponResp 核销成功时返回券快照与实付金额,调用方无需二次查询。
+message UseCouponResp {
+  UserCoupon coupon = 1;
+  // 使用该券后的实付金额(服务端算好)
+  double pay_amount = 2;
+  string error_msg = 3;
+}
+
+// ReturnCouponReq 取消订单归还券(对应 C4 的 Saga 补偿动作)。
+//
+// **按 order_no 反查,而不是让调用方传 user_coupon_id**:
+// 取消链路上调用方手里只有订单号,而且"该订单用了哪张券"是券域的账,
+// 让调用方自己记住并回传,等于把归属信息复制一份出去,必然不同步。
+//
+// 幂等:券已是 unused 时返回成功(重复补偿只生效一次)。
+message ReturnCouponReq {
+  string order_no = 1;
+  // 期望归属人。为 0 表示不校验 —— 系统取消订单时没有操作人语义。
+  int64 user_id = 2;
+}
+
+message ReturnCouponResp {
+  // 归还后券回到 unused;订单本就没用券时为 false(同样算成功)
+  bool returned = 1;
+  string error_msg = 2;
+}
+
+// FieldUpdate 局部更新的单个字段。与 user-service 的 common.proto 同构:
+// 用 oneof 而非 JSON 文本,避免"字段名拼错被静默忽略"。
+// 本文件单独声明一份而非 import user 的 common.proto —— 跨服务 import 会把
+// 两个服务的契约耦在一起(改了 user 的 FieldUpdate 要重编 marketing)。
+message FieldUpdate {
+  string field = 1;
+  oneof value {
+    string string_value = 2;
+    int64 int64_value = 3;
+    double double_value = 4;
+    bool bool_value = 5;
+  }
+}
+
+// ============================================================
+// CouponService 券域读写。上游调用方:trade-service(下单核销 / 取消归还)、
+// BFF(管理端模板管理与用户端券中心)。
+// ============================================================
+service CouponService {
+  // ---- 管理端:模板 ----
+  rpc GetCouponTemplate(GetCouponTemplateReq) returns (GetCouponTemplateResp);
+  rpc ListCouponTemplates(ListCouponTemplatesReq) returns (ListCouponTemplatesResp);
+  rpc CreateCouponTemplate(CreateCouponTemplateReq) returns (CreateCouponTemplateResp);
+  rpc UpdateCouponTemplate(UpdateCouponTemplateReq) returns (UpdateCouponTemplateResp);
+  rpc DeleteCouponTemplate(DeleteCouponTemplateReq) returns (DeleteCouponTemplateResp);
+
+  // ---- 用户端 ----
+  rpc ListUserCoupons(ListUserCouponsReq) returns (ListUserCouponsResp);
+  rpc ListCouponTemplatesForUser(ListCouponTemplatesForUserReq) returns (ListCouponTemplatesForUserResp);
+  rpc ListAvailableCoupons(ListAvailableCouponsReq) returns (ListAvailableCouponsResp);
+  rpc ReceiveCoupon(ReceiveCouponReq) returns (ReceiveCouponResp);
+
+  // ---- 供 trade-service 的核销 / 归还 ----
+  // 这两步都必须在**本服务内**用事务完成:
+  // 拆库后 user_coupon 在 marketing_db、下单事务在 trade_db,
+  // 一个本地事务跨不过去(C4 的 Saga 正是为此把 S2 设为独立步骤)。
+  rpc UseCoupon(UseCouponReq) returns (UseCouponResp);
+  rpc ReturnCoupon(ReturnCouponReq) returns (ReturnCouponResp);
+}

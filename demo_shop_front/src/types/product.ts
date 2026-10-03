@@ -187,10 +187,15 @@ export interface CreateProductReq {
   image_list?: ProductImage[]
 }
 
-/** 商品列表查询参数（管理端 + 用户端共用） */
+/** 商品列表查询参数（管理端 + 用户端共用）
+ *
+ * 注意 `page_size` 是**下划线**命名:后端结构体的 form 标签就是
+ * `page_size`(全项目统一,见 coupon / order / inventoryLog 等 requset),
+ * 写成 pageSize 会被 ShouldBindQuery 静默忽略、永远只返回默认 10 条。
+ */
 export interface SpuQueryReq {
   page?: number
-  pageSize?: number
+  page_size?: number
   spu_name?: string
   category_id?: number
   spu_status?: string

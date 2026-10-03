@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"demo-shop-back/src/utils"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -124,6 +125,20 @@ func issueTestToken(t *testing.T, priv *rsa.PrivateKey, userID int64, username s
 //
 // 安全性:只探测 **GET 且无路径参数** 的路由 —— 这类是只读查询,
 // 不会创建订单/扣库存/发消息,可以放心打。写操作与带参路由不在此测试范围。
+//
+// 2026-10 调整(阶段 C2):判据从"5xx 即接线断裂"放宽为"5xx 需能归因"。
+// 起因:user-service / product-service 已拆出进程,本测试环境不启动它们,
+// 于是 /api/v1/user/info、/api/v1/products 会返回
+//
+//	{"code":503,"message":"user-service 不可用"}
+//
+// 这是**正确的降级响应**,不是接线问题。原来的"任何 5xx 都报错"会产生假红,
+// 而假红比不测更糟 —— 它会训练人忽略这个测试。
+//
+// 现在的判据:
+//   - 4xx:允许(无种子数据、无权限、缺参数);
+//   - 503 且 message 指向某个服务不可用:允许,计入"依赖缺失"而非"接线问题";
+//   - 其余 5xx(含 500):判为接线断裂 / nil panic / 注入缺失。
 func TestWiring_HTTP_AllRegisteredRoutes(t *testing.T) {
 	if err := initTestGlobals(); err != nil {
 		t.Skipf("全局初始化失败,跳过: %v", err)
@@ -139,6 +154,7 @@ func TestWiring_HTTP_AllRegisteredRoutes(t *testing.T) {
 	token := issueTestToken(t, testPrivateKey, userID, uname)
 
 	checked := 0
+	skippedRPC := 0
 	for _, r := range engine.Routes() {
 		if r.Method != http.MethodGet || strings.Contains(r.Path, ":") {
 			continue
@@ -155,6 +171,11 @@ func TestWiring_HTTP_AllRegisteredRoutes(t *testing.T) {
 		checked++
 
 		if w.Code >= 500 {
+			if unavailable := downstreamUnavailable(w); unavailable != "" {
+				skippedRPC++
+				t.Logf("[%s] %s → %d 跳过(下游 %s 未启动)", r.Handler, r.Path, w.Code, unavailable)
+				continue
+			}
 			t.Errorf("[%s] %s → %d  **疑似接线断裂 / nil panic / 注入缺失**  body=%s",
 				r.Handler, r.Path, w.Code, trunc(w.Body.String()))
 			continue
@@ -165,7 +186,36 @@ func TestWiring_HTTP_AllRegisteredRoutes(t *testing.T) {
 	if checked == 0 {
 		t.Fatal("没有枚举到任何可探测的 GET 路由 —— 路由注册本身可能坏了")
 	}
-	t.Logf("共探测 %d 条只读路由", checked)
+	t.Logf("共探测 %d 条只读路由,其中 %d 条因下游服务未启动而跳过", checked, skippedRPC)
+}
+
+// downstreamUnavailable 识别"某个下游服务没连上"这一类 5xx。
+//
+// 契约:调用方在客户端为 nil(RPC 未建连)时返回 `xxx-service 不可用`。
+// 接受两种状态码:
+//   - 503:product-service 侧已统一走 utils.Unavailable(标准语义);
+//   - 500:user-service 侧的历史写法仍走 utils.Error,尚未统一。
+//
+// 返回非空字符串表示属于该情形,值为服务名;返回空串表示这不是依赖缺失,需要人来查。
+//
+// 为什么不只看状态码:接线错误(handler 注入成 nil 指针、路由注册漏了)也会返回 500,
+// 必须靠"响应体是否是那句约定的降级文案"来区分,否则会把真问题一起放过。
+func downstreamUnavailable(w *httptest.ResponseRecorder) string {
+	var body struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		return ""
+	}
+	if body.Code != http.StatusServiceUnavailable && body.Code != http.StatusInternalServerError {
+		return ""
+	}
+	const suffix = " 不可用"
+	if !strings.HasSuffix(body.Message, suffix) {
+		return ""
+	}
+	return strings.TrimSuffix(body.Message, suffix)
 }
 
 // TestWiring_HTTP_AuthedRouteNeedsToken 反向验证鉴权中间件接线:

@@ -17,6 +17,12 @@ demo-shop-back/temp/
 .gocache/
 **/.gocache/
 
+# Go 临时目录(TMP 兜底:平台 temp 不可用时把 GOTMPDIR 指到这里)
+.gotmp/
+
+# 文件权限诊断脚本的恢复点(工具产物,不入库)
+.acl-recovery/
+
 # 系统杂项
 Thumbs.db
 .DS_Store

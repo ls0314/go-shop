@@ -176,7 +176,7 @@ const productList = computed(() => shopStore.productList)
 onMounted(async () => {
   loading.value = true
   try {
-    await shopStore.GetProductList({ page: 1, pageSize: 10, spu_status: 'published' })
+    await shopStore.GetProductList({ page: 1, page_size: 10, spu_status: 'published' })
   } finally {
     loading.value = false
   }

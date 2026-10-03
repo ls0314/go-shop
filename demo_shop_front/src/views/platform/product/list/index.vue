@@ -253,7 +253,8 @@ const fetchList = async () => {
   try {
     const data = await productStore.GetProductList({
       page: queryParams.value.page,
-      pageSize: queryParams.value.pageSize,
+      // 下划线命名:后端 SpuQueryReq 的 form 标签是 page_size
+      page_size: queryParams.value.pageSize,
       spu_name: queryParams.value.spu_name || undefined,
       spu_status: queryParams.value.spu_status || undefined,
       brand: queryParams.value.brand || undefined,

@@ -13,7 +13,7 @@ export const CreateProductApi  = (data: CreateProductReq = {}) => {
 
 export const GetProductListApi = (params : SpuQueryReq = {}) => {
     return service({
-        url : '/platform/products',
+        url : '/admin/products',
         method : 'get',
         params
     })
@@ -21,7 +21,7 @@ export const GetProductListApi = (params : SpuQueryReq = {}) => {
 
 export const GetProductApi = (id:number) => {
     return service({
-        url : `/platform/products/${id}`,
+        url : `/admin/products/${id}`,
         method : 'get',
     })
 }
@@ -65,7 +65,7 @@ export const WithdrawProductApi = (id:number) => {
 
 export const UserGetProductListApi = (params : SpuQueryReq = {}) => {
     return service({
-        url : '/users/platform/products',
+        url : '/products',
         method : 'get',
         params
     })
@@ -73,7 +73,7 @@ export const UserGetProductListApi = (params : SpuQueryReq = {}) => {
 
 export const UserGetProductApi = (id:number) => {
     return service({
-        url : `/users/platform/products/${id}`,
+        url : `/products/${id}`,
         method : 'get',
     })
 }

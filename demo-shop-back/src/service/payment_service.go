@@ -23,7 +23,9 @@ type PaymentService struct {
 	PaymentRepo *repository.PaymentRepo
 	OrderRepo   *repository.OrderRepo
 	db          *gorm.DB
-	*InventoryService
+	// inventoryRPC 扣减锁定库存经 RPC 调用 product-service。
+	// 声明为接口以便测试注入记录桩(见 inventory_rpc.go)。
+	inventoryRPC InventoryStockRPC
 }
 
 // NewPaymentService 创建支付模块服务层实例
@@ -31,10 +33,10 @@ type PaymentService struct {
 // 返回值：*PaymentService - 支付模块服务层实例指针
 func NewPaymentService(deps ServiceDeps) *PaymentService {
 	return &PaymentService{
-		PaymentRepo:      repository.NewPaymentRepo(deps.DB),
-		OrderRepo:        repository.NewOrderRepo(deps.DB),
-		db:               deps.DB,
-		InventoryService: NewInventoryService(deps),
+		PaymentRepo:  repository.NewPaymentRepo(deps.DB),
+		OrderRepo:    repository.NewOrderRepo(deps.DB),
+		db:           deps.DB,
+		inventoryRPC: deps.InventoryRPC,
 	}
 }
 
@@ -273,13 +275,17 @@ func (p *PaymentService) HandleCallback(payMethod string, callbackParams requset
 			return err
 		}
 
-		// 获取订单明细 → 逐项扣减锁定库存（共享外层事务）
+		// 获取订单明细 → 逐项扣减锁定库存
+		// 扣减改为 RPC,但仍留在本地事务内:失败即回滚支付与订单状态,让支付网关重试回调。
+		// 这是"支付不可逆"锚点下最保守的选择 —— 若改成提交后再扣,一次扣减失败就会留下
+		// "已支付但库存未扣"的账实不符,而 B1 还没有重试机制兜它。
+		// DeductStock 按 (order_id, sku_id, change_type) 幂等,回调重放安全。
 		orderDetails, err := orderTx.GetOrderDetail(payment.OrderId)
 		if err != nil {
 			return err
 		}
 		for _, detail := range orderDetails {
-			if err := p.InventoryService.DeductStockWithTx(tx, detail.SkuId, detail.Quantity, payment.OrderId); err != nil {
+			if err := p.inventoryRPC.DeductStock(detail.SkuId, detail.Quantity, payment.OrderId); err != nil {
 				return err
 			}
 		}

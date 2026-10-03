@@ -22,13 +22,15 @@ import (
 type OrderService struct {
 	OrderRepo         *repository.OrderRepo
 	AddressRepo       *repository.AddressRepo
-	ProductRepo       *repository.ProductRepo
 	CouponRepo        *repository.CouponRepo
 	OutboxMessageRepo *repository.OutboxMessageRepo
 	db                *gorm.DB
 	cache             *cache.RedisService // 库存闸门(deps.GateCache,含熔断语义);nil = 闸门关闭
+	// inventoryRPC 库存四操作经 RPC 调用 product-service。
+	// 这些操作自带事务与幂等,已脱离本地事务,下单失败需逐项补偿。
+	// 声明为接口以便测试注入记录桩(见 inventory_rpc.go)。
+	inventoryRPC InventoryStockRPC
 	*CartItemService
-	*InventoryService
 }
 
 // NewOrderService 创建订单服务层实例
@@ -42,8 +44,8 @@ func NewOrderService(deps ServiceDeps) *OrderService {
 		OutboxMessageRepo: repository.NewOutboxMessage(deps.DB),
 		db:                deps.DB,
 		cache:             deps.GateCache,
+		inventoryRPC:      deps.InventoryRPC,
 		CartItemService:   NewCartItemService(deps),
-		InventoryService:  NewInventoryService(deps),
 	}
 	return order
 }
@@ -197,7 +199,11 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 	}
 
 	// 开启事务
+	// orderId 在事务内由数据库自增分配;库存已改为 RPC,锁定的 (sku_id, qty)
+	// 逐项记入 lockedSkus,事务失败时在事务外补偿释放。
 	var resp response.CreateOrderResp
+	var orderId int64
+	var lockedSkus []model.UserOrderDetail
 	err = o.db.Transaction(func(tx *gorm.DB) error {
 		orderTx := o.OrderRepo.WithTx(tx)
 		cartItemTx := o.CartItemRepo.WithTx(tx)
@@ -234,12 +240,14 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 		}
 
 		// 写入订单主表
-		orderId, err := orderTx.CreateOrder(order)
+		orderId, err = orderTx.CreateOrder(order)
 		if err != nil {
 			return err
 		}
 
-		// 写入订单明细 + 锁定库存 + 清理购物车（全部共享外层事务）
+		// 写入订单明细 + 锁定库存 + 清理购物车
+		// 注意:锁库存已改为 RPC,不再与本地事务同生共死 —— 它一旦成功就已提交,
+		// 本地事务回滚不会撤销,因此逐项记入 lockedSkus 供事务外补偿。
 		for _, cartItem := range cartItemList {
 			orderDetail := model.UserOrderDetail{
 				OrderId:    orderId,
@@ -257,10 +265,11 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 				return err
 			}
 
-			// 锁定库存（共享外层事务 tx）
-			if err := o.InventoryService.LockStockWithTx(tx, cartItem.SkuId, cartItem.Quantity, orderId); err != nil {
+			// 锁定库存(order_id 兼作幂等键,product-service 侧自带事务)
+			if err := o.inventoryRPC.LockStock(cartItem.SkuId, cartItem.Quantity, orderId); err != nil {
 				return err
 			}
+			lockedSkus = append(lockedSkus, orderDetail)
 
 			// 删除购物车项
 			if err := cartItemTx.DeleteCartItem(cartItem.CartItemId); err != nil {
@@ -313,6 +322,15 @@ func (o *OrderService) CreateOrder(req *requset.CreatOrderReq, userId int64, use
 				if cErr := cacheSvc.CompensateSkuStock(context.Background(), d.skuId, d.qty); cErr != nil {
 					log.Printf("[WARN] 库存闸门补偿失败(等待对账收敛): skuId=%d err=%v", d.skuId, cErr)
 				}
+			}
+		}
+		// 库存补偿:锁库存 RPC 已提交而本地事务回滚 → 订单不存在但库存被锁,必须逐项释放。
+		// ReleaseStock 在 product-service 侧按 (order_id, sku_id, change_type) 幂等,
+		// 重复调用只释放一次。补偿失败只告警不重试,留待对账收敛。
+		for _, d := range lockedSkus {
+			if cErr := o.inventoryRPC.ReleaseStock(d.SkuId, d.Quantity, orderId); cErr != nil {
+				log.Printf("[WARN] 库存补偿失败(等待对账收敛): orderId=%d skuId=%d qty=%d err=%v",
+					orderId, d.SkuId, d.Quantity, cErr)
 			}
 		}
 		return nil, err
@@ -457,6 +475,9 @@ func (o *OrderService) CancelOrderBySystem(orderId int64, operator string) (*res
 func (o *OrderService) cancel(order *model.UserOrder, operator string) (*response.OrderStatusResp, error) {
 	orderId := order.OrderId
 	var resp response.OrderStatusResp
+	// 释放库存已改为 RPC,不再参与本地事务。明细在事务内读出,释放放到提交之后:
+	// 顺序反过来的话(RPC 先成功、本地事务回滚)会得到"订单未取消但库存已归还"。
+	var orderDetailList []response.UserGetOrderDetail
 	err := o.db.Transaction(func(tx *gorm.DB) error {
 		orderTx := o.OrderRepo.WithTx(tx)
 		couponTx := o.CouponRepo.WithTx(tx)
@@ -494,17 +515,10 @@ func (o *OrderService) cancel(order *model.UserOrder, operator string) (*respons
 		if err != nil {
 			return err
 		}
-		// 调用数据层获取订单明细列表，后逐个释放锁定的库存
-		orderDetailList, err := orderTx.GetOrderDetail(orderId)
+		// 读出订单明细列表,释放放到事务提交后执行
+		orderDetailList, err = orderTx.GetOrderDetail(orderId)
 		if err != nil {
 			return err
-		}
-		for _, orderDetail := range orderDetailList {
-			// 调用库存内部接口释放锁定库存（共享外部事务）
-			err := o.ReleaseStockWithTx(tx, orderDetail.SkuId, orderDetail.Quantity, orderId)
-			if err != nil {
-				return err
-			}
 		}
 		// 构建响应
 		resp = response.OrderStatusResp{
@@ -516,6 +530,17 @@ func (o *OrderService) cancel(order *model.UserOrder, operator string) (*respons
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// 逐个释放锁定的库存。ReleaseStock 在 product-service 侧按
+	// (order_id, sku_id, change_type) 幂等,重复调用只释放一次 —— 因此这里
+	// 失败也不回滚订单:订单已取消,库存留在锁定态比"订单取消但库存双倍归还"安全,
+	// 由对账任务收敛。失败只告警,不阻断取消结果。
+	for _, orderDetail := range orderDetailList {
+		if rErr := o.inventoryRPC.ReleaseStock(orderDetail.SkuId, orderDetail.Quantity, orderId); rErr != nil {
+			log.Printf("[WARN] 取消订单释放库存失败(等待对账收敛): orderId=%d skuId=%d qty=%d err=%v",
+				orderId, orderDetail.SkuId, orderDetail.Quantity, rErr)
+		}
 	}
 	return &resp, nil
 }

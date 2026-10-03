@@ -5,4 +5,5 @@ use (
 	./demo-shop-back
 	./services/product
 	./services/user
+	./services/marketing
 )

@@ -1,0 +1,27 @@
+Name: product-service
+ListenOn: 0.0.0.0:9005
+Mode: dev
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: product-service
+DataSource: postgres://postgres:postgres@localhost:5432/product_db?sslmode=disable
+Redis:
+  Host: 127.0.0.1:6379
+  Type: node
+  Pass: demoShop
+  Key: unused
+
+# ES 商品搜索。Addresses 留空 = 不启用:
+# 商品搜索自动降级为直查数据库,同时**不启动 ES 对账任务**(没有索引可对账)。
+ES:
+  Addresses: []
+  # Addresses:
+  #   - http://localhost:9200
+
+# 后台定时任务(DS-A-26 §3:ES 索引同步与两个对账任务归 product-service)。
+# 任一周期填 0s 即可单独关掉该任务 —— 本地只调 RPC 不想跑任务时用得上。
+Task:
+  ESIncInterval: 5m
+  ESFullInterval: 12h
+  StockInterval: 5m

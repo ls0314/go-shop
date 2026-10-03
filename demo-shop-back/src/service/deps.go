@@ -4,6 +4,7 @@ import (
 	"demo-shop-back/db"
 	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/cache"
+	"demo-shop-back/src/infra/couponclient"
 	"demo-shop-back/src/infra/es"
 	"demo-shop-back/src/infra/inventoryclient"
 	"demo-shop-back/src/infra/mq"
@@ -32,6 +33,9 @@ type ServiceDeps struct {
 	// (见 inventory_rpc.go 的说明);生产实现仍是 *inventoryclient.InventoryClient。
 	InventoryRPC InventoryStockRPC
 	ProductRPC   *productclient.ProductClient
+	// CouponRPC 券域读写。券表已迁至 marketing-service 的独立库 marketing_db,
+	// 本进程不再直连 coupon_template / user_coupon。
+	CouponRPC *couponclient.CouponClient
 }
 
 // NewServiceDeps 在 composition root 读一次全局依赖。
@@ -75,6 +79,17 @@ func NewServiceDeps() ServiceDeps {
 		log.Printf("[WARN] 连接 product-service 失败,商品与类目接口将不可用: %v", err)
 	} else {
 		deps.ProductRPC = prodClient
+	}
+
+	// marketing-service:券域读写。连不上不阻断启动,券接口会回 503。
+	couponClient, err := couponclient.NewCouponClient(
+		envList("DEMO_SHOP_ETCD_HOSTS", "127.0.0.1:2379"),
+		getEnv("DEMO_SHOP_MARKETING_ETCD_KEY", "marketing-service"),
+	)
+	if err != nil {
+		log.Printf("[WARN] 连接 marketing-service 失败,优惠券接口将不可用: %v", err)
+	} else {
+		deps.CouponRPC = couponClient
 	}
 	return deps
 }

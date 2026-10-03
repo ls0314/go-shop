@@ -1,406 +1,145 @@
 package service
 
 import (
-	"context"
-	"demo-shop-back/src/infra/cache"
-	"demo-shop-back/src/model"
+	"demo-shop-back/src/infra/couponclient"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
-	"demo-shop-back/src/repository"
-	"fmt"
-	"log"
-	"sort"
-	"time"
-
-	"gorm.io/gorm"
 )
 
+// ============================================================
+//	定义及实例化
+// ============================================================
+
+// CouponService 优惠券服务层实例。
+//
+// 券域(模板 CRUD + 用户券中心 + 领券)**全部已迁 marketing-service**:
+// 券表 coupon_template / user_coupon 的所有权在那边,落在独立库 marketing_db。
+// 因此本结构不再持有任何 repo,也不再持有闸门缓存 —— 它是纯粹的 RPC 门面。
+//
+// 领券闸门(coupon:stock / coupon:limit / coupon:ucnt)随表一起迁走了:
+// 闸门键的权威值来自券表,留在单体就等于让"读不到表的一方"维护计数器。
 type CouponService struct {
-	CouponRepo *repository.CouponRepo
-	db         *gorm.DB
-	cache      *cache.RedisService
+	CouponRPC *couponclient.CouponClient
 }
 
-// NewCouponService 新建优惠券模块服务层实例
+// NewCouponService 创建优惠券服务层实例
 // 接收值：deps - 服务层依赖（由 composition root 注入）
-// 返回值：*CouponService - 优惠券模块服务层实例指针
-//
-// 注意 cache 取 deps.GateCache 而非 deps.Cache:领券闸门需要
-// DEMO_SHOP_GATE_ENABLED 熔断语义(关闭时整条闸门旁路,DS-A-19 压测 A/B 用)。
+// 返回值：*CouponService - 优惠券服务层实例指针
 func NewCouponService(deps ServiceDeps) *CouponService {
 	return &CouponService{
-		CouponRepo: repository.NewCouponRepo(deps.DB),
-		db:         deps.DB,
-		cache:      deps.GateCache,
+		CouponRPC: deps.CouponRPC,
 	}
 }
 
-// NewCouponServiceWithCache 测试用:在完整 deps 的基础上替换闸门缓存实例。
-// 为什么保留这个变体:测试需要一个与生产不同的 Redis 实例(或强制启用闸门),
-// 而 deps 里的其余依赖仍需正常注入。
-func NewCouponServiceWithCache(deps ServiceDeps, c *cache.RedisService) *CouponService {
-	svc := NewCouponService(deps)
-	svc.cache = c
-	return svc
-}
+// ============================================================
+//	管理端:模板
+// ============================================================
 
 // CreateCoupon 创建优惠券模板（接口1）
-// 路由映射：POST /api/v1/admin/platform/coupons
+// 路由映射：POST /api/v1/admin/coupons
 // 所需权限：platform:coupon:create
-// 接收值：req - 创建参数（名称/类型/门槛/优惠金额/总量/限领数/有效期）
-// 返回值：*response.CreateCouponResp - 新建模板ID
 //
-//	error - 参数非法返回 ErrCouponParamInvalid(11007)；
-//	        有效期两种模式均未配置返回 ErrCouponValidityInvalid(11008)
-//
-// 说明：有效期二选一——usable_days>0 表示领取后 N 天有效（相对）；
-//
-//	usable_days=0 时要求 start_time/end_time 成对配置（固定）
+// 参数校验链(类型枚举/优惠力度/门槛/总量/限领/有效期二选一)已随业务迁至
+// marketing-service —— 它与 coupon_template 的 CHECK 约束是一套规则,
+// 拆开维护必然漂移。本地只做 HTTP 绑定与 RPC 转发。
 func (c *CouponService) CreateCoupon(req requset.CreateCouponReq) (*response.CreateCouponResp, error) {
-	// ---- 参数校验链：任一不合法直接返回 11007 ----
-	// 类型必须为两种枚举之一（与数据库 CHECK 约束 ck_coupon_type 对应）
-	if req.CouponType != "full_reduction" && req.CouponType != "direct_discount" {
-		return nil, model.ErrCouponParamInvalid
-	}
-	// 优惠力度必须 > 0（满减为金额、直减为折扣率，均不允许 0/负数）
-	if req.DiscountAmount <= 0 {
-		return nil, model.ErrCouponParamInvalid
-	}
-	// 使用门槛 >= 0（0 表示无门槛券）
-	if req.ThresholdAmount < 0 {
-		return nil, model.ErrCouponParamInvalid
-	}
-	// 发放总量必须 > 0
-	if req.TotalCount <= 0 {
-		return nil, model.ErrCouponParamInvalid
-	}
-	// 每人限领不能超过发放总量（否则限领失去意义）
-	if req.PerUserLimit > req.TotalCount {
-		return nil, model.ErrCouponParamInvalid
-	}
-	// ---- 有效期校验：两种模式必须二选一 ----
-	// 相对有效期（usable_days>0）与固定有效期（start/end）均未配置 → 11008
-	if req.UsableDays == 0 && (req.StartTime.IsZero() || req.EndTime.IsZero()) {
-		return nil, model.ErrCouponValidityInvalid
-	}
-
-	// 校验通过后落库：received_count 走数据库默认值 0，后续领取时原子扣减
-	templateId, err := c.CouponRepo.CreateCoupon(model.CouponTemplate{
-		CouponName:      req.CouponName,
-		CouponType:      req.CouponType,
-		ThresholdAmount: req.ThresholdAmount,
-		DiscountAmount:  req.DiscountAmount,
-		TotalCount:      req.TotalCount,
-		PerUserLimit:    req.PerUserLimit,
-		UsableDays:      req.UsableDays,
-		StartTime:       req.StartTime,
-		EndTime:         req.EndTime,
-	})
+	templateId, errMsg, err := c.CouponRPC.CreateCouponTemplate(req)
 	if err != nil {
 		return nil, err
 	}
-
-	// 返回新建模板 ID，供前端后续领取使用
-	return &response.CreateCouponResp{
-		TemplateId: templateId,
-	}, nil
+	if errMsg != "" {
+		return nil, couponclient.RestoreError(errMsg)
+	}
+	return &response.CreateCouponResp{TemplateId: templateId}, nil
 }
 
 // GetCouponList 分页查询优惠券模板列表（接口2）
-// 路由映射：GET /api/v1/admin/platform/coupons
+// 路由映射：GET /api/v1/admin/coupons
 // 所需权限：platform:coupon:view
-// 接收值：req - 分页参数与筛选条件（coupon_name/coupon_type）
-// 返回值：*response.GetCouponListResp - 模板列表 + 总数 + 分页信息
 //
-//	error - 数据库异常
+// 分页归一化(page<=0→1;pageSize<=0→10;>100 封顶 100)在服务端做,
+// 且服务端把**实际生效**的 page/page_size 回显在响应里 —— 本地不再兜一份,
+// 避免两边各写一套默认值与封顶值后漂移。
 func (c *CouponService) GetCouponList(req requset.GetCouponListReq) (*response.GetCouponListResp, error) {
-	// 防止参数越界
-	if req.Page <= 0 {
-		req.Page = 1
-	}
-	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
-	if req.PageSize <= 0 {
-		req.PageSize = 10
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
-
-	couponList, total, err := c.CouponRepo.GetCouponList(&req)
+	resp, errMsg, err := c.CouponRPC.GetCouponList(req)
 	if err != nil {
 		return nil, err
 	}
-	return &response.GetCouponListResp{
-		List:     couponList,
-		Total:    total,
-		Page:     req.Page,
-		PageSize: req.PageSize,
-	}, nil
+	if errMsg != "" {
+		return nil, couponclient.RestoreError(errMsg)
+	}
+	return resp, nil
 }
+
+// ============================================================
+//	用户端:我的券 / 领券中心 / 结算可用券 / 领取
+// ============================================================
 
 // UserGetCouponList 分页查询当前用户的优惠券列表（接口4）
-// 路由映射：GET /api/v1/users/platform/coupons
+// 路由映射：GET /api/v1/coupons
 // 鉴权：JWT（userId 从上下文获取，不支持越权查询他人券）
-// 接收值：userId - 当前登录用户ID；req - 分页与状态筛选（unused/used/expired）
-// 返回值：*response.UserGetCouponListResp - 用户券列表 + 总数
 //
-//	error - 数据库异常
+// 与结算可用券的区别:本方法**不过滤过期**,已用/已过期也要展示。
 func (c *CouponService) UserGetCouponList(userId int64, req requset.UserGetCouponListReq) (*response.UserGetCouponListResp, error) {
-	// 防止参数越界
-	if req.Page <= 0 {
-		req.Page = 1
-	}
-	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
-	if req.PageSize <= 0 {
-		req.PageSize = 10
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
-
-	couponList, total, err := c.CouponRepo.UserGetCouponList(userId, &req)
+	resp, errMsg, err := c.CouponRPC.GetUserCouponList(userId, req)
 	if err != nil {
 		return nil, err
 	}
-	return &response.UserGetCouponListResp{
-		List:     couponList,
-		Total:    total,
-		Page:     req.Page,
-		PageSize: req.PageSize,
-	}, nil
+	if errMsg != "" {
+		return nil, couponclient.RestoreError(errMsg)
+	}
+	return resp, nil
 }
 
-// ReceiveCoupon 用户领取优惠券（接口3）—— 并发安全核心方法
-// 路由映射：POST /api/v1/users/platform/coupons/receive/:templateId
-// 鉴权：JWT（userId 从上下文获取）
-// 接收值：userId - 当前登录用户ID；templateId - 优惠券模板ID
-// 返回值：*response.UserReceiveCouponResp - 用户券ID + 过期时间
+// receiveCouponRPC 领券的 RPC 实现。
 //
-//	error - 模板不存在(11001)/已领完(11002)/已达上限(11003)
+// **私有**:对外的 ReceiveCoupon 在 coupon_metrics.go 里 ——
+// 那一层包着 Prometheus 埋点(业务失败按文案分类计数),
+// 直接调本方法会绕过埋点。
 //
-// 并发设计（双防线）：
-//
-//	① 悲观锁：SELECT ... FOR UPDATE 锁模板行，同一模板的并发领取串行排队；
-//	   锁内校验限领（CountUserCoupon）与插入成为原子操作——防每人超领
-//	② 乐观锁：UPDATE ... WHERE received_count < total_count 条件扣减，
-//	   影响行数 0 即售罄——防总量超发
-func (c *CouponService) receiveCoupon(userId, templateId int64) (*response.UserReceiveCouponResp, error) {
-	var resp response.UserReceiveCouponResp
-
-	gatePassed := false
-	if c.cache != nil {
-		ctx := context.Background()
-		code, err := c.cache.DeductCouponReceive(ctx, templateId, userId)
-		if err != nil {
-			log.Printf("[WARN] 领券闸门异常,降级直走 DB: templateId=%d err=%v", templateId, err)
-		} else {
-			if code == cache.GateBackfill {
-				if c.backfillCouponGate(ctx, templateId) {
-					code, err = c.cache.DeductCouponReceive(ctx, templateId, userId)
-				}
-			}
-			if err == nil {
-				switch {
-				case code > 0:
-					gatePassed = true
-				case code == cache.GateSoldOut:
-					return nil, model.ErrCouponSoldOut
-				case code == cache.GateLimitExceeded:
-					return nil, model.ErrCouponLimitExceeded
-				}
-				// code 仍为 Backfill(回填失败),落到下方照常走 DB(降级语义)
-			}
-		}
-	}
-
-	err := c.db.Transaction(func(tx *gorm.DB) error {
-		couponTx := c.CouponRepo.WithTx(tx)
-
-		// 锁定模板行 —— 从这里开始,同一模板的并发领取在此排队
-		tpl, err := couponTx.LockTemplateByID(templateId)
-		if err != nil {
-			return err // 模板不存在时 err 即 ErrCouponTemplateNotExist
-		}
-
-		// 锁内校验(此刻其他领取事务都在等锁,读到的必是最新数据)
-		if tpl.IsDeleted {
-			return model.ErrCouponTemplateNotExist
-		}
-		if tpl.ReceivedCount >= tpl.TotalCount {
-			return model.ErrCouponSoldOut
-		}
-		held, err := couponTx.CountUserCoupon(userId, templateId)
-		if err != nil {
-			return err
-		}
-		if held >= tpl.PerUserLimit {
-			return model.ErrCouponLimitExceeded
-		}
-
-		// 原子条件扣减(行锁 + 条件更新双保险)
-		rowsAffected, err := couponTx.ReceiveCoupon(templateId, tpl.TotalCount)
-		if err != nil {
-			return err
-		}
-		if rowsAffected == 0 {
-			return model.ErrCouponSoldOut
-		}
-
-		// 计算过期时间并插入用户券(数据全部来自锁内读到的 tpl)
-		var expireAt time.Time
-		if tpl.UsableDays > 0 {
-			expireAt = time.Now().AddDate(0, 0, int(tpl.UsableDays))
-		} else {
-			expireAt = tpl.EndTime
-		}
-		userCouponId, err := couponTx.CreateUserCoupon(model.UserCoupon{
-			TemplateId: templateId,
-			UserId:     userId,
-			ExpireAt:   expireAt,
-			Status:     model.CouponUnused,
-		})
-		if err != nil {
-			return err
-		}
-
-		resp = response.UserReceiveCouponResp{
-			UserCouponId: userCouponId,
-			ExpireTime:   expireAt,
-		}
-		return nil //commit:锁释放,下一个排队的领取事务开始执行
-	})
-	// 闸门补偿，若DB失败说明本次领取并未发生，所以把阀门扣减的归还
+// 并发安全的核心实现(双防线:模板行 FOR UPDATE 串行化 + 条件扣减防超发,
+// 外加 Redis 闸门挡无效流量)已迁 marketing-service —— 那两道防线的依据
+// 是 coupon_template.received_count 与 user_coupon 的行,都在那边。
+func (c *CouponService) receiveCouponRPC(userId, templateId int64) (*response.UserReceiveCouponResp, error) {
+	resp, errMsg, err := c.CouponRPC.ReceiveCoupon(userId, templateId)
 	if err != nil {
-		if gatePassed && c.cache != nil {
-			if cErr := c.cache.CompensateCouponReceive(context.Background(), templateId, userId); cErr != nil {
-				log.Printf("[WARN] 领券闸门补偿失败(等待对账收敛): templateId=%d err=%v", templateId, cErr)
-			}
-		}
 		return nil, err
 	}
-	return &resp, nil
-}
-
-func (c *CouponService) backfillCouponGate(ctx context.Context, templateId int64) bool {
-	tpl, err := c.CouponRepo.GetTemplateById(templateId)
-	if err != nil {
-		return false
+	if errMsg != "" {
+		return nil, couponclient.RestoreError(errMsg)
 	}
-	remaining := tpl.TotalCount - tpl.ReceivedCount
-	if remaining < 0 {
-		remaining = 0
-	}
-	ttl := getTTL(tpl)
-	c.cache.FillGateCounter(ctx, fmt.Sprintf("coupon:stock:%d", templateId), remaining, ttl)
-	c.cache.FillGateCounter(ctx, fmt.Sprintf("coupon:limit:%d", templateId), tpl.PerUserLimit, ttl)
-	return true
-}
-
-// gateTTL 闸门键存活时间 = 模板剩余有效期 + 1 天缓冲,下限 1 小时。
-func getTTL(tpl *model.CouponTemplate) time.Duration {
-	var d time.Duration
-	if tpl.UsableDays > 0 {
-		d = time.Duration(tpl.UsableDays)*24*time.Hour + 24*time.Hour
-	} else if !tpl.EndTime.IsZero() {
-		d = time.Until(tpl.EndTime) + 24*time.Hour
-	}
-	if d < time.Hour {
-		d = time.Hour
-	}
-	return d
+	return resp, nil
 }
 
 // GetReceiveCouponList 领券中心模板列表（用户端可见可领取的券）
-// 路由映射：GET /api/v1/users/platform/coupons/templates
-// 鉴权：JWT（userId 从上下文获取）
-// 接收值：userId - 当前登录用户ID；req - 分页参数
-// 返回值：*response.UserCouponTemplateListResp - 模板列表（含当前用户已领数/剩余数）
+// 路由映射：GET /api/v1/coupons/templates
+// 鉴权：JWT（userId 从上下文获取，用于算 held_count）
 //
-// 说明：① 复用 repo.UserGetTemplateList 独立查询（过滤已结束的固定有效期券）;
-//
-//	② 空列表是正常业务状态（前端展示"暂无可用券"），不返回错误
+// 空列表是正常业务状态(前端展示"暂无可用券"),不返回错误。
 func (c *CouponService) GetReceiveCouponList(userId int64, req requset.UserGetTemplateListReq) (*response.UserCouponTemplateListResp, error) {
-	// 防止参数越界
-	if req.Page <= 0 {
-		req.Page = 1
-	}
-	// 防参数越界:<=0 用默认 10;>100 封顶 100(而非压成 10,避免大 pageSize 反而返回最少)
-	if req.PageSize <= 0 {
-		req.PageSize = 10
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
-
-	list, total, err := c.CouponRepo.UserGetTemplateList(userId, req.Page, req.PageSize)
+	resp, errMsg, err := c.CouponRPC.GetReceiveCouponList(userId, req)
 	if err != nil {
 		return nil, err
 	}
-
-	return &response.UserCouponTemplateListResp{
-		List:     list,
-		Total:    total,
-		Page:     req.Page,
-		PageSize: req.PageSize,
-	}, nil
+	if errMsg != "" {
+		return nil, couponclient.RestoreError(errMsg)
+	}
+	return resp, nil
 }
 
-// GetAvailableCouponList 结算时查询可用优惠券（接口5）—— 按实付金额升序
-// 路由映射：GET /api/v1/users/platform/coupons/available?order_amount=xxx
+// GetAvailableCouponList 结算页可用券（接口5）
+// 路由映射：GET /api/v1/coupons/available?order_amount=xxx
 // 鉴权：JWT（userId 从上下文获取）
-// 接收值：userId - 当前登录用户ID；req - 订单总金额（未抵扣前）
-// 返回值：*response.GetAvailableCouponResp - 可用券列表（按 PayAfter 升序）
 //
-//	error - order_amount 小于 0 返回 ErrCouponOrderAmountInvalid(11009)
-//
-// 业务规则：
-//
-//	① 数据源只含未过期且 unused 的券（repo 层过滤）
-//	② 满减：PayAfter = 金额 - 优惠；直减：PayAfter = 金额 × 折扣率
-//	③ 不满足门槛（threshold > order_amount）的券直接过滤，不进入列表
-//	④ 升序排序后第一张即"最优券"，由前端标记展示
+// 门槛过滤与"用券后实付金额"的计算都在服务端完成(那是券的语义,
+// 不是订单的),列表已按实付升序排好 —— 第一张即"最优券"。
 func (c *CouponService) GetAvailableCouponList(userId int64, req requset.GetAvailableCouponReq) (*response.GetAvailableCouponResp, error) {
-	if req.OrderAmount < 0 {
-		return nil, model.ErrCouponOrderAmountInvalid
-	}
-	coupons, err := c.CouponRepo.GetUserCouponList(userId)
+	resp, errMsg, err := c.CouponRPC.GetAvailableCouponList(userId, req)
 	if err != nil {
 		return nil, err
 	}
-	// 预分配容量 = 券数量，避免 append 扩容拷贝；长度 0 保证从空开始追加
-	list := make([]response.GetAvailableCouponList, 0, len(coupons))
-	for i := range coupons {
-		coupon := &coupons[i]
-		var totalAmount float64
-		// 门槛判断：实付金额 >= 门槛才可用，否则视为不可用券直接跳过（不进入列表）
-		if req.OrderAmount >= coupon.ThresholdAmount {
-			// 按券类型计算实付：满减 = 原价 - 优惠金额；直减 = 原价 × 折扣率
-			if coupon.CouponType == "full_reduction" {
-				totalAmount = req.OrderAmount - coupon.DiscountAmount
-			} else {
-				totalAmount = req.OrderAmount * coupon.DiscountAmount
-			}
-		} else {
-			continue
-		}
-		// 组装响应项：PayAfter 即该券用后的实付金额
-		list = append(list, response.GetAvailableCouponList{
-			UserCouponId:    coupon.UserCouponId,
-			CouponName:      coupon.CouponName,
-			CouponType:      coupon.CouponType,
-			ThresholdAmount: coupon.ThresholdAmount,
-			DiscountAmount:  coupon.DiscountAmount,
-			PayAfter:        totalAmount,
-		})
-
+	if errMsg != "" {
+		return nil, couponclient.RestoreError(errMsg)
 	}
-	// 按实付金额升序排列：排在最前的即"最优券"，由前端标记展示
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].PayAfter < list[j].PayAfter
-	})
-
-	return &response.GetAvailableCouponResp{
-		List: list,
-	}, nil
-
+	return resp, nil
 }

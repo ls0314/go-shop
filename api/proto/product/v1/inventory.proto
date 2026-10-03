@@ -1,0 +1,175 @@
+syntax = "proto3";
+
+package product.v1;
+
+option go_package = "demo-shop/api/gen/product/v1;v1_productv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+
+message LockStockReq {
+  int64 sku_id = 1;
+  // 锁定数量,须为正数
+  int64 qty = 2;
+  // 关联订单 ID,同时作为幂等键
+  int64 order_id = 3;
+}
+
+message LockStockResp {
+  // 重复下单只锁定一次,此时同样返回空 error_msg
+  string error_msg = 1;
+}
+
+message DeductStockReq {
+  int64 sku_id = 1;
+  int64 qty = 2;
+  int64 order_id = 3;
+}
+
+message DeductStockResp {
+  string error_msg = 1;
+}
+
+message ReleaseStockReq {
+  int64 sku_id = 1;
+  int64 qty = 2;
+  int64 order_id = 3;
+}
+
+message ReleaseStockResp {
+  string error_msg = 1;
+}
+
+message RefundStockReq {
+  int64 sku_id = 1;
+  int64 qty = 2;
+  int64 order_id = 3;
+}
+
+message RefundStockResp {
+  string error_msg = 1;
+}
+
+// ---- 库存查询 ----
+//
+// 库存四操作(上面)是"闸门的远程化",这四个查询是"库存看板的远程化"。
+// 两者都读 sys_product_sku,表的所有权在 product-service,故同属本服务。
+
+// SkuStock SKU 库存条目:管理端库存看板与低库存预警共用。
+message SkuStock {
+  int64 sku_id = 1;
+  string sku_name = 2;
+  int64 spu_id = 3;
+  string spu_name = 4;
+  // JSON 文本,与 sys_product_sku.spec_values 一致
+  string spec_values = 5;
+  // 可用库存
+  int64 stock = 6;
+  // 下单未支付锁定数
+  int64 lock_stock = 7;
+  int64 sold_count = 8;
+  string sku_status = 9;
+}
+
+message GetSkuStockReq {
+  int64 sku_id = 1;
+}
+
+message GetSkuStockResp {
+  SkuStock sku = 1;
+  string error_msg = 2;
+}
+
+message GetSkuStockListReq {
+  int64 spu_id = 1;
+}
+
+// GetSkuStockListResp 一个 SPU 下全部未删除 SKU 的库存,并带聚合值。
+message GetSkuStockListResp {
+  repeated SkuStock items = 1;
+  // 各 SKU 可用库存之和
+  int64 total_stock = 2;
+  int64 total_lock = 3;
+  int64 total_sold = 4;
+  string error_msg = 5;
+}
+
+// GetWarnStockListReq 低库存预警查询。
+message GetWarnStockListReq {
+  // 阈值,<=0 时服务端取默认 10
+  int32 threshold = 1;
+  // SPU 状态筛选,空时服务端取默认 published
+  string spu_status = 2;
+}
+
+message GetWarnStockListResp {
+  repeated SkuStock items = 1;
+  string error_msg = 2;
+}
+
+// ---- 手动调整库存 ----
+
+message AdjustStockReq {
+  int64 sku_id = 1;
+  // 变更数量,正为增加、负为减少
+  int64 change_qty = 2;
+  // 调整原因,必填(空则拒绝,与单体口径一致)
+  string remark = 3;
+  // 操作人用户 ID,落库存流水的 create_by
+  int64 user_id = 4;
+}
+
+// AdjustStockResp 返回调整前后的可用库存。
+// 幂等命中(同一 sku+change_qty+remark 已调整过)时前后值相等。
+message AdjustStockResp {
+  int64 before_stock = 1;
+  int64 after_stock = 2;
+  string error_msg = 3;
+}
+
+// ---- 库存流水查询(管理端) ----
+
+// StockLog 一条库存变更流水。联 sys_product_sku / sys_product_spu 取名称,
+// 三张表同库,故这里的联表不产生跨库 JOIN。
+message StockLog {
+  int64 log_id = 1;
+  int64 sku_id = 2;
+  string sku_name = 3;
+  int64 spu_id = 4;
+  string spu_name = 5;
+  // order_lock / pay_deduct / order_release / refund_release / manual_adjust
+  string change_type = 6;
+  int64 change_qty = 7;
+  int64 before_stock = 8;
+  int64 after_stock = 9;
+  int64 before_lock = 10;
+  int64 after_lock = 11;
+  // 手动调整时为 0
+  int64 order_id = 12;
+  string remark = 13;
+  int64 create_by = 14;
+  google.protobuf.Timestamp created_at = 15;
+}
+
+message ListStockLogsReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 为空表示不按该维度过滤
+  google.protobuf.Int64Value sku_id = 3;
+  google.protobuf.Int64Value spu_id = 4;
+  string change_type = 5;
+  // 起始时间(含当日),为空表示不限
+  google.protobuf.Timestamp start_time = 6;
+  // 结束时间(含当日),为空表示不限
+  google.protobuf.Timestamp end_time = 7;
+}
+
+message ListStockLogsResp {
+  repeated StockLog items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  string error_msg = 5;
+}
+

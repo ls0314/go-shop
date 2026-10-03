@@ -1,0 +1,316 @@
+syntax = "proto3";
+
+package product.v1;
+
+option go_package = "demo-shop/api/gen/product/v1;v1_productv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+// 商品域实体快照。表的所有权在 product-service(sys_product_*)。
+
+// SpuImage SPU 图片。
+message SpuImage {
+  int64 image_id = 1;
+  int64 spu_id = 2;
+  string image_url = 3;
+  int64 sort_order = 4;
+  bool is_main = 5;
+}
+
+// Sku 商品 SKU。管理端与用户端共用,用户端不展示的字段留空。
+message Sku {
+  int64 sku_id = 1;
+  int64 spu_id = 2;
+  string sku_name = 3;
+  // JSON 文本,与 sys_product_sku.spec_values 一致
+  string spec_values = 4;
+  double price = 5;
+  double cost_price = 6;
+  int64 stock = 7;
+  // 下单未支付锁定数,仅管理端返回
+  int64 lock_stock = 8;
+  int64 sold_count = 9;
+  string sku_code = 10;
+  string sku_image = 11;
+  // active / inactive
+  string sku_status = 12;
+}
+
+// Spu 商品 SPU 快照(创建/更新入参)。
+message Spu {
+  int64 spu_id = 1;
+  string spu_name = 2;
+  int64 category_id = 3;
+  string brand = 4;
+  string description = 5;
+  string main_image = 6;
+  // JSON 文本,与 sys_product_spu.spec_template 一致
+  string spec_template = 7;
+  // draft / published / withdrawn
+  string spu_status = 8;
+  int64 priority = 9;
+  bool is_deleted = 10;
+  repeated Sku sku_list = 11;
+  repeated SpuImage image_list = 12;
+}
+
+// SpuListItem 管理端商品列表项。
+message SpuListItem {
+  int64 spu_id = 1;
+  string spu_name = 2;
+  int64 category_id = 3;
+  // 联 sys_category 取得,类目在同一个库内
+  string category_name = 4;
+  string brand = 5;
+  string main_image = 6;
+  string spu_status = 7;
+  int64 priority = 8;
+  // 价格由 DECIMAL(10,2) 聚合而来,DB 侧按整数分位返回
+  int64 min_price = 9;
+  int64 max_price = 10;
+  int64 total_stock = 11;
+  int64 total_sold = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+// UserSpuListItem 用户端商品列表项。
+message UserSpuListItem {
+  int64 spu_id = 1;
+  string spu_name = 2;
+  string category_name = 3;
+  string brand = 4;
+  string main_image = 5;
+  int64 min_price = 6;
+  int64 max_price = 7;
+  int64 total_sold = 8;
+  int64 stock = 9;
+}
+
+// ProductDetail 商品详情,管理端与用户端共用。
+// 用户端只消费 sku_list/image_list,其余字段一致。
+message ProductDetail {
+  int64 spu_id = 1;
+  string spu_name = 2;
+  int64 category_id = 3;
+  string category_name = 4;
+  string brand = 5;
+  string description = 6;
+  string main_image = 7;
+  // JSON 文本
+  string spec_template = 8;
+  string spu_status = 9;
+  int64 priority = 10;
+  repeated Sku sku_list = 11;
+  repeated SpuImage image_list = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+// CreateProductReq 创建商品,同时创建 SKU 列表与图片列表(同一事务)。
+message CreateProductReq {
+  Spu spu = 1;
+}
+
+message CreateProductResp {
+  int64 spu_id = 1;
+  string error_msg = 2;
+}
+
+// GetProductListReq 管理端商品分页查询。
+message GetProductListReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  // 为空表示不过滤
+  string spu_name = 3;
+  // 为空表示不过滤
+  google.protobuf.Int64Value category_id = 4;
+  string spu_status = 5;
+  string brand = 6;
+  // 排序字段
+  string sort = 7;
+}
+
+message GetProductListResp {
+  repeated SpuListItem items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  string error_msg = 5;
+}
+
+// UserGetProductListReq 用户端商品分页查询(仅返回已上架)。
+message UserGetProductListReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  string spu_name = 3;
+  google.protobuf.Int64Value category_id = 4;
+  string brand = 5;
+  string sort = 6;
+}
+
+message UserGetProductListResp {
+  repeated UserSpuListItem items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  string error_msg = 5;
+}
+
+message GetProductReq {
+  int64 spu_id = 1;
+}
+
+// GetProductResp 管理端商品详情。
+message GetProductResp {
+  ProductDetail product = 1;
+  string error_msg = 2;
+}
+
+message UserGetProductReq {
+  int64 spu_id = 1;
+}
+
+// UserGetProductResp 用户端商品详情。
+message UserGetProductResp {
+  ProductDetail product = 1;
+  string error_msg = 2;
+}
+
+// UpdateProductReq 局部更新。updates 为 JSON 对象文本(字段名 -> 值),
+// 由服务端解码后合并,与单体时代的 map 语义一致。
+message UpdateProductReq {
+  int64 spu_id = 1;
+  string updates_json = 2;
+}
+
+// UpdateProductResp 返回合并后的完整对象,调用方无需再查一次。
+message UpdateProductResp {
+  ProductDetail product = 1;
+  string error_msg = 2;
+}
+
+// UpdateProductFullReq 全量更新。SKU 对比规则:
+// 列表中有 sku_id 的更新、无 sku_id 的新增、DB 有而列表无的软删。
+message UpdateProductFullReq {
+  int64 spu_id = 1;
+  string spu_name = 2;
+  google.protobuf.Int64Value category_id = 3;
+  string brand = 4;
+  string description = 5;
+  string main_image = 6;
+  string spec_template = 7;
+  google.protobuf.Int64Value priority = 8;
+  repeated Sku sku_list = 9;
+  repeated SpuImage image_list = 10;
+  repeated int64 delete_image_ids = 11;
+}
+
+message UpdateProductFullResp {
+  ProductDetail product = 1;
+  string error_msg = 2;
+}
+
+message DeleteProductReq {
+  int64 spu_id = 1;
+}
+
+message DeleteProductResp {
+  string error_msg = 1;
+}
+
+message PublishProductReq {
+  int64 spu_id = 1;
+}
+
+message PublishProductResp {
+  string error_msg = 1;
+}
+
+message WithdrawProductReq {
+  int64 spu_id = 1;
+}
+
+message WithdrawProductResp {
+  string error_msg = 1;
+}
+
+// ---- SKU 级读接口 ----
+//
+// 调用方:库存域的查询路径、购物车的加购校验、trade 侧的结算校验。
+// 这些调用方在单体时代直接 JOIN 商品表,拆库后表的所有权在 product-service,
+// 故读取必须经 RPC —— 否则两边读的是不同库,同一商品的库存会分叉。
+
+// GetSkuReq 按 SKU ID 查询。
+message GetSkuReq {
+  int64 sku_id = 1;
+}
+
+// GetSkuResp SKU 快照 + 其所属 SPU 的状态位。
+// 调用方按 available 判定"能否购买",不必自己拼 sku_status / is_deleted / spu_status 三个条件。
+message GetSkuResp {
+  Sku sku = 1;
+  // 归属 SPU 是否可用于下单:spu_status = published 且 is_deleted = false
+  bool spu_published = 2;
+  bool spu_deleted = 3;
+  string spu_name = 4;
+  int64 category_id = 5;
+  // SKU 可用 = sku_status = active 且 is_deleted = false
+  bool sku_active = 6;
+  bool sku_deleted = 7;
+  string error_msg = 8;
+  // 归属 SPU 的主图与状态原文。批量调用方(购物车列表)要展示这两个字段,
+  // 带上可免去为每个 SKU 再查一次 SPU(N+1)。
+  string spu_main_image = 9;
+  string spu_status = 10;
+}
+
+// BatchGetSkusReq 按 SKU ID 批量查询(购物车列表、结算页)。
+// 单次上限 200 条,超出由调用方分批,避免一次 RPC 拉全表。
+message BatchGetSkusReq {
+  repeated int64 sku_ids = 1;
+}
+
+// BatchGetSkusResp items 只包含查到的 SKU;查不到的 ID 静默缺席,
+// 由调用方按"请求 ID 列表 - 返回 ID 集合"判定失效项。
+message BatchGetSkusResp {
+  repeated GetSkuResp items = 1;
+  string error_msg = 2;
+}
+
+// GetSpuReq 按 SPU ID 查询(管理端校验、trade 侧取商品快照)。
+message GetSpuReq {
+  int64 spu_id = 1;
+}
+
+// GetSpuResp SPU 快照 + 归属类目名。
+message GetSpuResp {
+  Spu spu = 1;
+  string category_name = 2;
+  string error_msg = 3;
+}
+
+// ProductService 商品读写。上游调用方:trade-service(购物车校验/结算优惠)、
+// 库存域查询(与 InventoryService 同进程,不产生跨进程调用)。
+service ProductService {
+  // ---- 管理端 ----
+  rpc CreateProduct(CreateProductReq) returns (CreateProductResp);
+  rpc GetProductList(GetProductListReq) returns (GetProductListResp);
+  rpc GetProduct(GetProductReq) returns (GetProductResp);
+  rpc UpdateProduct(UpdateProductReq) returns (UpdateProductResp);
+  rpc UpdateProductFull(UpdateProductFullReq) returns (UpdateProductFullResp);
+  rpc PublishProduct(PublishProductReq) returns (PublishProductResp);
+  rpc WithdrawProduct(WithdrawProductReq) returns (WithdrawProductResp);
+  rpc DeleteProduct(DeleteProductReq) returns (DeleteProductResp);
+
+  // ---- 用户端 ----
+  rpc UserGetProductList(UserGetProductListReq) returns (UserGetProductListResp);
+  rpc UserGetProduct(UserGetProductReq) returns (UserGetProductResp);
+
+  // ---- SKU / SPU 级读接口(库存查询、购物车校验、trade 侧) ----
+  rpc GetSku(GetSkuReq) returns (GetSkuResp);
+  rpc BatchGetSkus(BatchGetSkusReq) returns (BatchGetSkusResp);
+  rpc GetSpu(GetSpuReq) returns (GetSpuResp);
+}
+

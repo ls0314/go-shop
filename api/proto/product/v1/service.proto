@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package product.v1;
+
+option go_package = "demo-shop/api/gen/product/v1;v1_productv1";
+
+import "product/v1/inventory.proto";
+
+// InventoryService 库存读写。
+service InventoryService {
+  rpc LockStock(LockStockReq) returns (LockStockResp);
+  rpc DeductStock(DeductStockReq) returns (DeductStockResp);
+  rpc ReleaseStock(ReleaseStockReq) returns (ReleaseStockResp);
+  rpc RefundStock(RefundStockReq) returns (RefundStockResp);
+
+  // ---- 查询(管理端库存看板) ----
+  rpc GetSkuStock(GetSkuStockReq) returns (GetSkuStockResp);
+  rpc GetSkuStockList(GetSkuStockListReq) returns (GetSkuStockListResp);
+  rpc GetWarnStockList(GetWarnStockListReq) returns (GetWarnStockListResp);
+
+  // ---- 流水查询(管理端库存流水页) ----
+  // 读 sys_product_stock_log。那张表的**写入**早已在本服务,
+  // 查询此前留在单体读另一个库,导致页面看不到新流水 —— 故一并迁来。
+  rpc ListStockLogs(ListStockLogsReq) returns (ListStockLogsResp);
+
+  // ---- 手动调整(管理端) ----
+  // 行锁 + 写流水 + 改库存三步在同一事务内完成,故必须是本服务的 RPC ——
+  // 拆库后调用方无法在自己的事务里操作 sys_product_sku。
+  rpc AdjustStock(AdjustStockReq) returns (AdjustStockResp);
+}
+

@@ -492,6 +492,8 @@ func (x *UpdateRoleReq) GetUpdates() []*FieldUpdate {
 	return nil
 }
 
+// UpdateRoleResp.role 返回合并后的完整对象,
+// 调用方无需再查一次。
 type UpdateRoleResp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Role          *Role                  `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`

@@ -24,7 +24,7 @@ var File_user_v1_rbac_proto protoreflect.FileDescriptor
 
 const file_user_v1_rbac_proto_rawDesc = "" +
 	"\n" +
-	"\x12user/v1/rbac.proto\x12\auser.v1\x1a\x18user/v1/permission.proto\x1a\x12user/v1/role.proto\x1a\x12user/v1/menu.proto\x1a\x12user/v1/dept.proto\x1a\x13user/v1/scope.proto\x1a\x17user/v1/role_perm.proto\x1a\x17user/v1/role_menu.proto\x1a\x17user/v1/menu_perm.proto\x1a\x17user/v1/user_role.proto\x1a\x17user/v1/user_dept.proto\x1a\x12user/v1/user.proto2\xd6\x19\n" +
+	"\x12user/v1/rbac.proto\x12\auser.v1\x1a\x18user/v1/permission.proto\x1a\x12user/v1/role.proto\x1a\x12user/v1/menu.proto\x1a\x12user/v1/dept.proto\x1a\x13user/v1/scope.proto\x1a\x17user/v1/role_perm.proto\x1a\x17user/v1/role_menu.proto\x1a\x17user/v1/menu_perm.proto\x1a\x17user/v1/user_role.proto\x1a\x17user/v1/user_dept.proto2\xd6\x19\n" +
 	"\vRBACService\x12^\n" +
 	"\x15ListPermCodesByUserId\x12!.user.v1.ListPermCodesByUserIdReq\x1a\".user.v1.ListPermCodesByUserIdResp\x12U\n" +
 	"\x12ListPermCodesByApi\x12\x1e.user.v1.ListPermCodesByApiReq\x1a\x1f.user.v1.ListPermCodesByApiResp\x12I\n" +
@@ -292,7 +292,6 @@ func file_user_v1_rbac_proto_init() {
 	file_user_v1_menu_perm_proto_init()
 	file_user_v1_user_role_proto_init()
 	file_user_v1_user_dept_proto_init()
-	file_user_v1_user_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

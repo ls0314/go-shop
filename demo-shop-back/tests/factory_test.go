@@ -109,57 +109,15 @@ func mustCreateSkuWithStock(t *testing.T, stock int64) (skuId, spuId int64) {
 }
 
 // ============================================================
-// 优惠券工厂
+// 优惠券工厂 —— 已随券域迁走(marketing-service)
 // ============================================================
-
-// createTemplate 建一个可领取的模板(相对有效期模式),返回 template_id。
-func createTemplate(t *testing.T, totalCount, perUserLimit int64) int64 {
-	t.Helper()
-	tpl := model.CouponTemplate{
-		CouponName:      "TESTTPL-" + uniqueTag(),
-		CouponType:      "full_reduction",
-		ThresholdAmount: 10,
-		DiscountAmount:  5,
-		TotalCount:      totalCount,
-		PerUserLimit:    perUserLimit,
-		UsableDays:      30,
-	}
-
-	if err := db.DB.Select("coupon_name", "coupon_type", "threshold_amount",
-		"discount_amount", "total_count", "per_user_limit", "usable_days").
-		Create(&tpl).Error; err != nil {
-		t.Fatalf("造券模板失败: %v", err)
-	}
-	return tpl.TemplateId
-}
-
-// createUserCoupon 直插一张指定状态的用户券
-func createUserCoupon(t *testing.T, userId, templateId int64, status, orderNo string) int64 {
-	t.Helper()
-	uc := model.UserCoupon{
-		TemplateId: templateId,
-		UserId:     userId,
-		Status:     status,
-		OrderNo:    orderNo,
-		ExpireAt:   time.Now().Add(24 * time.Hour),
-	}
-	if err := db.DB.Select("template_id", "user_id", "status", "order_no", "expire_at").
-		Create(&uc).Error; err != nil {
-		t.Fatalf("造用户券失败: %v", err)
-	}
-	return uc.UserCouponId
-}
+//
+// createTemplate / createUserCoupon 曾在此直插 coupon_template / user_coupon,
+// 供领券并发与核销幂等用例使用。券表的所有权迁至 marketing-service 的
+// marketing_db 后,单体测试进程连不到那些表,夹具与用例一并移交:
+// 见 services/marketing/TESTDATA-券域用例待迁.md。
 
 func TestFactorySmoke(t *testing.T) {
-	tid := createTemplate(t, 100, 3)
-	var tpl model.CouponTemplate
-	if err := db.DB.Where("template_id = ?", tid).First(&tpl).Error; err != nil {
-		t.Fatalf("查回模板失败: %v", err)
-	}
-	if tpl.TotalCount != 100 || tpl.ReceivedCount != 0 || tpl.IsDeleted || !tpl.StartTime.IsZero() {
-		t.Fatalf("模板默认值异常: %+v", tpl) // StartTime 为 NULL → IsZero()==true,证明 Select 生效
-	}
-
 	skuId, _ := mustCreateSkuWithStock(t, 10)
 	var sku model.SysProductSku
 	if err := db.DB.Where("sku_id = ?", skuId).First(&sku).Error; err != nil {

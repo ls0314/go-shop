@@ -5,7 +5,9 @@ import (
 	"demo-shop-back/src/infra"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/infra/es"
+	"demo-shop-back/src/infra/inventoryclient"
 	"demo-shop-back/src/infra/mq"
+	"demo-shop-back/src/infra/productclient"
 	"demo-shop-back/src/infra/userclient"
 	"log"
 	"os"
@@ -26,6 +28,10 @@ type ServiceDeps struct {
 	MQ        *mq.RabbitMQ
 	ES        *es.ESClient
 	UserRPC   *userclient.PermCodesClient
+	// InventoryRPC 库存四操作。类型是接口而非具体客户端,以便测试注入记录桩
+	// (见 inventory_rpc.go 的说明);生产实现仍是 *inventoryclient.InventoryClient。
+	InventoryRPC InventoryStockRPC
+	ProductRPC   *productclient.ProductClient
 }
 
 // NewServiceDeps 在 composition root 读一次全局依赖。
@@ -47,6 +53,28 @@ func NewServiceDeps() ServiceDeps {
 		log.Printf("[WARN] 连接 user-service 失败,判权将不可用: %v", err)
 	} else {
 		deps.UserRPC = client
+	}
+
+	// product-service 同理:库存四操作走 RPC,连不上不阻断启动,下单与支付会报错。
+	invClient, err := inventoryclient.NewInventoryClient(
+		envList("DEMO_SHOP_ETCD_HOSTS", "127.0.0.1:2379"),
+		getEnv("DEMO_SHOP_PRODUCT_ETCD_KEY", "product-service"),
+	)
+	if err != nil {
+		log.Printf("[WARN] 连接 product-service 失败,库存操作将不可用: %v", err)
+	} else {
+		deps.InventoryRPC = invClient
+	}
+
+	// 商品/类目读写同样走 RPC(与库存同一个服务,复用 etcd key)。
+	prodClient, err := productclient.NewProductClient(
+		envList("DEMO_SHOP_ETCD_HOSTS", "127.0.0.1:2379"),
+		getEnv("DEMO_SHOP_PRODUCT_ETCD_KEY", "product-service"),
+	)
+	if err != nil {
+		log.Printf("[WARN] 连接 product-service 失败,商品与类目接口将不可用: %v", err)
+	} else {
+		deps.ProductRPC = prodClient
 	}
 	return deps
 }

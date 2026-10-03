@@ -4,8 +4,6 @@ import (
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
-	"errors"
-	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -51,7 +49,9 @@ func (ci *CartItemRepo) CreateCartItem(cartItem *model.UserCartItem) error {
 // 查询购物车信息
 // ============================================================
 
-// GetCartItem 查询购物车信息（按购物车ID查）
+// GetCartItem 查询购物车信息（按购物车ID查）。
+// 只返回 user_cart_item 自身的列;商品侧字段(sku_name/price/spu_name/main_image…)
+// 由 service 层经 product-service RPC 回填 —— 商品表的所有权不在本库,不能再 JOIN。
 // 接收值：cartItemId - 购物车唯一标识
 // 返回值：
 //
@@ -60,65 +60,49 @@ func (ci *CartItemRepo) CreateCartItem(cartItem *model.UserCartItem) error {
 func (ci *CartItemRepo) GetCartItem(cartItemId int64) (cartItem *response.CartItemListResp, err error) {
 	cartItemTable := model.UserCartItem{}.TableName()
 
-	baseQuery := ci.buildCartItemQuery()
-
-	err = baseQuery.Where(cartItemTable+".cart_item_id = ?", cartItemId).
+	err = ci.buildCartItemQuery().
+		Where(cartItemTable+".cart_item_id = ?", cartItemId).
 		Scan(&cartItem).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, model.CartItemNotExist
-		}
 		return nil, err
+	}
+	// Scan 对空结果不返回 ErrRecordNotFound,只留零值 —— 必须显式判主键,
+	// 否则调用方会拿到一个 cart_item_id=0 的"存在"记录。
+	if cartItem == nil || cartItem.CartItemId == 0 {
+		return nil, model.CartItemNotExist
 	}
 	return cartItem, err
 }
 
-// buildCartItemQuery 构建购物车信息联表链式查询（内部方法）
+// buildCartItemQuery 构建购物车基础查询（内部方法）。
+//
+// 只查 user_cart_item 单表:user_cart_item 是购物车域的表,归本服务;
+// sys_product_sku / sys_product_spu 归 product-service,跨库 JOIN 会破坏分库边界
+// (且两边已分库,JOIN 根本跑不通)。商品字段的填充见 service 层的 fillCartItemProducts。
 func (ci *CartItemRepo) buildCartItemQuery() *gorm.DB {
 	cartItemTable := model.UserCartItem{}.TableName()
-	skuTable := model.SysProductSku{}.TableName()
-	spuTable := model.SysProductSpu{}.TableName()
 
 	return ci.db.Table(cartItemTable).
-		Select(cartItemTable+".*, "+
-			skuTable+".sku_id, "+
-			skuTable+".sku_name, "+
-			skuTable+".spec_values, "+
-			skuTable+".sku_image, "+
-			skuTable+".sku_status, "+
-			skuTable+".price, "+
-			skuTable+".stock, "+
-			spuTable+".spu_id, "+
-			spuTable+".spu_name, "+
-			spuTable+".spu_status, "+
-			spuTable+".main_image").
-		Joins("LEFT JOIN "+skuTable+" ON "+skuTable+".sku_id = "+cartItemTable+".sku_id "+" AND "+skuTable+".is_deleted = ?", false).
-		Joins("LEFT JOIN "+spuTable+" ON "+spuTable+".spu_id = "+skuTable+".spu_id"+" AND "+spuTable+".is_deleted = ?", false)
+		Select(cartItemTable + ".*")
 }
 
 // GetCartItemList 查询用户所有购物车列表（默认最近更新购物车排最前）
 // 接收值：userId - 用户ID
 // 返回值：
 //
-//	[]response.CartItemListResp - 购物车信息列表
-//	error - 列表为空返回CartItemNotExist
+//	[]response.CartItemListResp - 购物车信息列表(商品字段待 service 层回填)
+//	error - 错误信息
 func (ci *CartItemRepo) GetCartItemList(userId int64) ([]response.CartItemListResp, error) {
 	cartItemTable := model.UserCartItem{}.TableName()
 	var cartItems []response.CartItemListResp
 
-	baseQuery := ci.buildCartItemQuery()
-
-	err := baseQuery.Where(cartItemTable+".user_id = ?", userId).
+	err := ci.buildCartItemQuery().
+		Where(cartItemTable+".user_id = ?", userId).
 		Order(cartItemTable + ".updated_at DESC").
 		Scan(&cartItems).Error
-
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, model.CartItemNotExist
-		}
 		return nil, err
 	}
-	fmt.Print(cartItems)
 	return cartItems, nil
 }
 
@@ -135,15 +119,14 @@ func (ci *CartItemRepo) GetCartItemList(userId int64) ([]response.CartItemListRe
 func (ci *CartItemRepo) GetCartItemResp(userId int64, skuId int64) (cartItem *response.CartItemListResp, err error) {
 	cartItemTable := model.UserCartItem{}.TableName()
 
-	baseQuery := ci.buildCartItemQuery()
-
-	err = baseQuery.Where(cartItemTable+".user_id = ? AND "+cartItemTable+".sku_id = ?", userId, skuId).
+	err = ci.buildCartItemQuery().
+		Where(cartItemTable+".user_id = ? AND "+cartItemTable+".sku_id = ?", userId, skuId).
 		Scan(&cartItem).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, model.CartItemNotExist
-		}
 		return nil, err
+	}
+	if cartItem == nil || cartItem.CartItemId == 0 {
+		return nil, model.CartItemNotExist
 	}
 	return cartItem, err
 }
@@ -166,22 +149,17 @@ func (ci *CartItemRepo) GetCartItemTotal(userId int64) (int64, error) {
 // 接收值：userId - 用户ID
 // 返回值：
 //
-//	[]response.CartItemListResp - 已选中购物车列表
+//	[]response.CartItemListResp - 已选中购物车列表(商品字段待 service 层回填)
 //	error - 错误信息
 func (ci *CartItemRepo) GetSelectCartItem(userId int64) ([]response.CartItemListResp, error) {
 	cartItemTable := model.UserCartItem{}.TableName()
 	var cartItems []response.CartItemListResp
 
-	baseQuery := ci.buildCartItemQuery()
-
-	err := baseQuery.Where(cartItemTable+".user_id = ? AND "+cartItemTable+".is_selected = ?", userId, true).
+	err := ci.buildCartItemQuery().
+		Where(cartItemTable+".user_id = ? AND "+cartItemTable+".is_selected = ?", userId, true).
 		Order(cartItemTable + ".updated_at DESC").
 		Scan(&cartItems).Error
-
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, model.CartItemNotExist
-		}
 		return nil, err
 	}
 	return cartItems, nil

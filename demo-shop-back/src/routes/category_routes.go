@@ -13,7 +13,7 @@ var categoryCtrl *handler.CategoryHandler
 
 // InitCategoryModule 类目模块初始化（在InitRoutes中调用）
 func InitCategoryModule(deps service.ServiceDeps) {
-	categoryCtrl = handler.NewCategoryHandler(deps)
+	categoryCtrl = handler.NewCategoryHandler(deps.ProductRPC)
 }
 
 // RegisterCategoryRoutes 初始化类目路由

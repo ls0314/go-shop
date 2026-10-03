@@ -13,7 +13,7 @@ var productCtrl *handler.ProductHandler
 
 // InitProductModule 商品模块初始化（在InitRoutes中调用）
 func InitProductModule(deps service.ServiceDeps) {
-	productCtrl = handler.NewProductHandler(deps)
+	productCtrl = handler.NewProductHandler(deps.ProductRPC)
 }
 
 // RegisterProductRoutes 初始化商品路由

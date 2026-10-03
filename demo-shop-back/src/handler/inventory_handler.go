@@ -24,6 +24,9 @@ func NewInventoryHandler(deps service.ServiceDeps) *InventoryHandler {
 	}
 }
 
+// failRPC 统一处理 RPC 错误(定义见 product_handler.go):
+// 下游不可用回 503,其余回 500 —— 库存查询读路径已迁 product-service。
+
 // GetSkuStock 查询单个SKU库存接口
 // 路由映射：GET /api/v1/admin/inventory/sku/:id
 // 功能：从URL路径获取SKU ID，查询并返回SKU完整库存信息（含锁定库存、销量）
@@ -44,7 +47,7 @@ func (ih *InventoryHandler) GetSkuStock(c *gin.Context) {
 	// 调用服务层查询SKU库存信息
 	skuStock, err := ih.InventoryService.GetSkuStock(id)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failRPC(c, err)
 		return
 	}
 	// 查询成功，返回SKU库存信息
@@ -71,7 +74,7 @@ func (ih *InventoryHandler) GetSkuListBySpu(c *gin.Context) {
 	// 调用服务层查询SPU下所有SKU库存信息
 	skuStockList, err := ih.InventoryService.GetSkuStockListBySpu(id)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failRPC(c, err)
 		return
 	}
 	// 查询成功，返回SKU库存列表
@@ -109,7 +112,7 @@ func (ih *InventoryHandler) AdjustStock(c *gin.Context) {
 	// 调用服务层执行库存调整
 	adjustStock, err := ih.InventoryService.AdjustStock(userId, req)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failRPC(c, err)
 		return
 	}
 	// 调整成功，返回调整前后库存数据
@@ -145,7 +148,7 @@ func (ih *InventoryHandler) GetStockLog(c *gin.Context) {
 	// 调用服务层分页查询库存变更日志
 	stockLogList, err := ih.InventoryService.GetStockLogList(req)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failRPC(c, err)
 		return
 	}
 	// 查询成功，返回日志列表和分页信息
@@ -176,7 +179,7 @@ func (ih *InventoryHandler) GetWarnStockList(c *gin.Context) {
 	// 调用服务层查询低库存预警列表
 	warnStockList, err := ih.InventoryService.GetWarnStockList(req)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failRPC(c, err)
 		return
 	}
 	// 查询成功，返回预警列表

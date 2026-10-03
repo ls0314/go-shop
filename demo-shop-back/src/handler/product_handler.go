@@ -1,43 +1,67 @@
 package handler
 
 import (
+	"demo-shop-back/src/infra/productclient"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
-	"demo-shop-back/src/service"
 	"demo-shop-back/src/utils"
+	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-// ProductHandler 商品模块 HTTP handler
+// ProductHandler 商品模块 HTTP handler。
+// 商品/类目的读写已迁至 product-service(独立库 product_db),本层只做
+// "HTTP 入参绑定 → RPC → HTTP 出参",不再直连商品表。
 type ProductHandler struct {
-	ProductService *service.ProductService // 商品服务层对象指针
+	productRPC *productclient.ProductClient
 }
 
 // NewProductHandler 新建商品模块的 HTTP handler 实例
-// 接收值：无接收值，全局实例化
+// 接收值：productRPC - product-service 的 RPC 客户端(未连上时为 nil)
 // 返回值：*ProductHandler - 商品 handler 指针
-func NewProductHandler(deps service.ServiceDeps) *ProductHandler {
+func NewProductHandler(productRPC *productclient.ProductClient) *ProductHandler {
 	return &ProductHandler{
-		ProductService: service.NewProductService(deps),
+		productRPC: productRPC,
 	}
 }
 
+// failRPC 统一处理 RPC 错误:下游不可用回 503,其余回 500。
+//
+// 只认哨兵错误不够:客户端建连成功但对端已下线时,返回的是 gRPC 连接错误
+// (rpc error: code = Unavailable ...),不是哨兵。故再用文案兜一层 ——
+// 目标是把"product-service 不可用"这一类统一收敛成 503,
+// 让运维与接线测试能把它与真正的 500 区分开。
+func failRPC(c *gin.Context, err error) {
+	if errors.Is(err, productclient.ErrUnavailable) || isServiceUnavailableMsg(err.Error()) {
+		utils.Unavailable(c, err.Error())
+		return
+	}
+	utils.Error(c, 500, err.Error())
+}
+
+// isServiceUnavailableMsg 判断错误文案是否为"某服务不可用"的降级响应。
+// 结尾固定为 " 不可用"(契约见 utils.Unavailable 与 tests/wiring_smoke_test.go)。
+func isServiceUnavailableMsg(msg string) bool {
+	return strings.HasSuffix(msg, " 不可用")
+}
+
 // CreateProduct 创建商品（SPU）接口
-// 路由映射：POST /api/v1/platform/product
+// 路由映射：POST /api/v1/admin/products
 // 所需权限：platform:product:create
 // 功能：接收前端传递的商品 SPU 信息，校验参数后调用服务层创建商品
 // 参数：c *gin.Context Gin上下文，用于接收请求参数、返回响应
 // 请求参数：
 //
-//	spu_name      - 商品名称
-//	category_id   - 类目ID
-//	description   - 商品描述
-//	spu_image     - 商品图片
-//	status        - 状态
-//	publish_status - 上架状态
-//	sort_order    - 排序
+//	spu_name       - 商品名称
+//	category_id    - 类目ID
+//	description    - 商品描述
+//	main_image     - 商品主图
+//	spec_template  - 规格模板
+//	sku_list       - SKU 列表
+//	image_list     - 图片列表
 //
 // 响应：
 //
@@ -52,26 +76,30 @@ func (p *ProductHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	spuId, err := p.ProductService.CreateProduct(&product)
+	spuId, errMsg, err := p.productRPC.CreateProduct(&product)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, gin.H{"spu_id": spuId})
 }
 
 // GetProductList 分页查询商品列表接口（管理端）
-// 路由映射：GET /api/v1/platform/product
+// 路由映射：GET /api/v1/admin/products
 // 所需权限：platform:product:list
 // 功能：支持分页和条件筛选查询商品 SPU 列表，返回分页数据和总条数
 // 参数：c *gin.Context Gin上下文，用于获取查询参数、返回响应
 // 请求参数：
 //
 //	page        - 页码，默认值1
-//	pageSize    - 每页条数，默认值10
+//	page_size   - 每页条数，默认值10
 //	spu_name    - 商品名称（模糊搜索）
 //	category_id - 类目ID
-//	status      - 状态
+//	spu_status  - 状态
 //
 // 响应：
 //
@@ -85,9 +113,13 @@ func (p *ProductHandler) GetProductList(c *gin.Context) {
 		return
 	}
 
-	productList, err := p.ProductService.GetProductSpuList(req)
+	productList, errMsg, err := p.productRPC.GetProductList(req)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 
@@ -95,7 +127,7 @@ func (p *ProductHandler) GetProductList(c *gin.Context) {
 }
 
 // GetProduct 查询商品信息接口（管理端，根据ID查询）
-// 路由映射：GET /api/v1/platform/product/:id
+// 路由映射：GET /api/v1/admin/products/:id
 // 所需权限：platform:product:view
 // 功能：从URL路径中获取商品 SPU ID，查询并返回对应商品的完整详情（含 SKU 列表）
 // 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
@@ -116,9 +148,13 @@ func (p *ProductHandler) GetProduct(c *gin.Context) {
 		return
 	}
 
-	product, err := p.ProductService.GetProduct(id)
+	product, errMsg, err := p.productRPC.GetProduct(id)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 
@@ -126,7 +162,7 @@ func (p *ProductHandler) GetProduct(c *gin.Context) {
 }
 
 // UpdateProduct 局部更新商品接口
-// 路由映射：PUT /api/v1/platform/product/:id
+// 路由映射：PUT /api/v1/admin/products/:id
 // 所需权限：platform:product:update
 // 功能：从URL获取商品ID，接收前端传入的更新字段，执行商品信息局部更新，返回更新后的商品详情
 // 参数：c *gin.Context Gin上下文，用于获取URL参数、接收请求体、返回响应
@@ -154,17 +190,21 @@ func (p *ProductHandler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	updateProduct, err := p.ProductService.UpdateProduct(id, product)
+	updateProduct, errMsg, err := p.productRPC.UpdateProduct(id, product)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, updateProduct)
 }
 
 // UpdateFullProduct 全量更新商品接口
-// 路由映射：PUT /api/v1/platform/product/:id/full
-// 所需权限：platform:product:update
+// 路由映射：PUT /api/v1/admin/products/:id/full
+// 所需权限：platform:product:full-update
 // 功能：从URL获取商品ID，接收前端传入的完整商品信息（含 SKU 列表），执行商品全量更新
 // 参数：c *gin.Context Gin上下文，用于获取URL参数、接收请求体、返回响应
 // 请求参数：
@@ -190,16 +230,21 @@ func (p *ProductHandler) UpdateFullProduct(c *gin.Context) {
 		utils.Fail(c, 400, model.StatusBadRequest)
 		return
 	}
-	updateProduct, err := p.ProductService.UpdateProductFull(id, product)
+
+	updateProduct, errMsg, err := p.productRPC.UpdateProductFull(id, product)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, updateProduct)
 }
 
 // DeleteProduct 删除商品接口（根据ID删除）
-// 路由映射：DELETE /api/v1/platform/product/:id
+// 路由映射：DELETE /api/v1/admin/products/:id
 // 所需权限：platform:product:delete
 // 功能：从URL路径获取商品ID，调用服务层执行删除操作，同时删除关联的 SKU 数据
 // 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
@@ -220,15 +265,20 @@ func (p *ProductHandler) DeleteProduct(c *gin.Context) {
 		return
 	}
 
-	if err := p.ProductService.DeleteProduct(id); err != nil {
+	errMsg, err := p.productRPC.DeleteProduct(id)
+	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, nil)
 }
 
 // PublishProduct 上架商品接口
-// 路由映射：PUT /api/v1/platform/product/:id/publish
+// 路由映射：POST /api/v1/admin/products/:id/publish
 // 所需权限：platform:product:publish
 // 功能：从URL路径获取商品ID，调用服务层将商品发布状态修改为上架
 // 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
@@ -249,15 +299,20 @@ func (p *ProductHandler) PublishProduct(c *gin.Context) {
 		return
 	}
 
-	if err := p.ProductService.PublishProduct(id); err != nil {
+	errMsg, err := p.productRPC.PublishProduct(id)
+	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, nil)
 }
 
 // WithdrawnProduct 下架商品接口
-// 路由映射：PUT /api/v1/platform/product/:id/withdraw
+// 路由映射：POST /api/v1/admin/products/:id/withdraw
 // 所需权限：platform:product:withdraw
 // 功能：从URL路径获取商品ID，调用服务层将商品发布状态修改为下架
 // 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
@@ -278,8 +333,13 @@ func (p *ProductHandler) WithdrawnProduct(c *gin.Context) {
 		return
 	}
 
-	if err := p.ProductService.WithdrawProduct(id); err != nil {
+	errMsg, err := p.productRPC.WithdrawProduct(id)
+	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 
@@ -287,13 +347,13 @@ func (p *ProductHandler) WithdrawnProduct(c *gin.Context) {
 }
 
 // UserProductList 分页查询商品列表接口（用户端）
-// 路由映射：GET /api/v1/product
+// 路由映射：GET /api/v1/products
 // 功能：支持分页和条件筛选查询已上架的商品 SPU 列表，仅返回用户端可见字段
 // 参数：c *gin.Context Gin上下文，用于获取查询参数、返回响应
 // 请求参数：
 //
 //	page        - 页码，默认值1
-//	pageSize    - 每页条数，默认值10
+//	page_size   - 每页条数，默认值10
 //	spu_name    - 商品名称（模糊搜索）
 //	category_id - 类目ID
 //
@@ -308,16 +368,22 @@ func (p *ProductHandler) UserProductList(c *gin.Context) {
 		utils.Fail(c, 400, model.StatusBadRequest)
 		return
 	}
-	productList, err := p.ProductService.UserGetProductSpuList(req)
+
+	productList, errMsg, err := p.productRPC.UserGetProductList(req)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
 		return
 	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
+		return
+	}
+
 	utils.Success(c, productList)
 }
 
 // UserProduct 查询商品详情接口（用户端，根据ID查询）
-// 路由映射：GET /api/v1/product/:id
+// 路由映射：GET /api/v1/products/:id
 // 功能：从URL路径中获取商品 SPU ID，查询并返回对应用户端可见的商品详情（含 SKU 列表）
 // 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
 // 请求参数：
@@ -337,9 +403,13 @@ func (p *ProductHandler) UserProduct(c *gin.Context) {
 		return
 	}
 
-	product, err := p.ProductService.UserGetProduct(id)
+	product, errMsg, err := p.productRPC.UserGetProduct(id)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 

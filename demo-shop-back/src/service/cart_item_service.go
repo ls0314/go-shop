@@ -1,6 +1,7 @@
 package service
 
 import (
+	"demo-shop-back/src/infra/productclient"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/model/response"
@@ -15,10 +16,13 @@ import (
 //	定义及实例化
 // ============================================================
 
-// CartItemService 购物车服务层实例
+// CartItemService 购物车服务层实例。
+//
+// ProductRepo 已摘除:商品/SKU 表的所有权在 product-service 的库里,
+// 加购校验改经 ProductRPC 做 —— 否则本地读的是另一个库的商品状态。
 type CartItemService struct {
 	CartItemRepo *repository.CartItemRepo
-	ProductRepo  *repository.ProductRepo
+	ProductRPC   *productclient.ProductClient
 	db           *gorm.DB
 }
 
@@ -28,7 +32,7 @@ type CartItemService struct {
 func NewCartItemService(deps ServiceDeps) *CartItemService {
 	return &CartItemService{
 		CartItemRepo: repository.NewCartItemRepo(deps.DB),
-		ProductRepo:  repository.NewProductRepo(deps.DB),
+		ProductRPC:   deps.ProductRPC,
 		db:           deps.DB,
 	}
 }
@@ -55,23 +59,26 @@ func (ci *CartItemService) validateQuantity(quantity int64) error {
 //	*model.SysProductSku - 对应的商品Sku结构体指针
 //	error - 错误信息
 func (ci *CartItemService) validateProductAvailable(skuId int64) (*model.SysProductSku, error) {
-	// 根据skuId获得sku对应数据
-	sku, err := ci.ProductRepo.GetSku(skuId)
+	// 可购买判定在服务端做(SKU active + 未删,SPU published + 未删三重条件)
+	ok, errMsg, err := ci.ProductRPC.IsSkuPurchasable(skuId)
 	if err != nil {
 		return nil, err
 	}
-	// 确保sku处于可用的状态下
-	if sku.SkuStatus != model.SkuStatusActive || sku.IsDeleted {
+	if !ok {
+		// errMsg 是服务端给的具体原因(SKU 禁用 / 商品下架),直接透出给前端
+		if errMsg == model.ErrSpuDisabled.Error() {
+			return nil, model.ErrSpuDisabled
+		}
 		return nil, model.ErrSkuDisabled
 	}
-	// 根据sku对应的spuId获取spu信息
-	spu, err := ci.ProductRepo.GetSpuById(sku.SpuId)
+
+	// 校验通过后再取实体:购物车要落 sku 的价格与名称快照
+	sku, errMsg, err := ci.ProductRPC.GetSku(skuId)
 	if err != nil {
 		return nil, err
 	}
-	// 确保spu已上架
-	if spu.SpuStatus != model.SpuStatusPublished || spu.IsDeleted {
-		return nil, model.ErrSpuDisabled
+	if errMsg != "" {
+		return nil, productclient.RestoreError(errMsg)
 	}
 	return sku, nil
 }
@@ -188,6 +195,75 @@ func (ci *CartItemService) CreateCartItem(userId int64, cartItem *model.UserCart
 	}
 }
 
+// fillCartItemProducts 用 product-service 的商品数据回填购物车条目的商品字段。
+//
+// 分库后 sys_product_sku / sys_product_spu 归 product-service,
+// 原来仓库层那条"cart_item LEFT JOIN sku LEFT JOIN spu"跨库 JOIN 已不可用,
+// 改为"本地查购物车 + RPC 批量取商品"两步,在服务层拼装。
+//
+// 拼装口径与拆分前逐字段对齐(前端零感知):
+//   - SKU 查不到 → 商品字段留空,由 calculateCartItem 判为不可购买
+//     (提交前是 LEFT JOIN,查不到同样留空);
+//   - 库存取 DB 快照(与 LEFT JOIN sku.stock 一致),不是闸门实时值 ——
+//     购物车页展示的是"账面库存",真正的并发扣减在下单锁定那一步。
+func (ci *CartItemService) fillCartItemProducts(items []response.CartItemListResp) error {
+	if len(items) == 0 {
+		return nil
+	}
+
+	skuIds := make([]int64, 0, len(items))
+	seen := make(map[int64]struct{}, len(items))
+	for i := range items {
+		if items[i].SkuId == 0 {
+			continue
+		}
+		if _, ok := seen[items[i].SkuId]; ok {
+			continue
+		}
+		seen[items[i].SkuId] = struct{}{}
+		skuIds = append(skuIds, items[i].SkuId)
+	}
+	if len(skuIds) == 0 {
+		return nil
+	}
+
+	skuSnapshots, errMsg, err := ci.ProductRPC.BatchGetSkus(skuIds)
+	if err != nil {
+		return err
+	}
+	if errMsg != "" {
+		return productclient.RestoreError(errMsg)
+	}
+
+	skuMap := make(map[int64]productclient.CartSkuSnapshot, len(skuSnapshots))
+	for _, snap := range skuSnapshots {
+		if snap.Sku != nil {
+			skuMap[snap.Sku.SkuId] = snap
+		}
+	}
+
+	for i := range items {
+		snap, ok := skuMap[items[i].SkuId]
+		if !ok {
+			continue // SKU 已删/不存在:留空,交给 calculateCartItem 标记不可购买
+		}
+		items[i].SkuId = snap.Sku.SkuId
+		items[i].SkuName = snap.Sku.SkuName
+		items[i].SpecValues = snap.Sku.SpecValues
+		items[i].SkuImage = snap.Sku.SkuImage
+		items[i].SkuStatus = snap.Sku.SkuStatus
+		items[i].Price = snap.Sku.Price
+		items[i].Stock = snap.Sku.Stock
+
+		items[i].SpuId = snap.SpuId
+		items[i].SpuName = snap.SpuName
+		items[i].MainImage = snap.SpuMainImage
+		items[i].SpuStatus = snap.SpuStatus
+	}
+
+	return nil
+}
+
 // calculateCartItem 计算更新购物车列表不可购买的状态和原因（内部方法）
 func (ci *CartItemService) calculateCartItem(item *response.CartItemListResp) error {
 	item.Subtotal = item.Price * float64(item.Quantity)
@@ -217,9 +293,13 @@ func (ci *CartItemService) calculateCartItem(item *response.CartItemListResp) er
 //	[]response.CartItemListResp - 当前用户的购物车列表
 //	error - 错误信息
 func (ci *CartItemService) GetCartItemList(userId int64) ([]response.CartItemListResp, error) {
-	// 调用数据层获取当前用户的购物车列表
+	// 调用数据层获取当前用户购物车行(user_cart_item 单表)
 	cartItemList, err := ci.CartItemRepo.GetCartItemList(userId)
 	if err != nil {
+		return nil, err
+	}
+	// 经 product-service 回填商品字段(原跨库 JOIN 的替代)
+	if err := ci.fillCartItemProducts(cartItemList); err != nil {
 		return nil, err
 	}
 	// 逐个判断其是否可购买，若不可购买补充原因
@@ -273,8 +353,22 @@ func (ci *CartItemService) UpdateCartItem(cartItemId, userId int64, updateReq re
 		return nil, err
 	}
 
-	// 返回更新后的购物车信息
-	return ci.CartItemRepo.GetCartItemResp(userId, cartItem.SkuId)
+	// 返回更新后的购物车信息(经 product-service 回填商品字段)
+	return ci.reloadCartItemResp(userId, cartItem.SkuId)
+}
+
+// reloadCartItemResp 重新取一条购物车并按商品字段拼装 —— 供写路径返回"更新后的完整对象"。
+// 走"取 → 回填 → 单条返回"这一条路径,避免"改了切片副本却返回原值"这类易错点。
+func (ci *CartItemService) reloadCartItemResp(userId, skuId int64) (*response.CartItemListResp, error) {
+	updated, err := ci.CartItemRepo.GetCartItemResp(userId, skuId)
+	if err != nil {
+		return nil, err
+	}
+	list := []response.CartItemListResp{*updated}
+	if err := ci.fillCartItemProducts(list); err != nil {
+		return nil, err
+	}
+	return &list[0], nil
 }
 
 // DeleteCartItem 删除购物车
@@ -338,6 +432,10 @@ func (ci *CartItemService) GetPayPreviewCartItem(userId int64) (*response.CartIt
 	// 调用数据层获取当前用户所有被选中的购物车列表
 	cartItemList, err := ci.CartItemRepo.GetSelectCartItem(userId)
 	if err != nil {
+		return nil, err
+	}
+	// 经 product-service 回填商品字段后,下面的库存/状态判定才有依据
+	if err := ci.fillCartItemProducts(cartItemList); err != nil {
 		return nil, err
 	}
 

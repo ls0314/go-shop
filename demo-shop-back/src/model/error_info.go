@@ -78,13 +78,14 @@ var (
 	ReceiverNotNull   = errors.New("收货人姓名或手机号码不能为空")
 )
 
-// 库存模块错误码 7001-7005
+// 库存模块错误码 7001-7006
 var (
-	ErrSkuNotExist    = errors.New("SKU不存在")     // 7001
-	ErrStockNegative  = errors.New("调整后库存不能为负数") // 7002
-	ErrRemarkEmpty    = errors.New("调整原因不能为空")   // 7003
-	ErrStockNotEnough = errors.New("库存不足")       // 7004
-	ErrSkuDisabled    = errors.New("SKU已禁用或已删除") // 7005
+	ErrSkuNotExist        = errors.New("SKU不存在")     // 7001
+	ErrStockNegative      = errors.New("调整后库存不能为负数") // 7002
+	ErrRemarkEmpty        = errors.New("调整原因不能为空")   // 7003
+	ErrStockNotEnough     = errors.New("库存不足")       // 7004
+	ErrSkuDisabled        = errors.New("SKU已禁用或已删除") // 7005
+	ErrLockStockNotEnough = errors.New("锁定库存不足")     // 7006
 )
 
 // 购物车模块错误码

@@ -1,30 +1,35 @@
 package handler
 
 import (
+	"demo-shop-back/src/infra/productclient"
 	"demo-shop-back/src/model"
-	"demo-shop-back/src/service"
 	"demo-shop-back/src/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-// CategoryHandler 类目表handler层实例
+// CategoryHandler 类目表 handler 层实例。
+// 类目读写已迁至 product-service(与商品同库 sys_category),本层只做
+// "HTTP 入参绑定 → RPC → HTTP 出参",不再直连类目表。
 type CategoryHandler struct {
-	CategoryService *service.CategoryService // 类目服务层对象指针
+	productRPC *productclient.ProductClient
 }
 
-// NewCategoryHandler 新建类目表中的HTTP handler实例
-// 接收值：无接收值，全局实例化
-// 返回值：*CategoryHandler - 类目handler指针
-func NewCategoryHandler(deps service.ServiceDeps) *CategoryHandler {
+// NewCategoryHandler 新建类目表中的 HTTP handler 实例
+// 接收值：productRPC - product-service 的 RPC 客户端(未连上时为 nil)
+// 返回值：*CategoryHandler - 类目 handler 指针
+func NewCategoryHandler(productRPC *productclient.ProductClient) *CategoryHandler {
 	return &CategoryHandler{
-		CategoryService: service.NewCategoryService(deps),
+		productRPC: productRPC,
 	}
 }
 
+// failRPC 统一处理 RPC 错误(定义见 product_handler.go):
+// 下游不可用回 503,其余回 500。同类处理集中在 package 级辅助函数里。
+
 // CreateCategory 创建类目接口
-// 路由映射：POST /api/v1/platform/category
+// 路由映射：POST /api/v1/admin/category
 // 所需权限：platform:category:create
 // 功能：接收前端传递的类目信息，校验参数后调用服务层创建类目，自动计算类目level和path
 // 参数：c *gin.Context Gin上下文，用于接收请求参数、返回响应
@@ -49,9 +54,13 @@ func (cg *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	categoryData, err := cg.CategoryService.CreateCategory(&category)
+	categoryData, errMsg, err := cg.productRPC.CreateCategory(&category)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 
@@ -59,7 +68,7 @@ func (cg *CategoryHandler) CreateCategory(c *gin.Context) {
 }
 
 // GetCategory 查询类目信息接口（根据ID查询）
-// 路由映射：GET /api/v1/platform/category/:id
+// 路由映射：GET /api/v1/admin/category/:id
 // 所需权限：platform:category:view
 // 功能：从URL路径中获取类目ID，查询并返回对应类目详情
 // 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
@@ -81,9 +90,13 @@ func (cg *CategoryHandler) GetCategory(c *gin.Context) {
 		return
 	}
 
-	category, err := cg.CategoryService.GetCategory(id)
+	category, errMsg, err := cg.productRPC.GetCategory(id)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 
@@ -91,7 +104,7 @@ func (cg *CategoryHandler) GetCategory(c *gin.Context) {
 }
 
 // GetCategoryTree 获取类目树接口
-// 路由映射：GET /api/v1/platform/category/tree
+// 路由映射：GET /api/v1/admin/category/tree
 // 所需权限：platform:category:tree
 // 功能：根据查询参数获取类目树，可按层级查询，并可控制是否包含禁用类目
 // 参数：c *gin.Context Gin上下文，用于获取查询参数、返回响应
@@ -108,16 +121,20 @@ func (cg *CategoryHandler) GetCategoryTree(c *gin.Context) {
 	level, _ := strconv.ParseInt(c.DefaultQuery("level", "0"), 10, 64)
 	includeDisabled, _ := strconv.ParseBool(c.DefaultQuery("include_disabled", "false"))
 
-	categoryTree, err := cg.CategoryService.GetCategoryTree(level, includeDisabled)
+	categoryTree, errMsg, err := cg.productRPC.GetCategoryTree(level, includeDisabled)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, categoryTree)
 }
 
 // GetCategoryList 分页查询类目信息接口
-// 路由映射：GET /api/v1/platform/category
+// 路由映射：GET /api/v1/admin/category
 // 功能：支持分页查询类目列表，返回分页数据和总条数
 // 参数：c *gin.Context Gin上下文，用于获取分页参数、返回响应
 // 请求参数：
@@ -133,9 +150,13 @@ func (cg *CategoryHandler) GetCategoryList(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
-	categoryList, total, err := cg.CategoryService.GetCategoryList(page, pageSize)
+	categoryList, total, errMsg, err := cg.productRPC.GetCategoryList(page, pageSize)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, gin.H{
@@ -147,7 +168,7 @@ func (cg *CategoryHandler) GetCategoryList(c *gin.Context) {
 }
 
 // GetCategoryChildrenList 获取子类目列表接口
-// 路由映射：GET /api/v1/platform/category/children/:id
+// 路由映射：GET /api/v1/admin/category/children/:id
 // 所需权限：platform:category:children
 // 功能：从URL路径中获取父类目ID，查询并返回该类目下的直接子类目列表
 // 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
@@ -168,16 +189,20 @@ func (cg *CategoryHandler) GetCategoryChildrenList(c *gin.Context) {
 		return
 	}
 
-	childrenList, err := cg.CategoryService.GetCategoryChildrenList(id)
+	childrenList, errMsg, err := cg.productRPC.GetCategoryChildren(id)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, childrenList)
 }
 
 // UpdateCategory 更新类目接口
-// 路由映射：PUT /api/v1/platform/category/:id
+// 路由映射：PUT /api/v1/admin/category/:id
 // 所需权限：platform:category:update
 // 功能：从URL获取类目ID，接收前端传入的更新字段，执行类目信息局部更新，返回更新后的类目详情
 // 参数：c *gin.Context Gin上下文，用于获取URL参数、接收请求体、返回响应
@@ -210,9 +235,13 @@ func (cg *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	categoryData, err := cg.CategoryService.UpdateCategory(id, category)
+	categoryData, errMsg, err := cg.productRPC.UpdateCategory(id, category)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 
@@ -221,7 +250,7 @@ func (cg *CategoryHandler) UpdateCategory(c *gin.Context) {
 }
 
 // DeleteCategory 删除类目接口（根据ID删除）
-// 路由映射：DELETE /api/v1/platform/category/:id
+// 路由映射：DELETE /api/v1/admin/category/:id
 // 所需权限：platform:category:delete
 // 功能：从URL路径获取类目ID，调用服务层执行删除操作，删除前需校验类目是否存在、是否存在子类目或关联商品
 // 参数：c *gin.Context Gin上下文，用于获取URL参数、返回响应
@@ -243,8 +272,13 @@ func (cg *CategoryHandler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	if err := cg.CategoryService.DeleteCategory(id); err != nil {
-		utils.Error(c, 500, err.Error())
+	errMsg, err := cg.productRPC.DeleteCategory(id)
+	if err != nil {
+		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, nil)

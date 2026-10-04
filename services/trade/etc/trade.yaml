@@ -1,0 +1,37 @@
+Name: trade-service
+ListenOn: 0.0.0.0:9007
+Mode: dev
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: trade-service
+DataSource: postgres://postgres:postgres@localhost:5432/trade_db?sslmode=disable
+Redis:
+  Host: 127.0.0.1:6379
+  Type: node
+  Pass: demoShop
+  Key: unused
+
+# WorkerId 雪花算法工作节点 ID(0~1023)。
+WorkerId: 1
+
+# 下游服务(服务发现)。Saga 的 S2 券核销与 S3 锁库存分别打这两个服务。
+Product:
+  EtcdKey: product-service
+Marketing:
+  EtcdKey: marketing-service
+
+# RabbitMQ:延迟取消消息的投递目标。
+RabbitMQ:
+  Host: ""
+  Port: 5672
+  User: guest
+  Password: guest
+  Vhost: /
+
+# 后台定时任务。
+Task:
+  # OutboxInterval outbox 投递器轮询周期。
+  OutboxInterval: 1s
+  # OrderScanInterval 订单超时扫描周期。
+  OrderScanInterval: 1m

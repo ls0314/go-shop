@@ -6,4 +6,5 @@ use (
 	./services/product
 	./services/user
 	./services/marketing
+	./services/trade
 )

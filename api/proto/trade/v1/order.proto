@@ -1,0 +1,257 @@
+syntax = "proto3";
+
+package trade.v1;
+
+option go_package = "demo-shop/api/gen/trade/v1;v1_tradev1";
+
+import "google/protobuf/timestamp.proto";
+
+// 订单域实体与请求/响应。表的所有权在 trade-service
+// (user_order_master / user_order_detail / user_order_log),独立库 trade_db。
+//
+// 命名与 user-service / marketing-service 的 proto 保持一致(RPC <动词><实体>、
+// 消息名 = RPC 名 + Req/Resp、分页统一 page / page_size、error_msg 恒为末位)。
+
+// ============================================================
+// 实体
+// ============================================================
+
+// Order 订单主表快照(不含明细与日志,那两者由详情接口单独带出)。
+message Order {
+  int64 order_id = 1;
+  string order_no = 2;
+  int64 user_id = 3;
+  // pending_pay / paid / shipped / completed / cancelled
+  string order_status = 4;
+  double total_amount = 5;
+  double pay_amount = 6;
+  // 支付方式:alipay / wechat 等,未支付为空
+  string pay_method = 7;
+  google.protobuf.Timestamp pay_time = 8;
+  // 下单时的收货地址快照(JSON 字符串)。
+  // 存快照而不是存 address_id:地址是可以被用户改的,改完不能让历史订单跟着变
+  string address_snapshot = 9;
+  string buyer_remark = 10;
+  // 明细件数(冗余列,列表页不必再查明细表)
+  int64 detail_count = 11;
+  // 首图(冗余列,列表页展示)
+  string first_image = 12;
+  // 支付截止时间。**超时阈值的单一事实源**:MQ 延迟 TTL 与此字段都由它派生,
+  // 客户端展示的倒计时也用它,不允许各算各的
+  google.protobuf.Timestamp expire_at = 13;
+  // 幂等键:同一用户带同一 key 重复提交只建一单
+  string idempotent_key = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp updated_at = 16;
+}
+
+// OrderDetail 订单明细。商品侧字段在下单时**固化快照** ——
+// 与购物车相反:订单是历史凭证,商品改名/改价后不能跟着变。
+message OrderDetail {
+  int64 detail_id = 1;
+  int64 order_id = 2;
+  int64 sku_id = 3;
+  string spu_name = 4;
+  string sku_name = 5;
+  string spec_values = 6;
+  string main_image = 7;
+  int64 quantity = 8;
+  double unit_price = 9;
+  double total_price = 10;
+}
+
+// OrderLog 订单操作日志。Saga 的每一步补偿都会落一条,便于事后复盘。
+message OrderLog {
+  int64 log_id = 1;
+  int64 order_id = 2;
+  string order_status = 3;
+  // create / cancel / pay / ship / confirm ...
+  string action = 4;
+  string operator = 5;
+  string detail = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// ============================================================
+// 下单(Saga 编排)
+// ============================================================
+
+message CreateOrderReq {
+  int64 user_id = 1;
+  string user_name = 2;
+  // 收货地址**快照**,由调用方在结算页选定地址后传入。
+  //
+  // 为什么不让 trade 拿 address_id 去查:① 地址表在 user_db,
+  // 跨库取不到;② 订单必须存"下单那一刻"的地址 —— 用户随后改地址
+  // 不能影响历史订单,所以传快照比传 id 更贴合语义。
+  AddressSnapshot address = 3;
+  string idempotent_key = 4;
+  string buyer_remark = 5;
+  int64 user_coupon_id = 6;
+}
+
+message AddressSnapshot {
+  string receiver_name = 1;
+  string receiver_phone = 2;
+  string province = 3;
+  string city = 4;
+  string district = 5;
+  string detail_address = 6;
+  string postal_code = 7;
+}
+
+// CreateOrderResp 下单结果。
+//
+// **本接口是 Saga 编排,不是单事务**:服务端按
+// 预扣库存闸门 → 核销券 → 锁库存 → 建单 的顺序执行,任一失败逆序补偿。
+// 调用方只需关心成败与下面的字段,不必知道中间步骤。
+message CreateOrderResp {
+  int64 order_id = 1;
+  string order_no = 2;
+  double total_amount = 3;
+  double pay_amount = 4;
+  string order_status = 5;
+  // 支付截止时间(与 Order.expire_at 同源)
+  google.protobuf.Timestamp pay_expire_at = 6;
+  google.protobuf.Timestamp created_at = 7;
+  string error_msg = 8;
+}
+
+// ============================================================
+// 用户端查询与操作
+// ============================================================
+
+message ListUserOrdersReq {
+  int64 user_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  // 为空表示不过滤
+  string order_status = 4;
+}
+
+message ListUserOrdersResp {
+  repeated Order items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  string error_msg = 5;
+}
+
+message GetUserOrderReq {
+  int64 order_id = 1;
+  // 归属人。服务端校验 order.user_id 必须等于它 —— 防越权查他人订单
+  int64 user_id = 2;
+}
+
+message GetUserOrderResp {
+  Order order = 1;
+  repeated OrderDetail details = 2;
+  repeated OrderLog logs = 3;
+  string error_msg = 4;
+}
+
+// CancelOrderReq 取消订单。
+//
+// user_id 为 0 表示**系统取消**(超时未支付),此时不校验归属 ——
+// 系统取消没有操作人语义。用户主动取消必须传自己的 user_id。
+message CancelOrderReq {
+  int64 order_id = 1;
+  int64 user_id = 2;
+  string operator = 3;
+}
+
+// CancelOrderResp 取消结果。
+//
+// 释放库存(product RPC)与退还券(marketing RPC)是**补偿步骤**:
+// 它们各自幂等,失败不回滚"订单已取消"这个事实,留待对账收敛。
+// 因此返回里单列 compensated 字段说明补偿是否全部完成,便于上层告警。
+message CancelOrderResp {
+  Order order = 1;
+  // 库存释放与券归还是否都已成功。false 表示订单已取消但补偿未完成
+  bool compensated = 2;
+  string error_msg = 3;
+}
+
+message ConfirmOrderReq {
+  int64 order_id = 1;
+  int64 user_id = 2;
+  string user_name = 3;
+}
+
+message ConfirmOrderResp {
+  Order order = 1;
+  string error_msg = 2;
+}
+
+// ============================================================
+// 管理端
+// ============================================================
+
+message ListOrdersReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  string order_status = 3;
+  string order_no = 4;
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time = 6;
+}
+
+message ListOrdersResp {
+  repeated Order items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  string error_msg = 5;
+}
+
+message GetOrderReq {
+  int64 order_id = 1;
+}
+
+message GetOrderResp {
+  Order order = 1;
+  repeated OrderDetail details = 2;
+  repeated OrderLog logs = 3;
+  // 下单用户名,管理端列表与详情要展示。由调用方(user 域)回填 ——
+  // 订单表只存 user_id,跨库取不到用户名
+  string username = 4;
+  string error_msg = 5;
+}
+
+message ShipOrderReq {
+  int64 order_id = 1;
+  string user_name = 2;
+  string express_company = 3;
+  string tracking_no = 4;
+}
+
+message ShipOrderResp {
+  Order order = 1;
+  string express_company = 2;
+  string tracking_no = 3;
+  string error_msg = 4;
+}
+
+// ============================================================
+// OrderService 订单。
+//
+// 上下游:S4 建单是本服务内的本地事务;S1 库存闸门与 S3 锁库存走
+// product-service,S2 券核销与取消退券走 marketing-service。
+// ============================================================
+service OrderService {
+  // ---- 下单(Saga 编排) ----
+  // 正向:S1 预扣库存 → S2 核销券 → S3 锁库存 → S4 建单(本地事务)
+  // 失败逆序补偿:建单失败 → 释放库存 + 退券 + 还闸门额度
+  rpc CreateOrder(CreateOrderReq) returns (CreateOrderResp);
+
+  // ---- 用户端 ----
+  rpc ListUserOrders(ListUserOrdersReq) returns (ListUserOrdersResp);
+  rpc GetUserOrder(GetUserOrderReq) returns (GetUserOrderResp);
+  rpc CancelOrder(CancelOrderReq) returns (CancelOrderResp);
+  rpc ConfirmOrder(ConfirmOrderReq) returns (ConfirmOrderResp);
+
+  // ---- 管理端 ----
+  rpc ListOrders(ListOrdersReq) returns (ListOrdersResp);
+  rpc GetOrder(GetOrderReq) returns (GetOrderResp);
+  rpc ShipOrder(ShipOrderReq) returns (ShipOrderResp);
+}

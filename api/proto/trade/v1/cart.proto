@@ -1,0 +1,179 @@
+syntax = "proto3";
+
+package trade.v1;
+
+option go_package = "demo-shop/api/gen/trade/v1;v1_tradev1";
+
+import "google/protobuf/timestamp.proto";
+
+// 购物车域实体与请求/响应。表的所有权在 trade-service
+// (user_cart_item),独立库 trade_db。
+//
+// 命名规则:
+//   - RPC 一律 <动词><实体>,动词只用 Get / List / Create / Update / Delete / Assign;
+//   - 消息名 = RPC 名 + Req / Resp;
+//   - 实体单独一个 message,Create 传实体、Update 传 repeated FieldUpdate;
+//   - 分页统一 page / page_size,响应回显实际生效值;
+//   - error_msg 恒为最后一个字段。
+
+// ============================================================
+// 实体
+// ============================================================
+
+// CartItem 购物车行。
+//
+// 商品侧字段(spu_name / sku_name / spec_values / main_image / price / stock)
+// **不落库**:user_cart_item 只存 sku_id 与数量,展示信息每次由
+// product-service 的 BatchGetSkus 回填。理由是一条商品信息在购物车里
+// 存一份快照,商品改价后购物车就会显示旧价 —— 而用户下单时按的是新价。
+message CartItem {
+  int64 cart_item_id = 1;
+  int64 user_id = 2;
+  int64 sku_id = 3;
+  int64 quantity = 4;
+  bool is_selected = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+
+  // ---- 以下为商品侧回填字段(不落库) ----
+  int64 spu_id = 8;
+  string spu_name = 9;
+  string sku_name = 10;
+  // 销售规格,如 "颜色:白;尺码:M"
+  string spec_values = 11;
+  string main_image = 12;
+  double price = 13;
+  // SKU 可售库存,供前端提示"库存不足"
+  int64 stock = 14;
+  // SKU 自己的图(可能为空,列表页优先用 main_image)
+  string sku_image = 17;
+  // SKU / SPU 是否仍可购买(active + published + 未删除)。
+  // 不可购买的行仍要展示(前端置灰),不静默丢弃 —— 否则用户会以为商品丢了
+  bool available = 15;
+  // quantity × price,由服务端算,前端不再自己乘
+  double total_price = 16;
+  // UnavailableReason 不可购买的具体原因,前端直接展示。
+  //
+  // 为什么不是一个枚举:"仅剩 2 件"这类原因带数字,枚举表达不了。
+  // 服务端算而不是前端拼:原因里有库存数字,前端拼还要再取一次库存。
+  // available=true 时为空串。
+  string unavailable_reason = 18;
+}
+
+// CartPayPreview 结算预览:仅统计**已选中**的行
+message CartPayPreview {
+  repeated CartItem selected_items = 1;
+  // 选中商品总件数
+  int64 total_quantity = 2;
+  // 选中商品合计金额(未抵扣券)
+  double total_amount = 3;
+}
+
+// ============================================================
+// 购物车读写
+// ============================================================
+
+message CreateCartItemReq {
+  int64 user_id = 1;
+  int64 sku_id = 2;
+  int64 quantity = 3;
+}
+
+// CreateCartItemResp 返回写入后的整行(含商品侧回填字段),
+// 前端不必再拉一次列表。
+message CreateCartItemResp {
+  CartItem item = 1;
+  string error_msg = 2;
+}
+
+message GetCartItemReq {
+  int64 user_id = 1;
+  int64 sku_id = 2;
+}
+
+message GetCartItemResp {
+  CartItem item = 1;
+  string error_msg = 2;
+}
+
+message ListCartItemsReq {
+  int64 user_id = 1;
+}
+
+// ListCartItemsResp 购物车不分页:一个用户的购物车行数天然有限,
+// 分页会让"全选/合计"这类操作要跨页统计,反而更容易算错。
+message ListCartItemsResp {
+  repeated CartItem items = 1;
+  string error_msg = 2;
+}
+
+message UpdateCartItemReq {
+  int64 cart_item_id = 1;
+  // 归属人。服务端校验 cart_item.user_id 必须等于它 —— 防越权改他人购物车
+  int64 user_id = 2;
+  int64 quantity = 3;
+  bool is_selected = 4;
+}
+
+message UpdateCartItemResp {
+  CartItem item = 1;
+  string error_msg = 2;
+}
+
+message DeleteCartItemReq {
+  int64 cart_item_id = 1;
+  int64 user_id = 2;
+}
+
+message DeleteCartItemResp {
+  string error_msg = 1;
+}
+
+message SelectAllCartItemsReq {
+  int64 user_id = 1;
+  bool is_selected = 2;
+}
+
+message SelectAllCartItemsResp {
+  // 受影响行数
+  int64 affected = 1;
+  string error_msg = 2;
+}
+
+message GetCartItemCountReq {
+  int64 user_id = 1;
+}
+
+// GetCartItemCountResp 商城顶栏角标用:只要一个数,不拉整表
+message GetCartItemCountResp {
+  // 购物车行数(不是件数)
+  int64 total = 1;
+  string error_msg = 2;
+}
+
+message GetCartPayPreviewReq {
+  int64 user_id = 1;
+}
+
+message GetCartPayPreviewResp {
+  CartPayPreview preview = 1;
+  string error_msg = 2;
+}
+
+// ============================================================
+// CartService 购物车。
+//
+// 与商品域的边界:购物车**只存 sku_id 与数量**,所有商品展示字段
+// (名称/图/规格/价格/库存)在读写时经 product-service 的 BatchGetSkus
+// 回填,本服务不存商品快照。
+// ============================================================
+service CartService {
+  rpc CreateCartItem(CreateCartItemReq) returns (CreateCartItemResp);
+  rpc GetCartItem(GetCartItemReq) returns (GetCartItemResp);
+  rpc ListCartItems(ListCartItemsReq) returns (ListCartItemsResp);
+  rpc UpdateCartItem(UpdateCartItemReq) returns (UpdateCartItemResp);
+  rpc DeleteCartItem(DeleteCartItemReq) returns (DeleteCartItemResp);
+  rpc SelectAllCartItems(SelectAllCartItemsReq) returns (SelectAllCartItemsResp);
+  rpc GetCartItemCount(GetCartItemCountReq) returns (GetCartItemCountResp);
+  rpc GetCartPayPreview(GetCartPayPreviewReq) returns (GetCartPayPreviewResp);
+}

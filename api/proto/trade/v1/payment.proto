@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package trade.v1;
+
+option go_package = "demo-shop/api/gen/trade/v1;v1_tradev1";
+
+import "google/protobuf/timestamp.proto";
+
+// 支付域实体与请求/响应。表的所有权在 trade-service
+// (user_payment_record),独立库 trade_db。
+//
+// 命名与 user-service / marketing-service 的 proto 保持一致。
+
+// ============================================================
+// 实体
+// ============================================================
+
+// Payment 支付流水。
+message Payment {
+  int64 payment_id = 1;
+  // 本服务生成的支付单号
+  string pay_no = 2;
+  int64 order_id = 3;
+  string order_no = 4;
+  // alipay / wechat ...
+  string pay_method = 5;
+  double pay_amount = 6;
+  // pending / success / failed / refunded
+  string pay_status = 7;
+  google.protobuf.Timestamp pay_time = 8;
+  // 渠道侧交易号,回调时写入。幂等与对账都靠它
+  string trade_no = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+// ============================================================
+// 发起支付
+// ============================================================
+
+message CreatePaymentReq {
+  int64 order_id = 1;
+  // 归属人。服务端校验 order.user_id 必须等于它 —— 防替他人订单发起支付
+  int64 user_id = 2;
+  string pay_method = 3;
+}
+
+// CreatePaymentResp 返回渠道侧的支付凭据。
+// pay_url / qr_code 由渠道决定,可能只返回其中一个(见各自的注释)。
+message CreatePaymentResp {
+  int64 payment_id = 1;
+  string pay_no = 2;
+  double pay_amount = 3;
+  string pay_status = 4;
+  // 支付跳转链接(网页支付)
+  string pay_url = 5;
+  // 二维码内容(扫码支付)
+  string qr_code = 6;
+  string error_msg = 7;
+}
+
+message GetPaymentReq {
+  int64 user_id = 1;
+  string pay_no = 2;
+}
+
+message GetPaymentResp {
+  Payment payment = 1;
+  string error_msg = 2;
+}
+
+// ============================================================
+// 支付回调:以"支付不可逆"为锚点
+// ============================================================
+
+// HandlePaymentCallbackReq 渠道回调入参。
+//
+// 真实渠道会有签名验签;此处沿用单体口径(仅 pay_no + trade_no),
+// 验签是渠道接入时的事,不在此契约里假装。
+message HandlePaymentCallbackReq {
+  // 由渠道原样回传,对应 CreatePayment 生成的 pay_no
+  string pay_no = 1;
+  // 渠道交易号
+  string trade_no = 2;
+}
+
+// HandlePaymentCallbackResp 回调结果。
+//
+// **本接口不做反向补偿**:支付是不可逆的锚点,后续步骤(订单推进 /
+// 扣减库存)失败时只能向前补偿(重试 + 告警 + 对账),不能退钱。
+// 因此这里返回的 accepted 只表示"回调已受理并落库",
+// 不表示后续步骤都已成功 —— 那是 order_status 与对账的事。
+message HandlePaymentCallbackResp {
+  // 回调是否被受理。false 表示校验未通过(如流水不存在/金额不符)
+  bool accepted = 1;
+  // 幂等:重复回调时 true 且 idempotent=true,表示本次未产生新变更
+  bool idempotent = 2;
+  string error_msg = 3;
+}
+
+// ============================================================
+// 管理端
+// ============================================================
+
+message ListPaymentsReq {
+  int32 page = 1;
+  int32 page_size = 2;
+  string pay_status = 3;
+  string pay_method = 4;
+  string order_no = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+}
+
+message ListPaymentsResp {
+  repeated Payment items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  string error_msg = 5;
+}
+
+// ============================================================
+// PaymentService 支付。
+//
+// 与订单域的边界:支付只负责"钱"的流水与渠道交互;
+// 订单状态推进由本服务在同一流程内调用 OrderService 完成(同库同进程)。
+// ============================================================
+service PaymentService {
+  rpc CreatePayment(CreatePaymentReq) returns (CreatePaymentResp);
+  rpc GetPayment(GetPaymentReq) returns (GetPaymentResp);
+  // 渠道回调。**支付不可逆**:本接口之后的步骤失败只重试,不回滚
+  rpc HandlePaymentCallback(HandlePaymentCallbackReq) returns (HandlePaymentCallbackResp);
+  rpc ListPayments(ListPaymentsReq) returns (ListPaymentsResp);
+}

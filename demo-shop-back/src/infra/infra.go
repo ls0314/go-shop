@@ -12,7 +12,6 @@ import (
 	"demo-shop-back/src/infra/es"
 	"demo-shop-back/src/infra/mq"
 	"demo-shop-back/src/infra/pay"
-	"fmt"
 	"log"
 	"os"
 
@@ -44,18 +43,20 @@ func InitInfra(cfg Config) error {
 	GlobalInfra = &Infra{}
 	pay.InitGateways()
 
-	// RabbitMQ 可选：DSN 为空时跳过，非空时初始化并声明拓扑
+	// RabbitMQ 可选：DSN 为空时跳过，非空时初始化。
+	//
+	// **不再声明订单延迟队列拓扑**。那套拓扑(order.dead./order.delay.queue)
+	// 属于订单域,已随订单表迁到 trade-service —— trade 侧声明自己的
+	// order.trade.* 拓扑(infra/mq/client.go),两边并存但互不干扰。
+	//
+	// 单体这里仍保留连接:它给自己的 sys_outbox_message 做投递
+	// (见 task/init_recocile.go),那是**本库**的发件箱,与订单域无关。
 	if cfg.RabbitMQ.DSN != "" {
 		GlobalInfra.MQ, err = mq.NewRabbitMQ(cfg.RabbitMQ.DSN)
 		if err != nil {
 			log.Printf("[WARN] 启动mq失败: %v ,降级", err)
-		}
-		if GlobalInfra.MQ != nil {
-			if err := GlobalInfra.MQ.InitOrderDelayTopology(); err != nil {
-				return fmt.Errorf("初始化订单延迟队列拓扑失败: %w", err)
-			} else {
-				log.Printf("[INFO] MQ启动")
-			}
+		} else {
+			log.Printf("[INFO] MQ启动")
 		}
 	}
 
@@ -112,15 +113,18 @@ func GetES() *es.ESClient {
 	return GlobalInfra.ES
 }
 
-// StartOrderConsumer 启动订单超时消费者（goroutine）
-// 接收值：无——消费者回调由 mq.RegisterCanceller 在 NewOrderService 中注入
-func StartOrderConsumer(canceller mq.OrderCanceller) {
-	if GlobalInfra != nil && GlobalInfra.MQ != nil {
-		if err := GlobalInfra.MQ.StartOrderConsumer(canceller); err != nil {
-			log.Printf("[WARN] 启动订单消费者失败: %v", err)
-		}
-	}
-}
+// StartOrderConsumer 已删除。
+//
+// 它启动的消费者监听 order.dead.queue,回调做的是**本地**取消
+// (service.OrderService.CancelOrderBySystem)—— 而订单三表已迁 trade_db,
+// 本地那张表停更了。留着它有两个坏结果:
+//
+//  1. 取消不到任何单;
+//  2. 更糟的是它会把消息 **Ack 掉**,于是 trade 侧的消费者永远收不到 ——
+//     超时取消被静默吞掉,两边日志都正常。
+//
+// 超时取消的消费端现在在 trade-service(internal/task/orderdelayconsumer.go),
+// 监听 trade 自己声明的 order.trade.dead.queue。
 
 // Shutdown 优雅关闭所有基础设施连接
 // 接收值：无

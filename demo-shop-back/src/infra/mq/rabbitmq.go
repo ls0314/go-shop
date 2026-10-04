@@ -1,39 +1,34 @@
-// Package mq 消息队列层——RabbitMQ 连接管理与订单延迟队列
+// Package mq 消息队列层——RabbitMQ 连接管理与发件箱投递。
 //
-// 拓扑结构：
+// **订单延迟队列拓扑已从本包移除**(consumer.go / order_delay.go /
+// InitOrderDelayTopology 三处)。那套拓扑(order.dead.exchange /
+// order.delay.queue / order.dead.queue)属于订单域,已随订单三表迁到
+// trade-service —— 它在 infra/mq/client.go 里声明自己的 order.trade.* 拓扑。
 //
-//	Exchange: order.dead.exchange (direct)
-//	  ├── Queue: order.dead.queue (消费者监听)
-//	  └── Queue: order.delay.queue (TTL 15min → x-dead-letter → order.dead.queue)
+// 两个服务**必须各用各的队列名**:共用会被抢先消费,而单体这侧的回调
+// 取消的是已经停更的本地表,结果是消息被吞、订单永不超时取消。
+// C3 的券对账踩过同一个坑(两服务共用锁名,互相把对方的值抹掉)。
 //
-// 消息流：CreateOrder → PublishOrderDelay → 2min TTL 过期 → DLX → 消费者 → CancelOrder
+// 本包现在只负责:**把本库(demo_shop)sys_outbox_message 里的消息投出去**。
+// 那是单体自己的发件箱,与订单域无关。
 package mq
 
 import (
-	"demo-shop-back/src/model"
-	"fmt"
-	"time"
-
 	"github.com/rabbitmq/amqp091-go"
 )
 
-// 队列/交换机常量
-const (
-	ExchangeOrderDead   = "order.dead.exchange" // 死信交换机——接收 TTL 过期的消息
-	QueueOrderDelay     = "order.delay.queue"   // 延迟队列——无消费者，TTL 过期自动转入死信
-	QueueOrderDead      = "order.dead.queue"    // 死信队列——消费者监听，收到即执行取消逻辑
-	RoutingKeyOrderDead = "order.dead"          // 死信路由键
-)
-
-// RabbitMQ RabbitMQ 连接封装
+// RabbitMQ RabbitMQ 连接封装。
+//
+// 保留 Conn 字段以便将来需要第二条 channel ——
+// AMQP 的 channel 不是并发安全的,发布与消费不能共用一条。
 type RabbitMQ struct {
 	Conn    *amqp091.Connection
 	Channel *amqp091.Channel
-	closed  chan struct{} // 关闭信号，通知消费者 goroutine 退出
+	closed  chan struct{}
 }
 
 // NewRabbitMQ 创建 RabbitMQ 连接并打开 Channel
-// 接收值：dsn - 连接字符串，格式: amqp://user:pass@host:port/vhost
+// 接收值：dsn - 连接字符串,格式: amqp://user:pass@host:port/vhost
 // 返回值：*RabbitMQ - 连接实例, error - 连接失败返回错误
 func NewRabbitMQ(dsn string) (*RabbitMQ, error) {
 	conn, err := amqp091.Dial(dsn)
@@ -52,45 +47,28 @@ func NewRabbitMQ(dsn string) (*RabbitMQ, error) {
 	}, nil
 }
 
+// Closed 投递器据此判断连接是否该收摊
+func (r *RabbitMQ) Closed() <-chan struct{} {
+	if r == nil {
+		return nil
+	}
+	return r.closed
+}
+
 // Close 关闭 RabbitMQ 连接（先闭合退出信号，再 Channel 后 Connection）
 func (r *RabbitMQ) Close() {
+	if r == nil {
+		return
+	}
 	select {
-	case <-r.closed: // 已闭合过,防 double-close panic
+	case <-r.closed: // 已闭合过，防 double-close panic
 	default:
 		close(r.closed)
 	}
-	r.Channel.Close()
-	r.Conn.Close()
-}
-
-// InitOrderDelayTopology 声明订单延迟队列拓扑（幂等，重复调用安全）
-//
-// 声明顺序：死信交换机 → 死信队列 → 绑定 → 延迟队列（带 TTL + DLX）
-// 接收值：无
-// 返回值：error - 任一声明失败时返回带上下文的错误（调用方应中止或告警，
-//
-//	否则后续消息会投递到不存在的队列而静默丢失）
-func (r *RabbitMQ) InitOrderDelayTopology() error {
-	// 死信交换机
-	if err := r.Channel.ExchangeDeclare(ExchangeOrderDead, "direct", true, false, false, false, nil); err != nil {
-		return fmt.Errorf("声明死信交换机 %s 失败: %w", ExchangeOrderDead, err)
+	if r.Channel != nil {
+		_ = r.Channel.Close()
 	}
-
-	// 死信队列——消费者监听
-	if _, err := r.Channel.QueueDeclare(QueueOrderDead, true, false, false, false, nil); err != nil {
-		return fmt.Errorf("声明死信队列 %s 失败: %w", QueueOrderDead, err)
+	if r.Conn != nil {
+		_ = r.Conn.Close()
 	}
-	if err := r.Channel.QueueBind(QueueOrderDead, RoutingKeyOrderDead, ExchangeOrderDead, false, nil); err != nil {
-		return fmt.Errorf("绑定死信队列 %s 到交换机 %s 失败: %w", QueueOrderDead, ExchangeOrderDead, err)
-	}
-
-	// 延迟队列——无消费者，TTL 过期自动转入死信交换机
-	if _, err := r.Channel.QueueDeclare(QueueOrderDelay, true, false, false, false, amqp091.Table{
-		"x-dead-letter-exchange":    ExchangeOrderDead,
-		"x-dead-letter-routing-key": RoutingKeyOrderDead,
-		"x-message-ttl":             int32(model.OrderPayTTL / time.Millisecond),
-	}); err != nil {
-		return fmt.Errorf("声明延迟队列 %s 失败: %w", QueueOrderDelay, err)
-	}
-	return nil
 }

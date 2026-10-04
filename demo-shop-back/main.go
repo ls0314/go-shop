@@ -99,8 +99,19 @@ func main() {
 	// 路由初始化
 	router := routes.InitRoutes(deps)
 
-	// 启动mq消费者
-	infra.StartOrderConsumer(service.NewOrderService(deps))
+	// **订单延迟消费者不再启动**。
+	//
+	// 它消费 order.delay.cancel 队列、回调本地 OrderService 做超时取消。
+	// 订单三表已迁 trade_db,那个回调取消不到任何单 —— 更糟的是它会把
+	// 消息从队列里**消费掉**:trade-service 的消费者(与 trade 侧 outbox
+	// 投递器)就收不到了,等于超时取消被静默吞掉。
+	//
+	// 超时取消现在的归属:
+	//   - trade 侧 outbox(trade_db.sys_outbox_message)写延迟消息 —— 投递器待实现;
+	//   - trade 侧**超时扫描**(task/ordertimeout.go,每分钟一轮,带分布式锁)——
+	//     已实现,是当前唯一生效的兜底。故投递器缺失期间功能不中断。
+	//
+	// 待 trade 侧的 outbox 投递器落地后,消费者也应在 trade-service 内启动。
 
 	// main.go 原 SetTrustedProxies(["127.0.0.1"]) 处替换:
 	trusted := os.Getenv("DEMO_SHOP_TRUSTED_PROXIES")

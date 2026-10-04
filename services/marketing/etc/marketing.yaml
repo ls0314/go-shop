@@ -1,5 +1,11 @@
 Name: marketing-service
-ListenOn: 0.0.0.0:9006
+# ListenOn 是 **gRPC** 端口;Prometheus 指标在 MetricsPort 上另开
+# (go-zero 的 zrpc 无法同端口服务 HTTP,见 internal/config 的说明)。
+#
+# DS-A-26 §1.4 的端口分配表把 9006 分给了本服务的 **metrics**,
+# 故 RPC 顺延到 9009(9004~9006 是 user/product/marketing 的 metrics,
+# 9007 是 trade 的 metrics,9008 留给 BFF)。
+ListenOn: 0.0.0.0:9009
 Mode: dev
 Etcd:
   Hosts:
@@ -11,6 +17,13 @@ Redis:
   Type: node
   Pass: demoShop
   Key: unused
+
+# MetricsPort Prometheus 指标端点的独立监听端口(DS-A-26 §1.4)。
+# 领券埋点从单体迁到本服务后,这里开始暴露 coupon_receive_total 与
+# coupon_receive_duration_seconds —— 迁来的原因是那个位置只能观察到
+# "RPC 这一跳",而 path 标签(闸门判定 vs 降级走 DB)在单体侧必然是假值:
+# 闸门跑在本进程里,它读不到闸门是否生效。
+MetricsPort: "9006"
 
 # 后台定时任务:券闸门对账(以 DB 为准收敛 coupon:stock / coupon:ucnt 计数)
 # 周期填 0s = 不启动该任务。

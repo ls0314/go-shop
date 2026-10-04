@@ -4,10 +4,28 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  # 后端指标:独立内部端口 :9002(compose 网络内可达,不映射宿主机)
+  # 单体后端指标:独立内部端口 :9002(compose 网络内可达,不映射宿主机)
   # A4 双实例:两个 target。Prometheus 会自动给时序打 instance label,
   # 所以 Grafana 里能按实例切片 —— 这是"两个实例都在干活"的可观测依据。
-  # C 阶段服务变多后,这里升级为 file_sd(见 DS-A-26 一.4)。
+  #
+  # 注:领券相关指标(coupon_receive_*)已从本 job 迁到 marketing-service
+  # —— 见下方 job 的说明。单体侧那两个指标已删除。
   - job_name: demo-shop-backend
     static_configs:
       - targets: ["backend-1:9002", "backend-2:9002"]
+
+  # C 阶段拆出的微服务。每个服务在**专用 metrics 端口**上暴露 /metrics
+  # (端口分配见 DS-A-26 §1.4;与各服务的 gRPC ListenOn 不是同一个端口 ——
+  # go-zero 的 zrpc 无法同端口再服务 HTTP)。
+  #
+  # 这里仍用 static_configs 而不是 §1.4 建议的 file_sd:服务数还少,
+  # 而 static 的好处是"配置即事实"—— 少一个 target 一眼能看出来。
+  # 等服务数涨上来(>3)再按 §1.4 升级为 file_sd 或基于 etcd 的发现。
+  - job_name: marketing-service
+    static_configs:
+      # 领券埋点在服务端才准:
+      #   - result 分类的 sold_out / limit_exceeded 可能来自闸门也可能
+      #     来自 DB 双防线,只有在服务端才能与真正的基础设施故障分开;
+      #   - path 标签(redis_gate / db_fallback)需要知道闸门是否真的
+      #     做出了判定,单体那侧读不到闸门,只能填一个恒定值。
+      - targets: ["marketing-service:9006"]

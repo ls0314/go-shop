@@ -39,7 +39,18 @@ func NewReceiveCouponLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Rec
 //
 // 闸门(Redis)是可选的第三层:它只挡无效流量,**正确性不依赖它** ——
 // Redis 不可用时整条闸门旁路,由上面两道防线独立保证不超发。
+//
+// 埋点见本函数末尾:结果分类在此处才准(sold_out/limit_exceeded 可能来自
+// 闸门也可能来自 DB 双防线,业务语义相同),path 标签也只有在**本进程内**
+// 才能填出真值 —— 详见 infra/metrics 的说明。
 func (l *ReceiveCouponLogic) ReceiveCoupon(in *v1_marketingv1.ReceiveCouponReq) (*v1_marketingv1.ReceiveCouponResp, error) {
+	start := time.Now()
+	// gateServed 记录"闸门是否真的做出了判定"。
+	//
+	// 与"闸门是否启用"不是一回事:启用了但本次异常降级、或回填失败后
+	// 仍落到 DB,都算 db_only。这正是单体那侧填不出来的区分。
+	gateServed := false
+
 	gatePassed := false
 	g := l.svcCtx.CouponGate
 	if g.Enabled() {
@@ -57,9 +68,13 @@ func (l *ReceiveCouponLogic) ReceiveCoupon(in *v1_marketingv1.ReceiveCouponReq) 
 				switch {
 				case code > 0:
 					gatePassed = true
+					gateServed = true
 				case code == gate.GateSoldOut:
+					// 闸门就挡下了:这是**闸门生效**的证据(而非 DB 双防线挡的)
+					observeReceive("sold_out", true, start)
 					return &v1_marketingv1.ReceiveCouponResp{ErrorMsg: model.ErrCouponSoldOut.Error()}, nil
 				case code == gate.GateLimitExceeded:
+					observeReceive("limit_exceeded", true, start)
 					return &v1_marketingv1.ReceiveCouponResp{ErrorMsg: model.ErrCouponLimitExceeded.Error()}, nil
 				}
 				// code 仍为 GateBackfill(回填失败)→ 落到下方照常走 DB(降级语义)
@@ -130,10 +145,15 @@ func (l *ReceiveCouponLogic) ReceiveCoupon(in *v1_marketingv1.ReceiveCouponReq) 
 		}
 		// 业务失败 → error_msg;基础设施故障 → gRPC error
 		if isCouponBizError(err) || err == gorm.ErrRecordNotFound {
+			observeReceive(receiveResultOf(err), gateServed, start)
 			return &v1_marketingv1.ReceiveCouponResp{ErrorMsg: couponErrText(err)}, nil
 		}
+		// 基础设施故障:归入 error。这里**不能**当成业务失败 ——
+		// 上游据此重试,而业务失败重试没有意义
+		observeReceive("error", gateServed, start)
 		return nil, err
 	}
+	observeReceive("success", gateServed, start)
 	return resp, nil
 }
 

@@ -35,16 +35,16 @@ var (
 	}, []string{"method", "route"})
 
 	// ---- 业务层(把 DS-A-19/21 的改造效果显性化) ----
-	CouponReceiveTotal = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "coupon_receive_total",
-		Help: "优惠券领取结果计数",
-	}, []string{"result"}) // success / sold_out / limit_exceeded / error
-
-	CouponReceiveDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "coupon_receive_duration_seconds",
-		Help:    "领券接口耗时(gate=闸门启用链路 / db_only=纯DB链路),对比可见降级占比",
-		Buckets: []float64{.001, .0025, .005, .01, .025, .05, .1, .25, .5, 1, 2.5},
-	}, []string{"path"})
+	//
+	// **券域指标(coupon_receive_total / coupon_receive_duration_seconds)
+	// 已迁 marketing-service**。它们原先打在本体的 CouponService 上,
+	// 但那个位置只能观察到"RPC 这一跳",而且 path 标签必然是假值 ——
+	// 它要区分「闸门判定」与「降级直走 DB」,而闸门跑在 marketing-service
+	// 进程里,本进程读不到它是否生效,只能填一个恒定值(面板会说谎)。
+	//
+	// 指标名与标签未变(改了等于让已有查询失效),现在由
+	// marketing-service 在自己的 MetricsPort 上暴露,
+	// Prometheus 抓那个 target(见 docker/prometheus.yml)。
 
 	StockLockTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "stock_lock_total",

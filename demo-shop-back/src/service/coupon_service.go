@@ -91,16 +91,24 @@ func (c *CouponService) UserGetCouponList(userId int64, req requset.UserGetCoupo
 	return resp, nil
 }
 
-// receiveCouponRPC 领券的 RPC 实现。
-//
-// **私有**:对外的 ReceiveCoupon 在 coupon_metrics.go 里 ——
-// 那一层包着 Prometheus 埋点(业务失败按文案分类计数),
-// 直接调本方法会绕过埋点。
+// ReceiveCoupon 领券。
 //
 // 并发安全的核心实现(双防线:模板行 FOR UPDATE 串行化 + 条件扣减防超发,
 // 外加 Redis 闸门挡无效流量)已迁 marketing-service —— 那两道防线的依据
 // 是 coupon_template.received_count 与 user_coupon 的行,都在那边。
-func (c *CouponService) receiveCouponRPC(userId, templateId int64) (*response.UserReceiveCouponResp, error) {
+//
+// **埋点也一并迁走了**(原在 coupon_metrics.go 的包装层)。
+// 迁走的理由是那个位置只能观察到"RPC 这一跳":
+//   - 结果分类不准:sold_out / limit_exceeded 可能来自闸门也可能来自
+//     DB 双防线,只有在服务端才能与真正的基础设施故障分开;
+//   - path 标签必然是假值:它要区分「闸门判定」与「降级直走 DB」,
+//     而闸门跑在 marketing-service 进程里,本进程读不到它是否生效 ——
+//     强行保留只会得到一个恒定的标签,那比没有更糟(面板会说谎)。
+//
+// 指标现在由 marketing-service 暴露,Prometheus 抓那个 target 的
+// /metrics(见 docker/prometheus.yml)。Grafana 里按 instance 切片时
+// 需要把面板指向新实例。
+func (c *CouponService) ReceiveCoupon(userId, templateId int64) (*response.UserReceiveCouponResp, error) {
 	resp, errMsg, err := c.CouponRPC.ReceiveCoupon(userId, templateId)
 	if err != nil {
 		return nil, err

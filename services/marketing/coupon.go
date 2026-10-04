@@ -3,6 +3,7 @@ package main
 import (
 	v1_marketingv1 "demo-shop/api/gen/marketing/v1"
 	"demo-shop/services/marketing/internal/config"
+	"demo-shop/services/marketing/internal/infra/metrics"
 	couponserviceserver "demo-shop/services/marketing/internal/server/couponservice"
 	"demo-shop/services/marketing/internal/svc"
 	"demo-shop/services/marketing/internal/task"
@@ -26,6 +27,16 @@ func main() {
 	conf.MustLoad(*configFile, &c)
 
 	ctx := svc.NewServiceContext(c)
+
+	// 可观测性:在独立内部端口暴露 /metrics(DS-A-26 §1.4)。
+	//
+	// 领券埋点从单体迁到本服务:那个位置只能观察到"RPC 这一跳",
+	// 且 path 标签(闸门判定 vs 降级走 DB)在那边必然是假值 ——
+	// 闸门跑在本进程里,单体读不到它是否生效。详见 infra/metrics 的说明。
+	//
+	// 独立端口而非挂在 ListenOn 上:zrpc 是纯 gRPC 服务,
+	// 同端口无法再服务 HTTP 的 /metrics。
+	metrics.StartMetricsServer(c.MetricsPort)
 
 	// serviceGroup 同时托管 RPC 服务与后台任务:券闸门对账与表的所有权同进程
 	// (DS-A-26 §3)。ServiceGroup 支持优雅退出,任务会结束当前轮次再退出。

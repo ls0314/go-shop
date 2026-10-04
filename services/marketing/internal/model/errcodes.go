@@ -33,4 +33,9 @@ var (
 	// ErrCannotCancelCoupon 取消订单归还券失败。
 	// 单体原文案"返还优惠卷失败",同上改正。
 	ErrCannotCancelCoupon = errors.New("返还优惠券失败")
+	// ErrIdempotencyKeyRequired 缺少幂等键。
+	//
+	// 核销与归还都靠它做判重与补偿反查,缺了就不能放行 ——
+	// 宁可显式失败,也不要"静默无幂等"地核销一张券
+	ErrIdempotencyKeyRequired = errors.New("缺少幂等键")
 )

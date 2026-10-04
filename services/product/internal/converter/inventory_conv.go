@@ -88,9 +88,22 @@ func ToProtoStockLog(item *model.StockLogItem) *v1_productv1.StockLog {
 		AfterStock:  item.AfterStock,
 		BeforeLock:  item.BeforeLock,
 		AfterLock:   item.AfterLock,
-		OrderId:     item.OrderId,
-		Remark:      item.Remark,
-		CreateBy:    item.CreateBy,
-		CreatedAt:   timestamppb.New(item.CreatedAt),
+		// OrderNo 是追溯字段(新代码用它);OrderId 只有历史流水有值
+		OrderNo:        item.OrderNo,
+		OrderId:        derefInt64(item.OrderId),
+		IdempotencyKey: item.IdempotencyKey,
+		Remark:         item.Remark,
+		CreateBy:       item.CreateBy,
+		CreatedAt:      timestamppb.New(item.CreatedAt),
 	}
+}
+
+// derefInt64 指针转值,空指针返回 0。
+// 用于 OrderId 这类"只有历史数据有值"的可空列 —— proto 那边是 int64,
+// 不能用 nil 表达"没有",故用 0 兼顾旧调用方
+func derefInt64(p *int64) int64 {
+	if p == nil {
+		return 0
+	}
+	return *p
 }

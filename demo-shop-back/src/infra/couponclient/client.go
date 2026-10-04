@@ -266,9 +266,9 @@ type UseCouponResult struct {
 
 // UseCoupon 下单核销券。
 //
-// 幂等键是 orderNo:同一订单重复调用只生效一次。
+// 幂等键是 idempotencyKey(调用方生成,全局唯一),orderNo 只是追溯字段。
 // 返回 (result, errMsg, err):errMsg 非空为业务失败(不存在/已用/越权/未达门槛)。
-func (c *CouponClient) UseCoupon(userCouponId int64, orderNo string, userId int64, orderAmount float64) (*UseCouponResult, string, error) {
+func (c *CouponClient) UseCoupon(userCouponId int64, idempotencyKey, orderNo string, userId int64, orderAmount float64) (*UseCouponResult, string, error) {
 	if c == nil {
 		return nil, "", ErrUnavailable
 	}
@@ -276,10 +276,11 @@ func (c *CouponClient) UseCoupon(userCouponId int64, orderNo string, userId int6
 	defer cancel()
 
 	resp, err := c.coupon.UseCoupon(ctx, &v1_marketingv1.UseCouponReq{
-		UserCouponId: userCouponId,
-		OrderNo:      orderNo,
-		UserId:       userId,
-		OrderAmount:  orderAmount,
+		UserCouponId:   userCouponId,
+		IdempotencyKey: idempotencyKey,
+		OrderNo:        orderNo,
+		UserId:         userId,
+		OrderAmount:    orderAmount,
 	})
 	if err != nil {
 		return nil, "", err
@@ -293,11 +294,11 @@ func (c *CouponClient) UseCoupon(userCouponId int64, orderNo string, userId int6
 	}, "", nil
 }
 
-// ReturnCoupon 取消订单归还券(按订单号反查,幂等)。
+// ReturnCoupon 取消订单归还券(按幂等键反查,幂等)。
 //
 // 返回 (returned, errMsg, err):returned=false 且无错误表示
 // "该订单没用券"或"券已归还" —— 两种情况都算补偿成功。
-func (c *CouponClient) ReturnCoupon(orderNo string, userId int64) (bool, string, error) {
+func (c *CouponClient) ReturnCoupon(idempotencyKey string, userId int64) (bool, string, error) {
 	if c == nil {
 		return false, "", ErrUnavailable
 	}
@@ -305,8 +306,8 @@ func (c *CouponClient) ReturnCoupon(orderNo string, userId int64) (bool, string,
 	defer cancel()
 
 	resp, err := c.coupon.ReturnCoupon(ctx, &v1_marketingv1.ReturnCouponReq{
-		OrderNo: orderNo,
-		UserId:  userId,
+		IdempotencyKey: idempotencyKey,
+		UserId:         userId,
 	})
 	if err != nil {
 		return false, "", err

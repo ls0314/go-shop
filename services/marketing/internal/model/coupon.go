@@ -33,14 +33,22 @@ func (CouponTemplate) TableName() string {
 // 状态机:unused → used(核销) / unused → expired(过期);used → unused(取消订单归还)。
 // UsedAt 用指针区分"未使用(NULL)"与零值。
 type UserCoupon struct {
-	UserCouponId int64      `gorm:"primaryKey;column:user_coupon_id" json:"user_coupon_id"`
-	TemplateId   int64      `gorm:"column:template_id" json:"template_id"`
-	UserId       int64      `gorm:"column:user_id" json:"user_id"`
-	Status       string     `gorm:"column:status" json:"status"`
-	OrderNo      string     `gorm:"column:order_no" json:"order_no"`
-	UsedAt       *time.Time `gorm:"column:used_at" json:"used_at"`
-	ExpireAt     time.Time  `gorm:"column:expire_at" json:"expire_at"`
-	CreatedAt    time.Time  `gorm:"column:created_at" json:"created_at"`
+	UserCouponId int64  `gorm:"primaryKey;column:user_coupon_id" json:"user_coupon_id"`
+	TemplateId   int64  `gorm:"column:template_id" json:"template_id"`
+	UserId       int64  `gorm:"column:user_id" json:"user_id"`
+	Status       string `gorm:"column:status" json:"status"`
+	// OrderNo 这张券用在哪张单上,**追溯与展示字段**。
+	// 归还时被清空,故不能当幂等判据
+	OrderNo string `gorm:"column:order_no" json:"order_no"`
+	// IdempotencyKey 幂等键(调用方生成,全局唯一)。
+	//
+	// 核销与归还的**唯一判据**,靠部分唯一索引
+	// uk_user_coupon_idem (idempotency_key) WHERE idempotency_key IS NOT NULL 实现。
+	// 归还时清空:NULL 不参与唯一性判断,该键才可能被下一次核销复用。
+	IdempotencyKey string     `gorm:"column:idempotency_key" json:"idempotency_key"`
+	UsedAt         *time.Time `gorm:"column:used_at" json:"used_at"`
+	ExpireAt       time.Time  `gorm:"column:expire_at" json:"expire_at"`
+	CreatedAt      time.Time  `gorm:"column:created_at" json:"created_at"`
 }
 
 func (UserCoupon) TableName() string {

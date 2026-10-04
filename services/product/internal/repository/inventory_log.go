@@ -31,10 +31,13 @@ func (il *InventoryLogRepo) CreateInventoryLog(inventoryLog *model.SysProductSto
 // StockLogQuery 库存流水分页查询条件。
 // 各筛选项为指针/空值即表示不过滤;时间区间为闭区间(含当日)。
 type StockLogQuery struct {
-	Page       int
-	PageSize   int
-	SkuId      *int64
-	SpuId      *int64
+	Page     int
+	PageSize int
+	SkuId    *int64
+	SpuId    *int64
+	// OrderNo 按订单号过滤(追溯用)。原先是 OrderId,
+	// 拆库后新流水不再写 order_id,只有 order_no 能覆盖全部记录
+	OrderNo    string
 	ChangeType string
 	StartTime  *time.Time
 	EndTime    *time.Time
@@ -65,6 +68,9 @@ func (il *InventoryLogRepo) ListStockLogs(q StockLogQuery) ([]model.StockLogItem
 	}
 	if q.ChangeType != "" {
 		baseQuery = baseQuery.Where(stockTable+".change_type = ?", q.ChangeType)
+	}
+	if q.OrderNo != "" {
+		baseQuery = baseQuery.Where(stockTable+".order_no = ?", q.OrderNo)
 	}
 	if q.StartTime != nil {
 		baseQuery = baseQuery.Where(stockTable+".created_at >= ?", *q.StartTime)

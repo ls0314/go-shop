@@ -1,4 +1,4 @@
-package inventoryservicelogic
+﻿package inventoryservicelogic
 
 import (
 	"context"
@@ -27,6 +27,12 @@ func NewDeductStockLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Deduc
 }
 
 func (l *DeductStockLogic) DeductStock(in *v1_productv1.DeductStockReq) (*v1_productv1.DeductStockResp, error) {
+	// 幂等键必填:"" 会导致流水以 NULL 落库、绕开部分唯一索引,
+	// 于是重复调用不再被挡住 —— 这种失败是静默的,必须在入口拦掉
+	if in.IdempotencyKey == "" {
+		return &v1_productv1.DeductStockResp{ErrorMsg: model.ErrIdempotencyKeyRequired.Error()}, nil
+	}
+
 	err := l.svcCtx.DB.Transaction(func(tx *gorm.DB) error {
 		productTx := l.svcCtx.ProductRepo.WithTx(tx)
 		logTx := l.svcCtx.InventoryLogRepo.WithTx(tx)
@@ -44,7 +50,8 @@ func (l *DeductStockLogic) DeductStock(in *v1_productv1.DeductStockReq) (*v1_pro
 			AfterStock:  sku.Stock,
 			BeforeLock:  sku.LockStock,
 			AfterLock:   sku.LockStock - in.Qty,
-			OrderId:     in.OrderId,
+			IdempotencyKey: in.IdempotencyKey,
+			OrderNo:        in.OrderNo,
 		})
 		if err != nil {
 			return err

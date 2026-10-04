@@ -31,13 +31,21 @@ func NewUseCouponLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UseCoup
 // 步骤与单体下单事务里的那段一致,只是搬到了本服务内:
 //  1. 取可用券(不存在/已用/已过期都查不到)
 //  2. 校验归属 —— owner 不可变,无竞态
-//  3. 条件更新核销并写入 order_no(幂等键)
+//  3. 条件更新核销,写入幂等键与订单号
 //  4. 算实付金额返回
 //
-// **幂等**:order_no 上有部分唯一索引,重复核销同一订单时第 3 步的条件更新
-// 影响行数为 0(券已不是 unused),调用方会拿到"券不存在或已使用" ——
-// 这正是重放该得到的结论,不会把券用两次。
+// **幂等**:幂等键上有一条部分唯一索引(uk_user_coupon_idem)。重复核销时:
+//   - 同一张券:第 3 步的状态条件(status = unused)不匹配 → 影响 0 行 → 返回"券不可用"
+//   - 不同券但同键:唯一索引拒绝写入 → 返回基础设施错误,调用方可见
+//
+// 两种结果都不会让券被用两次 —— 这正是重放该得到的结论。
 func (l *UseCouponLogic) UseCoupon(in *v1_marketingv1.UseCouponReq) (*v1_marketingv1.UseCouponResp, error) {
+	if in.IdempotencyKey == "" {
+		// 幂等键是补偿与重放的唯一凭据,缺了就不能放行。
+		// 宁可显式失败,也不要"静默无幂等"地核销
+		return &v1_marketingv1.UseCouponResp{ErrorMsg: model.ErrIdempotencyKeyRequired.Error()}, nil
+	}
+
 	coupon, err := l.svcCtx.UserCouponRepo.GetUsableCouponById(in.UserCouponId)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -58,7 +66,7 @@ func (l *UseCouponLogic) UseCoupon(in *v1_marketingv1.UseCouponReq) (*v1_marketi
 	}
 
 	err = l.svcCtx.DB.Transaction(func(tx *gorm.DB) error {
-		rows, err := l.svcCtx.UserCouponRepo.WithTx(tx).UseCoupon(in.UserCouponId, in.OrderNo)
+		rows, err := l.svcCtx.UserCouponRepo.WithTx(tx).UseCoupon(in.UserCouponId, in.IdempotencyKey, in.OrderNo)
 		if err != nil {
 			return err
 		}

@@ -1,4 +1,4 @@
-package inventoryservicelogic
+﻿package inventoryservicelogic
 
 import (
 	"context"
@@ -23,6 +23,12 @@ func NewLockStockLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LockSto
 }
 
 func (l *LockStockLogic) LockStock(in *v1_productv1.LockStockReq) (*v1_productv1.LockStockResp, error) {
+	// 幂等键必填:"" 会导致流水以 NULL 落库、绕开部分唯一索引,
+	// 于是重复调用不再被挡住 —— 这种失败是静默的,必须在入口拦掉
+	if in.IdempotencyKey == "" {
+		return &v1_productv1.LockStockResp{ErrorMsg: model.ErrIdempotencyKeyRequired.Error()}, nil
+	}
+
 	err := l.svcCtx.DB.Transaction(func(tx *gorm.DB) error {
 		productTx := l.svcCtx.ProductRepo.WithTx(tx)
 		logTx := l.svcCtx.InventoryLogRepo.WithTx(tx)
@@ -40,12 +46,21 @@ func (l *LockStockLogic) LockStock(in *v1_productv1.LockStockReq) (*v1_productv1
 			AfterStock:  sku.Stock - in.Qty,
 			BeforeLock:  sku.LockStock,
 			AfterLock:   sku.LockStock + in.Qty,
-			OrderId:     in.OrderId,
+			IdempotencyKey: in.IdempotencyKey,
+			OrderNo:        in.OrderNo,
 		})
 		if err != nil {
 			return err
 		}
-		// 流水已存在 = 本次操作已生效过,幂等成功
+		// 流水已存在 = 本次操作已生效过,幂等成功。
+		//
+		// 判据是部分唯一索引 uk_stock_log_idem
+		// (idempotency_key, sku_id, change_type) WHERE idempotency_key IS NOT NULL,
+		// 配合 CreateInventoryLog 的 OnConflict{DoNothing}:
+		// 冲突时不报错、返回 RowsAffected=0,于是这里直接返回成功。
+		//
+		// **change_type 必须参与唯一性**:同一笔订单的四个操作共用同一个
+		// idempotency_key,少了 change_type 会让"释放"被"锁定"的记录挡掉
 		if rowsAffected == 0 {
 			return nil
 		}

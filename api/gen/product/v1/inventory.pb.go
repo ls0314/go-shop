@@ -28,8 +28,10 @@ type LockStockReq struct {
 	SkuId int64                  `protobuf:"varint,1,opt,name=sku_id,json=skuId,proto3" json:"sku_id,omitempty"`
 	// 锁定数量,须为正数
 	Qty int64 `protobuf:"varint,2,opt,name=qty,proto3" json:"qty,omitempty"`
-	// 关联订单 ID,同时作为幂等键
-	OrderId       int64 `protobuf:"varint,3,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	// 幂等键:同一键 + 同一 SKU + 同一操作类型只生效一次(重复调用返回成功)
+	IdempotencyKey string `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	// 订单号,追溯用(可为空)
+	OrderNo       string `protobuf:"bytes,4,opt,name=order_no,json=orderNo,proto3" json:"order_no,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -78,11 +80,18 @@ func (x *LockStockReq) GetQty() int64 {
 	return 0
 }
 
-func (x *LockStockReq) GetOrderId() int64 {
+func (x *LockStockReq) GetIdempotencyKey() string {
 	if x != nil {
-		return x.OrderId
+		return x.IdempotencyKey
 	}
-	return 0
+	return ""
+}
+
+func (x *LockStockReq) GetOrderNo() string {
+	if x != nil {
+		return x.OrderNo
+	}
+	return ""
 }
 
 type LockStockResp struct {
@@ -131,12 +140,13 @@ func (x *LockStockResp) GetErrorMsg() string {
 }
 
 type DeductStockReq struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SkuId         int64                  `protobuf:"varint,1,opt,name=sku_id,json=skuId,proto3" json:"sku_id,omitempty"`
-	Qty           int64                  `protobuf:"varint,2,opt,name=qty,proto3" json:"qty,omitempty"`
-	OrderId       int64                  `protobuf:"varint,3,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	SkuId          int64                  `protobuf:"varint,1,opt,name=sku_id,json=skuId,proto3" json:"sku_id,omitempty"`
+	Qty            int64                  `protobuf:"varint,2,opt,name=qty,proto3" json:"qty,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	OrderNo        string                 `protobuf:"bytes,4,opt,name=order_no,json=orderNo,proto3" json:"order_no,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *DeductStockReq) Reset() {
@@ -183,11 +193,18 @@ func (x *DeductStockReq) GetQty() int64 {
 	return 0
 }
 
-func (x *DeductStockReq) GetOrderId() int64 {
+func (x *DeductStockReq) GetIdempotencyKey() string {
 	if x != nil {
-		return x.OrderId
+		return x.IdempotencyKey
 	}
-	return 0
+	return ""
+}
+
+func (x *DeductStockReq) GetOrderNo() string {
+	if x != nil {
+		return x.OrderNo
+	}
+	return ""
 }
 
 type DeductStockResp struct {
@@ -235,12 +252,13 @@ func (x *DeductStockResp) GetErrorMsg() string {
 }
 
 type ReleaseStockReq struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SkuId         int64                  `protobuf:"varint,1,opt,name=sku_id,json=skuId,proto3" json:"sku_id,omitempty"`
-	Qty           int64                  `protobuf:"varint,2,opt,name=qty,proto3" json:"qty,omitempty"`
-	OrderId       int64                  `protobuf:"varint,3,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	SkuId          int64                  `protobuf:"varint,1,opt,name=sku_id,json=skuId,proto3" json:"sku_id,omitempty"`
+	Qty            int64                  `protobuf:"varint,2,opt,name=qty,proto3" json:"qty,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	OrderNo        string                 `protobuf:"bytes,4,opt,name=order_no,json=orderNo,proto3" json:"order_no,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ReleaseStockReq) Reset() {
@@ -287,11 +305,18 @@ func (x *ReleaseStockReq) GetQty() int64 {
 	return 0
 }
 
-func (x *ReleaseStockReq) GetOrderId() int64 {
+func (x *ReleaseStockReq) GetIdempotencyKey() string {
 	if x != nil {
-		return x.OrderId
+		return x.IdempotencyKey
 	}
-	return 0
+	return ""
+}
+
+func (x *ReleaseStockReq) GetOrderNo() string {
+	if x != nil {
+		return x.OrderNo
+	}
+	return ""
 }
 
 type ReleaseStockResp struct {
@@ -339,12 +364,13 @@ func (x *ReleaseStockResp) GetErrorMsg() string {
 }
 
 type RefundStockReq struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SkuId         int64                  `protobuf:"varint,1,opt,name=sku_id,json=skuId,proto3" json:"sku_id,omitempty"`
-	Qty           int64                  `protobuf:"varint,2,opt,name=qty,proto3" json:"qty,omitempty"`
-	OrderId       int64                  `protobuf:"varint,3,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	SkuId          int64                  `protobuf:"varint,1,opt,name=sku_id,json=skuId,proto3" json:"sku_id,omitempty"`
+	Qty            int64                  `protobuf:"varint,2,opt,name=qty,proto3" json:"qty,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	OrderNo        string                 `protobuf:"bytes,4,opt,name=order_no,json=orderNo,proto3" json:"order_no,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RefundStockReq) Reset() {
@@ -391,11 +417,18 @@ func (x *RefundStockReq) GetQty() int64 {
 	return 0
 }
 
-func (x *RefundStockReq) GetOrderId() int64 {
+func (x *RefundStockReq) GetIdempotencyKey() string {
 	if x != nil {
-		return x.OrderId
+		return x.IdempotencyKey
 	}
-	return 0
+	return ""
+}
+
+func (x *RefundStockReq) GetOrderNo() string {
+	if x != nil {
+		return x.OrderNo
+	}
+	return ""
 }
 
 type RefundStockResp struct {
@@ -1028,13 +1061,20 @@ type StockLog struct {
 	AfterStock  int64  `protobuf:"varint,9,opt,name=after_stock,json=afterStock,proto3" json:"after_stock,omitempty"`
 	BeforeLock  int64  `protobuf:"varint,10,opt,name=before_lock,json=beforeLock,proto3" json:"before_lock,omitempty"`
 	AfterLock   int64  `protobuf:"varint,11,opt,name=after_lock,json=afterLock,proto3" json:"after_lock,omitempty"`
-	// 手动调整时为 0
-	OrderId       int64                  `protobuf:"varint,12,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	Remark        string                 `protobuf:"bytes,13,opt,name=remark,proto3" json:"remark,omitempty"`
-	CreateBy      int64                  `protobuf:"varint,14,opt,name=create_by,json=createBy,proto3" json:"create_by,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// 关联订单ID。**只有历史流水有值** —— 拆库后 order_id 由 trade 侧在建单时
+	// 分配,而库存流水在锁库存时就写了(早于建单),那时还没有订单ID。
+	// 新代码请一律用 order_no 追溯;这个字段保留 tag 号仅为兼容旧调用方。
+	OrderId   int64                  `protobuf:"varint,12,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	Remark    string                 `protobuf:"bytes,13,opt,name=remark,proto3" json:"remark,omitempty"`
+	CreateBy  int64                  `protobuf:"varint,14,opt,name=create_by,json=createBy,proto3" json:"create_by,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// 关联订单号。**这是追溯字段**:运维按它查"这张单动了哪些库存"。
+	// 手工调整与退款回补可能没有单号,此时为空
+	OrderNo string `protobuf:"bytes,16,opt,name=order_no,json=orderNo,proto3" json:"order_no,omitempty"`
+	// 幂等键(手工调整时为空)
+	IdempotencyKey string `protobuf:"bytes,17,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StockLog) Reset() {
@@ -1170,6 +1210,20 @@ func (x *StockLog) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *StockLog) GetOrderNo() string {
+	if x != nil {
+		return x.OrderNo
+	}
+	return ""
+}
+
+func (x *StockLog) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 type ListStockLogsReq struct {
@@ -1348,29 +1402,33 @@ var File_product_v1_inventory_proto protoreflect.FileDescriptor
 const file_product_v1_inventory_proto_rawDesc = "" +
 	"\n" +
 	"\x1aproduct/v1/inventory.proto\x12\n" +
-	"product.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\"R\n" +
+	"product.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\"{\n" +
 	"\fLockStockReq\x12\x15\n" +
 	"\x06sku_id\x18\x01 \x01(\x03R\x05skuId\x12\x10\n" +
-	"\x03qty\x18\x02 \x01(\x03R\x03qty\x12\x19\n" +
-	"\border_id\x18\x03 \x01(\x03R\aorderId\",\n" +
+	"\x03qty\x18\x02 \x01(\x03R\x03qty\x12'\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12\x19\n" +
+	"\border_no\x18\x04 \x01(\tR\aorderNo\",\n" +
 	"\rLockStockResp\x12\x1b\n" +
-	"\terror_msg\x18\x01 \x01(\tR\berrorMsg\"T\n" +
+	"\terror_msg\x18\x01 \x01(\tR\berrorMsg\"}\n" +
 	"\x0eDeductStockReq\x12\x15\n" +
 	"\x06sku_id\x18\x01 \x01(\x03R\x05skuId\x12\x10\n" +
-	"\x03qty\x18\x02 \x01(\x03R\x03qty\x12\x19\n" +
-	"\border_id\x18\x03 \x01(\x03R\aorderId\".\n" +
+	"\x03qty\x18\x02 \x01(\x03R\x03qty\x12'\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12\x19\n" +
+	"\border_no\x18\x04 \x01(\tR\aorderNo\".\n" +
 	"\x0fDeductStockResp\x12\x1b\n" +
-	"\terror_msg\x18\x01 \x01(\tR\berrorMsg\"U\n" +
+	"\terror_msg\x18\x01 \x01(\tR\berrorMsg\"~\n" +
 	"\x0fReleaseStockReq\x12\x15\n" +
 	"\x06sku_id\x18\x01 \x01(\x03R\x05skuId\x12\x10\n" +
-	"\x03qty\x18\x02 \x01(\x03R\x03qty\x12\x19\n" +
-	"\border_id\x18\x03 \x01(\x03R\aorderId\"/\n" +
+	"\x03qty\x18\x02 \x01(\x03R\x03qty\x12'\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12\x19\n" +
+	"\border_no\x18\x04 \x01(\tR\aorderNo\"/\n" +
 	"\x10ReleaseStockResp\x12\x1b\n" +
-	"\terror_msg\x18\x01 \x01(\tR\berrorMsg\"T\n" +
+	"\terror_msg\x18\x01 \x01(\tR\berrorMsg\"}\n" +
 	"\x0eRefundStockReq\x12\x15\n" +
 	"\x06sku_id\x18\x01 \x01(\x03R\x05skuId\x12\x10\n" +
-	"\x03qty\x18\x02 \x01(\x03R\x03qty\x12\x19\n" +
-	"\border_id\x18\x03 \x01(\x03R\aorderId\".\n" +
+	"\x03qty\x18\x02 \x01(\x03R\x03qty\x12'\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12\x19\n" +
+	"\border_no\x18\x04 \x01(\tR\aorderNo\".\n" +
 	"\x0fRefundStockResp\x12\x1b\n" +
 	"\terror_msg\x18\x01 \x01(\tR\berrorMsg\"\x82\x02\n" +
 	"\bSkuStock\x12\x15\n" +
@@ -1420,7 +1478,7 @@ const file_product_v1_inventory_proto_rawDesc = "" +
 	"\fbefore_stock\x18\x01 \x01(\x03R\vbeforeStock\x12\x1f\n" +
 	"\vafter_stock\x18\x02 \x01(\x03R\n" +
 	"afterStock\x12\x1b\n" +
-	"\terror_msg\x18\x03 \x01(\tR\berrorMsg\"\xd4\x03\n" +
+	"\terror_msg\x18\x03 \x01(\tR\berrorMsg\"\x98\x04\n" +
 	"\bStockLog\x12\x15\n" +
 	"\x06log_id\x18\x01 \x01(\x03R\x05logId\x12\x15\n" +
 	"\x06sku_id\x18\x02 \x01(\x03R\x05skuId\x12\x19\n" +
@@ -1443,7 +1501,9 @@ const file_product_v1_inventory_proto_rawDesc = "" +
 	"\x06remark\x18\r \x01(\tR\x06remark\x12\x1b\n" +
 	"\tcreate_by\x18\x0e \x01(\x03R\bcreateBy\x129\n" +
 	"\n" +
-	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xbe\x02\n" +
+	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x19\n" +
+	"\border_no\x18\x10 \x01(\tR\aorderNo\x12'\n" +
+	"\x0fidempotency_key\x18\x11 \x01(\tR\x0eidempotencyKey\"\xbe\x02\n" +
 	"\x10ListStockLogsReq\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x122\n" +

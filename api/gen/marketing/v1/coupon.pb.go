@@ -1512,14 +1512,19 @@ func (x *ReceiveCouponResp) GetErrorMsg() string {
 
 // UseCouponReq 下单核销。
 //
-// **幂等键是 order_no**:user_coupon.order_no 在核销时写入,
-// 同一订单重复调用只生效一次(订单链路会重试/重放)。
-// 之所以不用 order_id:该表只有 order_no 一列,不为此加列 ——
-// order_no 本身已唯一,且流水的语义本来就是"这张券用在哪张单上"。
+// **幂等键是 idempotency_key**(不再是 order_no):
+// order_no 会在归还时被清空、也可能被复用,拿它当幂等判据,
+// 归还算补时反查会落空。幂等键必须是"重放时不变"的独立标识。
+//
+// order_no 仍要传:它是**追溯字段**(这张券用在哪张单上,
+// 用户端"我的卡券"要展示),且 uk_user_coupon_order_no 约束一张券只记一个单号。
 type UseCouponReq struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	UserCouponId int64                  `protobuf:"varint,1,opt,name=user_coupon_id,json=userCouponId,proto3" json:"user_coupon_id,omitempty"`
-	// 调用方(trade)必须传自己的订单号,由本服务写入 user_coupon.order_no
+	// 幂等键(调用方生成,全局唯一,16~64 字符,建议 UUID)。
+	// 同一键重复调用只生效一次 —— 订单链路会重试/重放
+	IdempotencyKey string `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	// 调用方(trade)的订单号,由本服务写入 user_coupon.order_no,供追溯与展示
 	OrderNo string `protobuf:"bytes,2,opt,name=order_no,json=orderNo,proto3" json:"order_no,omitempty"`
 	// 券的归属人。服务端校验 user_coupon.user_id 必须等于它 ——
 	// 防越权用他人券;校验放在表的所有权方这一侧
@@ -1565,6 +1570,13 @@ func (x *UseCouponReq) GetUserCouponId() int64 {
 		return x.UserCouponId
 	}
 	return 0
+}
+
+func (x *UseCouponReq) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 func (x *UseCouponReq) GetOrderNo() string {
@@ -1652,14 +1664,16 @@ func (x *UseCouponResp) GetErrorMsg() string {
 
 // ReturnCouponReq 取消订单归还券(对应 C4 的 Saga 补偿动作)。
 //
-// **按 order_no 反查,而不是让调用方传 user_coupon_id**:
-// 取消链路上调用方手里只有订单号,而且"该订单用了哪张券"是券域的账,
-// 让调用方自己记住并回传,等于把归属信息复制一份出去,必然不同步。
+// **按 idempotency_key 反查**:补偿会被重放(MQ 重复投递、对账重跑),
+// 而 order_no 在归还时就被清空了 —— 用 order_no 反查,第二次补偿会落空、
+// 进而把"已经取消成功的订单"报成失败。幂等键不会被清空,重放时仍能找到目标。
 //
-// 幂等:券已是 unused 时返回成功(重复补偿只生效一次)。
+// 幂等语义:券已是 unused(已归还)时返回 returned=false 且**无错误**;
+// 该幂等键压根没核销过(订单没用券)时返回 returned=false 且**无错误**。
+// 两者都算"补偿目标已达成"。
 type ReturnCouponReq struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	OrderNo string                 `protobuf:"bytes,1,opt,name=order_no,json=orderNo,proto3" json:"order_no,omitempty"`
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	IdempotencyKey string                 `protobuf:"bytes,1,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	// 期望归属人。为 0 表示不校验 —— 系统取消订单时没有操作人语义。
 	UserId        int64 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1696,9 +1710,9 @@ func (*ReturnCouponReq) Descriptor() ([]byte, []int) {
 	return file_marketing_v1_coupon_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *ReturnCouponReq) GetOrderNo() string {
+func (x *ReturnCouponReq) GetIdempotencyKey() string {
 	if x != nil {
-		return x.OrderNo
+		return x.IdempotencyKey
 	}
 	return ""
 }
@@ -1712,7 +1726,7 @@ func (x *ReturnCouponReq) GetUserId() int64 {
 
 type ReturnCouponResp struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// 归还后券回到 unused;订单本就没用券时为 false(同样算成功)
+	// 归还后券回到 unused;订单本就没用券、或已归还过时为 false(同样算成功)
 	Returned      bool   `protobuf:"varint,1,opt,name=returned,proto3" json:"returned,omitempty"`
 	ErrorMsg      string `protobuf:"bytes,2,opt,name=error_msg,json=errorMsg,proto3" json:"error_msg,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2023,9 +2037,10 @@ const file_marketing_v1_coupon_proto_rawDesc = "" +
 	"\x11ReceiveCouponResp\x12$\n" +
 	"\x0euser_coupon_id\x18\x01 \x01(\x03R\fuserCouponId\x127\n" +
 	"\texpire_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bexpireAt\x12\x1b\n" +
-	"\terror_msg\x18\x03 \x01(\tR\berrorMsg\"\x8b\x01\n" +
+	"\terror_msg\x18\x03 \x01(\tR\berrorMsg\"\xb4\x01\n" +
 	"\fUseCouponReq\x12$\n" +
-	"\x0euser_coupon_id\x18\x01 \x01(\x03R\fuserCouponId\x12\x19\n" +
+	"\x0euser_coupon_id\x18\x01 \x01(\x03R\fuserCouponId\x12'\n" +
+	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x12\x19\n" +
 	"\border_no\x18\x02 \x01(\tR\aorderNo\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12!\n" +
 	"\forder_amount\x18\x04 \x01(\x01R\vorderAmount\"}\n" +
@@ -2033,9 +2048,9 @@ const file_marketing_v1_coupon_proto_rawDesc = "" +
 	"\x06coupon\x18\x01 \x01(\v2\x18.marketing.v1.UserCouponR\x06coupon\x12\x1d\n" +
 	"\n" +
 	"pay_amount\x18\x02 \x01(\x01R\tpayAmount\x12\x1b\n" +
-	"\terror_msg\x18\x03 \x01(\tR\berrorMsg\"E\n" +
-	"\x0fReturnCouponReq\x12\x19\n" +
-	"\border_no\x18\x01 \x01(\tR\aorderNo\x12\x17\n" +
+	"\terror_msg\x18\x03 \x01(\tR\berrorMsg\"S\n" +
+	"\x0fReturnCouponReq\x12'\n" +
+	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\"K\n" +
 	"\x10ReturnCouponResp\x12\x1a\n" +
 	"\breturned\x18\x01 \x01(\bR\breturned\x12\x1b\n" +

@@ -111,8 +111,11 @@ func (u *UserCouponRepo) GetUsableCouponById(userCouponId int64) (*model.UserCou
 	return &coupon, nil
 }
 
-// GetUserCouponByOrderNo 按订单号反查券(取消订单归还用)。
+// GetUserCouponByOrderNo 按订单号反查券(展示/追溯用)。
 // 核销时写在 user_coupon.order_no 上,并有部分唯一索引兜底。
+//
+// **不用于补偿**:归还会把 order_no 清空,补偿重放时按它反查会落空。
+// 补偿路径请用 GetUserCouponByIdempotencyKey。
 func (u *UserCouponRepo) GetUserCouponByOrderNo(orderNo string) (*model.UserCoupon, error) {
 	var coupon model.UserCoupon
 	if err := u.DB.Where("order_no = ?", orderNo).First(&coupon).Error; err != nil {
@@ -121,19 +124,38 @@ func (u *UserCouponRepo) GetUserCouponByOrderNo(orderNo string) (*model.UserCoup
 	return &coupon, nil
 }
 
-// UseCoupon 核销:unused → used,写入 order_no / used_at。
+// GetUserCouponByIdempotencyKey 按幂等键反查券(**补偿路径用**)。
+//
+// 为什么补偿必须用它而不是 order_no:补偿会被重放,而 order_no 在
+// 第一次归还时就被清空 —— 按它反查第二次会落空,进而把"已经取消成功的
+// 订单"报成失败。幂等键在归还时也清空,但它被清空**与券回到 unused 是
+// 同一次更新**,所以重放时"查不到"恰恰说明已归还,是幂等命中而非错误。
+func (u *UserCouponRepo) GetUserCouponByIdempotencyKey(idempotencyKey string) (*model.UserCoupon, error) {
+	var coupon model.UserCoupon
+	if err := u.DB.Where("idempotency_key = ?", idempotencyKey).First(&coupon).Error; err != nil {
+		return nil, err
+	}
+	return &coupon, nil
+}
+
+// UseCoupon 核销:unused → used,写入幂等键 / 订单号 / used_at。
 //
 // WHERE 含 status = unused + expire_at > now,并发下同一张券只有一个能成功;
 // 返回 0 表示券不可用(不存在/已用/已过期)。
 // 归属校验由调用方在调用前完成 —— owner 不可变,无竞态。
-func (u *UserCouponRepo) UseCoupon(userCouponId int64, orderNo string) (int64, error) {
+//
+// 幂等键唯一索引(uk_user_coupon_idem)是第二道:同一幂等键重复核销时,
+// 若第一张券已不是 unused,这里的状态条件先挡住;若换了张券而键相同,
+// 则由索引拒绝写入
+func (u *UserCouponRepo) UseCoupon(userCouponId int64, idempotencyKey, orderNo string) (int64, error) {
 	res := u.DB.Model(&model.UserCoupon{}).
 		Where("expire_at > ? AND user_coupon_id = ? AND status = ?",
 			time.Now(), userCouponId, model.CouponUnused).
 		Updates(map[string]interface{}{
-			"status":   model.CouponUsed,
-			"used_at":  time.Now(),
-			"order_no": orderNo,
+			"status":          model.CouponUsed,
+			"used_at":         time.Now(),
+			"order_no":        orderNo,
+			"idempotency_key": idempotencyKey,
 		})
 	if res.Error != nil {
 		return 0, res.Error
@@ -141,17 +163,22 @@ func (u *UserCouponRepo) UseCoupon(userCouponId int64, orderNo string) (int64, e
 	return res.RowsAffected, nil
 }
 
-// ReturnCoupon 归还:used → unused,清空 order_no / used_at。
+// ReturnCoupon 归还:used → unused,清空 order_no / idempotency_key / used_at。
 //
 // WHERE status = used 与核销条件(status = unused)互斥,同一张券不可能同时被核销和归还;
 // 重复归还时条件不匹配(返回 0),**天然幂等** —— 正是 Saga 补偿可重放所需要的。
+//
+// **清空幂等键是刻意的**:部分唯一索引对 NULL 不生效,所以键被释放后
+// 可以复用于下一次核销(比如用户取消后用同一张券重新下单)。
+// 若不清空,第二次核销会撞上唯一索引而失败
 func (u *UserCouponRepo) ReturnCoupon(userCouponId int64) (int64, error) {
 	res := u.DB.Model(&model.UserCoupon{}).
 		Where("user_coupon_id = ? AND status = ?", userCouponId, model.CouponUsed).
 		Updates(map[string]interface{}{
-			"status":   model.CouponUnused,
-			"used_at":  nil,
-			"order_no": nil,
+			"status":          model.CouponUnused,
+			"used_at":         nil,
+			"order_no":        nil,
+			"idempotency_key": nil,
 		})
 	if res.Error != nil {
 		return 0, res.Error

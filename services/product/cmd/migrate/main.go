@@ -41,7 +41,8 @@ var expectedTables = []string{
 // requiredIndexes 幂等闸与唯一约束。库存四操作的正确性依赖它们,
 // 缺了不会报错、只会静默重复扣减,故纳入就绪校验。
 var requiredIndexes = []string{
-	"uk_stock_log_order", // (order_id, sku_id, change_type) 三元组唯一索引
+	"uk_stock_log_idem",  // (idempotency_key, sku_id, change_type) 三元组部分唯一索引 —— 四操作的幂等凭据
+	"uk_stock_log_order", // 老的 (order_id, sku_id, change_type) 索引,保留给历史数据
 	"idx_sku_code",       // sku_code 部分唯一索引
 }
 

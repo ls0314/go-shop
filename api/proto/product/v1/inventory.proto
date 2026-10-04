@@ -8,12 +8,31 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
 
+// 库存四操作(LockStock / DeductStock / ReleaseStock / RefundStock)共用的
+// 标识符约定:
+//
+//	idempotency_key  **幂等键**,由调用方(前端)生成、全局唯一、重试时不变。
+//	                 四操作共用同一个键 —— 它们是同一笔订单的四个阶段,
+//	                 靠 change_type 区分,故唯一索引是
+//	                 (idempotency_key, sku_id, change_type)。
+//	                 手工调整不带它(NULL 不参与唯一性判断,可以重复调整)。
+//	                 约束:16~64 字符(列宽 VARCHAR(64)),建议 UUID。
+//
+//	order_no         订单号,**仅用于追溯**(运维按单号查这张单动了哪些库存),
+//	                 不参与任何幂等判断。服务端雪花号,建单前就有。
+//	                 允许为空:退款等场景调用方可能拿不到单号。
+//
+// 为什么不复用 order_id 当幂等键:order_id 是订单表主键,建单时才分配,
+// 而锁库存在建单之前发生 —— 那一刻还没有 order_id。详见 000003 迁移的说明。
+
 message LockStockReq {
   int64 sku_id = 1;
   // 锁定数量,须为正数
   int64 qty = 2;
-  // 关联订单 ID,同时作为幂等键
-  int64 order_id = 3;
+  // 幂等键:同一键 + 同一 SKU + 同一操作类型只生效一次(重复调用返回成功)
+  string idempotency_key = 3;
+  // 订单号,追溯用(可为空)
+  string order_no = 4;
 }
 
 message LockStockResp {
@@ -24,7 +43,8 @@ message LockStockResp {
 message DeductStockReq {
   int64 sku_id = 1;
   int64 qty = 2;
-  int64 order_id = 3;
+  string idempotency_key = 3;
+  string order_no = 4;
 }
 
 message DeductStockResp {
@@ -34,7 +54,8 @@ message DeductStockResp {
 message ReleaseStockReq {
   int64 sku_id = 1;
   int64 qty = 2;
-  int64 order_id = 3;
+  string idempotency_key = 3;
+  string order_no = 4;
 }
 
 message ReleaseStockResp {
@@ -44,7 +65,8 @@ message ReleaseStockResp {
 message RefundStockReq {
   int64 sku_id = 1;
   int64 qty = 2;
-  int64 order_id = 3;
+  string idempotency_key = 3;
+  string order_no = 4;
 }
 
 message RefundStockResp {
@@ -145,11 +167,18 @@ message StockLog {
   int64 after_stock = 9;
   int64 before_lock = 10;
   int64 after_lock = 11;
-  // 手动调整时为 0
+  // 关联订单ID。**只有历史流水有值** —— 拆库后 order_id 由 trade 侧在建单时
+  // 分配,而库存流水在锁库存时就写了(早于建单),那时还没有订单ID。
+  // 新代码请一律用 order_no 追溯;这个字段保留 tag 号仅为兼容旧调用方。
   int64 order_id = 12;
   string remark = 13;
   int64 create_by = 14;
   google.protobuf.Timestamp created_at = 15;
+  // 关联订单号。**这是追溯字段**:运维按它查"这张单动了哪些库存"。
+  // 手工调整与退款回补可能没有单号,此时为空
+  string order_no = 16;
+  // 幂等键(手工调整时为空)
+  string idempotency_key = 17;
 }
 
 message ListStockLogsReq {

@@ -13,6 +13,13 @@ var (
 	ErrLockStockNotEnough = errors.New("锁定库存不足")     // 7006
 	// ErrRemarkEmpty 手动调整库存必须填原因(7003)
 	ErrRemarkEmpty = errors.New("调整原因不能为空")
+	// ErrIdempotencyKeyRequired 缺少幂等键。
+	//
+	// 库存四操作靠幂等键判重(部分唯一索引 idempotency_key + sku_id + change_type)。
+	// 键为空会让流水以 NULL 落库、**绕开部分唯一索引**,于是重复调用不再被挡住 ——
+	// 这种失败是静默的(不报错,只是幂等失效),故在入口直接拒绝。
+	// 手工调整是唯一允许不带键的路径,它走的是另一个方法,不经过这四个 logic。
+	ErrIdempotencyKeyRequired = errors.New("缺少幂等键")
 )
 
 // 类目域错误码。单体未编号,此处沿用原文案。

@@ -44,7 +44,7 @@ func (c *InventoryClient) Close() error { return c.conn.Close() }
 
 // LockStock 下单锁定库存。失败时返回的 error 已还原为单体 model 包的
 // 错误变量,调用方可用 errors.Is 判定。
-func (c *InventoryClient) LockStock(skuId, qty, orderId int64) error {
+func (c *InventoryClient) LockStock(skuId, qty int64, idempotencyKey string) error {
 	if c == nil {
 		return errors.New("product-service 不可用")
 	}
@@ -52,9 +52,9 @@ func (c *InventoryClient) LockStock(skuId, qty, orderId int64) error {
 	defer cancel()
 
 	resp, err := c.inventory.LockStock(ctx, &v1_productv1.LockStockReq{
-		SkuId:   skuId,
-		Qty:     qty,
-		OrderId: orderId,
+		SkuId:          skuId,
+		Qty:            qty,
+		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
 		return err
@@ -64,7 +64,7 @@ func (c *InventoryClient) LockStock(skuId, qty, orderId int64) error {
 
 // DeductStock 支付成功扣减库存。调用方为支付链路,
 // 失败不做反向补偿(支付不可逆),由调用方重试 + 对账兜底。
-func (c *InventoryClient) DeductStock(skuId, qty, orderId int64) error {
+func (c *InventoryClient) DeductStock(skuId, qty int64, idempotencyKey string) error {
 	if c == nil {
 		return errors.New("product-service 不可用")
 	}
@@ -72,9 +72,9 @@ func (c *InventoryClient) DeductStock(skuId, qty, orderId int64) error {
 	defer cancel()
 
 	resp, err := c.inventory.DeductStock(ctx, &v1_productv1.DeductStockReq{
-		SkuId:   skuId,
-		Qty:     qty,
-		OrderId: orderId,
+		SkuId:          skuId,
+		Qty:            qty,
+		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
 		return err
@@ -83,7 +83,7 @@ func (c *InventoryClient) DeductStock(skuId, qty, orderId int64) error {
 }
 
 // ReleaseStock 取消订单释放库存。幂等:重复调用只释放一次。
-func (c *InventoryClient) ReleaseStock(skuId, qty, orderId int64) error {
+func (c *InventoryClient) ReleaseStock(skuId, qty int64, idempotencyKey string) error {
 	if c == nil {
 		return errors.New("product-service 不可用")
 	}
@@ -91,9 +91,9 @@ func (c *InventoryClient) ReleaseStock(skuId, qty, orderId int64) error {
 	defer cancel()
 
 	resp, err := c.inventory.ReleaseStock(ctx, &v1_productv1.ReleaseStockReq{
-		SkuId:   skuId,
-		Qty:     qty,
-		OrderId: orderId,
+		SkuId:          skuId,
+		Qty:            qty,
+		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
 		return err
@@ -102,7 +102,7 @@ func (c *InventoryClient) ReleaseStock(skuId, qty, orderId int64) error {
 }
 
 // RefundStock 退款回补库存。
-func (c *InventoryClient) RefundStock(skuId, qty, orderId int64) error {
+func (c *InventoryClient) RefundStock(skuId, qty int64, idempotencyKey string) error {
 	if c == nil {
 		return errors.New("product-service 不可用")
 	}
@@ -110,9 +110,9 @@ func (c *InventoryClient) RefundStock(skuId, qty, orderId int64) error {
 	defer cancel()
 
 	resp, err := c.inventory.RefundStock(ctx, &v1_productv1.RefundStockReq{
-		SkuId:   skuId,
-		Qty:     qty,
-		OrderId: orderId,
+		SkuId:          skuId,
+		Qty:            qty,
+		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
 		return err

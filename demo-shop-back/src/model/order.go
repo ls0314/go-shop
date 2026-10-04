@@ -1,66 +1,29 @@
 package model
 
-import (
-	"time"
-
-	"gorm.io/datatypes"
-)
-
-type UserOrder struct {
-	OrderId         int64          `gorm:"column:order_id;primary_key;AUTO_INCREMENT" json:"order_id"`
-	OrderNo         string         `gorm:"column:order_no" json:"order_no"`
-	UserId          int64          `gorm:"column:user_id" json:"user_id"`
-	OrderStatus     string         `gorm:"column:order_status" json:"order_status"`
-	TotalAmount     float64        `gorm:"column:total_amount" json:"total_amount"`
-	PayAmount       float64        `gorm:"column:pay_amount" json:"pay_amount"`
-	PayMethod       string         `gorm:"column:pay_method" json:"pay_method"`
-	PayTime         time.Time      `gorm:"column:pay_time" json:"pay_time"`
-	AddressSnapshot datatypes.JSON `gorm:"column:address_snapshot" json:"address_snapshot"`
-	BuyerRemark     string         `gorm:"column:buyer_remark" json:"buyer_remark"`
-	IdempotentKey   string         `gorm:"column:idempotent_key" json:"idempotent_key"`
-	IsDeleted       bool           `gorm:"column:is_deleted" json:"is_deleted"`
-	CreatedAt       time.Time      `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt       time.Time      `gorm:"column:updated_at" json:"updated_at"`
-	DetailCount     int64          `gorm:"column:detail_count" json:"detail_count"`
-	FirstImage      string         `gorm:"column:first_image" json:"first_image"`
-}
-
-func (UserOrder) TableName() string { return "user_order_master" }
-
-type UserOrderDetail struct {
-	DetailId   int64             `gorm:"column:detail_id;primary_key;AUTO_INCREMENT" json:"detail_id"`
-	OrderId    int64             `gorm:"column:order_id" json:"order_id"`
-	SkuId      int64             `gorm:"column:sku_id" json:"sku_id"`
-	SpuName    string            `gorm:"column:spu_name" json:"spu_name"`
-	SkuName    string            `gorm:"column:sku_name" json:"sku_name"`
-	SpecValues datatypes.JSONMap `gorm:"column:spec_values" json:"spec_values"`
-	MainImage  string            `gorm:"column:main_image" json:"main_image"`
-	Quantity   int64             `gorm:"column:quantity" json:"quantity"`
-	UnitPrice  float64           `gorm:"column:unit_price" json:"unit_price"`
-	TotalPrice float64           `gorm:"column:total_price" json:"total_price"`
-	CreatedAt  time.Time         `gorm:"column:created_at" json:"created_at"`
-}
-
-func (UserOrderDetail) TableName() string { return "user_order_detail" }
-
-type UserOrderLog struct {
-	LogId       int64     `gorm:"column:log_id;primary_key;AUTO_INCREMENT" json:"log_id"`
-	OrderId     int64     `gorm:"column:order_id" json:"order_id"`
-	OrderStatus string    `gorm:"column:order_status" json:"order_status"`
-	Action      string    `gorm:"column:action" json:"action"`
-	Operator    string    `gorm:"column:operator" json:"operator"`
-	Detail      string    `gorm:"column:detail" json:"detail"`
-	CreatedAt   time.Time `gorm:"column:created_at" json:"created_at"`
-}
-
-func (UserOrderLog) TableName() string { return "user_order_log" }
-
-type AddressSnap struct {
-	ReceiverName  string `json:"receiver_name"`
-	ReceiverPhone string `json:"receiver_phone"`
-	Province      string `json:"province"`
-	City          string `json:"city"`
-	District      string `json:"district"`
-	DetailAddress string `json:"detail_address"`
-	PostalCode    string `json:"postal_code"`
-}
+// 订单域的实体(UserOrder / UserOrderDetail / UserOrderLog)已删除。
+//
+// 三张表已随 C4 迁到 trade-service 的独立库 trade_db,对应的
+// service / repository / task 代码也都删了,而 `demo_shop` 里的表本身
+// 由 `db/migrations/000017_retire_order_domain_tables` DROP 掉了。
+//
+// 留着这些结构体是有害的:它们带着
+// `TableName() = "user_order_master"` 与 `primary_key;AUTO_INCREMENT` 这类
+// "权威表"的写法,读者无法从代码看出那已经是张不存在的表 ——
+// 本次就这么被误导过一次(旧版 trade 侧 CreateOrder 把延迟取消消息
+// 写进了本库的 sys_outbox_message,而单体投递器去投一条没人监听的消息)。
+//
+// 订单域的实体现在在 `services/trade/internal/model/order.go`,
+// 落库形状与本文件原先那份有两处**刻意**的差异:
+//
+//   - trade 侧多了 `ExpireAt`(支付截止时间)。单体时代这个阈值散在
+//     三处各自解释(MQ 延迟 TTL 15 分钟、rabbitmq.go 注释写 2 分钟、
+//     order_service.go 又是 15 分钟),迁出后收敛为"下单时算一次写进
+//     expire_at,一切判据都读那一列"。
+//   - trade 侧**去掉了** `IsDeleted`。订单是历史凭证,不能软删 ——
+//     软删会让"这张单去哪了"变成需要过滤条件才能回答的问题,
+//     而订单表本来也没有删除入口。
+//
+// 地址快照结构(原先的 AddressSnap)也一并删除:它只被下单流程使用,
+// 而那个结构现在在 `tradeclient.AddressSnapshot`(HTTP 层 → trade 的入参)
+// 与 `trade/internal/model.AddressSnap`(落库形状)。两处形状一致,
+// 但分属两侧的契约,不再共用本包的类型。

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"demo-shop-back/src/infra/productclient"
+	"demo-shop-back/src/infra/tradeclient"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/utils"
@@ -32,10 +33,23 @@ func NewProductHandler(productRPC *productclient.ProductClient) *ProductHandler 
 //
 // 只认哨兵错误不够:客户端建连成功但对端已下线时,返回的是 gRPC 连接错误
 // (rpc error: code = Unavailable ...),不是哨兵。故再用文案兜一层 ——
-// 目标是把"product-service 不可用"这一类统一收敛成 503,
+// 目标是把"XX-service 不可用"这一类统一收敛成 503,
 // 让运维与接线测试能把它与真正的 500 区分开。
 func failRPC(c *gin.Context, err error) {
 	if errors.Is(err, productclient.ErrUnavailable) || isServiceUnavailableMsg(err.Error()) {
+		utils.Unavailable(c, err.Error())
+		return
+	}
+	utils.Error(c, 500, err.Error())
+}
+
+// failTradeRPC 订单域的 RPC 错误处理。
+//
+// 与 failRPC 同一口径(不可用 → 503,其余 → 500),只是哨兵不同。
+// 单独一个函数而不是复用 failRPC:那两个哨兵属于不同的客户端,
+// 混在一起会让"哪个下游挂了"在日志里看不清。
+func failTradeRPC(c *gin.Context, err error) {
+	if errors.Is(err, tradeclient.ErrUnavailable) || isServiceUnavailableMsg(err.Error()) {
 		utils.Unavailable(c, err.Error())
 		return
 	}

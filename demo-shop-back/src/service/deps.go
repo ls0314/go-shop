@@ -6,9 +6,9 @@ import (
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/infra/couponclient"
 	"demo-shop-back/src/infra/es"
-	"demo-shop-back/src/infra/inventoryclient"
 	"demo-shop-back/src/infra/mq"
 	"demo-shop-back/src/infra/productclient"
+	"demo-shop-back/src/infra/tradeclient"
 	"demo-shop-back/src/infra/userclient"
 	"log"
 	"os"
@@ -29,13 +29,15 @@ type ServiceDeps struct {
 	MQ        *mq.RabbitMQ
 	ES        *es.ESClient
 	UserRPC   *userclient.PermCodesClient
-	// InventoryRPC 库存四操作。类型是接口而非具体客户端,以便测试注入记录桩
-	// (见 inventory_rpc.go 的说明);生产实现仍是 *inventoryclient.InventoryClient。
-	InventoryRPC InventoryStockRPC
-	ProductRPC   *productclient.ProductClient
+
+	ProductRPC *productclient.ProductClient
 	// CouponRPC 券域读写。券表已迁至 marketing-service 的独立库 marketing_db,
 	// 本进程不再直连 coupon_template / user_coupon。
 	CouponRPC *couponclient.CouponClient
+	// TradeRPC 订单域读写(购物车 / 订单 / 支付)。
+	// 三张域的表已迁至 trade-service 的独立库 trade_db,
+	// 本进程不再直连 user_cart_item / user_order_* / user_payment_record。
+	TradeRPC *tradeclient.TradeClient
 }
 
 // NewServiceDeps 在 composition root 读一次全局依赖。
@@ -59,17 +61,6 @@ func NewServiceDeps() ServiceDeps {
 		deps.UserRPC = client
 	}
 
-	// product-service 同理:库存四操作走 RPC,连不上不阻断启动,下单与支付会报错。
-	invClient, err := inventoryclient.NewInventoryClient(
-		envList("DEMO_SHOP_ETCD_HOSTS", "127.0.0.1:2379"),
-		getEnv("DEMO_SHOP_PRODUCT_ETCD_KEY", "product-service"),
-	)
-	if err != nil {
-		log.Printf("[WARN] 连接 product-service 失败,库存操作将不可用: %v", err)
-	} else {
-		deps.InventoryRPC = invClient
-	}
-
 	// 商品/类目读写同样走 RPC(与库存同一个服务,复用 etcd key)。
 	prodClient, err := productclient.NewProductClient(
 		envList("DEMO_SHOP_ETCD_HOSTS", "127.0.0.1:2379"),
@@ -90,6 +81,17 @@ func NewServiceDeps() ServiceDeps {
 		log.Printf("[WARN] 连接 marketing-service 失败,优惠券接口将不可用: %v", err)
 	} else {
 		deps.CouponRPC = couponClient
+	}
+
+	// trade-service:购物车 / 订单 / 支付。连不上不阻断启动,这三个域会回 503。
+	tradeRPCClient, err := tradeclient.NewTradeClient(
+		envList("DEMO_SHOP_ETCD_HOSTS", "127.0.0.1:2379"),
+		getEnv("DEMO_SHOP_TRADE_ETCD_KEY", "trade-service"),
+	)
+	if err != nil {
+		log.Printf("[WARN] 连接 trade-service 失败,购物车/订单/支付接口将不可用: %v", err)
+	} else {
+		deps.TradeRPC = tradeRPCClient
 	}
 	return deps
 }

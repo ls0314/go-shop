@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"demo-shop-back/src/infra/productclient"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/service"
@@ -10,9 +11,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// InventoryHandler 库存管理handler层实例
+// InventoryHandler 库存管理handler层实例。
+//
+// 库存的**查询与手动调整**已迁 product-service(独立库 product_db),
+// 本层直接经 ProductRPC 转发,不再经过中间服务层 ——
+// 那一层曾是纯转发(方法体只有一行 RPC 调用),留着只会让人以为
+// "库存还有本地逻辑"。原来的 InventoryService 已随之删除。
+//
+// 库存**四操作**(下单锁定/支付扣减/取消释放/退款回补)不经过 HTTP,
+// 由 trade-service 在下单与支付流程内直接调 product RPC ——
+// 因此本进程不再需要 InventoryRPC 客户端。
 type InventoryHandler struct {
-	InventoryService *service.InventoryService // 库存服务层对象指针
+	productRPC *productclient.ProductClient
 }
 
 // NewInventoryHandler 创建库存管理handler层实例
@@ -20,7 +30,7 @@ type InventoryHandler struct {
 // 返回值：*InventoryHandler - 库存handler指针
 func NewInventoryHandler(deps service.ServiceDeps) *InventoryHandler {
 	return &InventoryHandler{
-		InventoryService: service.NewInventoryService(deps),
+		productRPC: deps.ProductRPC,
 	}
 }
 
@@ -44,10 +54,14 @@ func (ih *InventoryHandler) GetSkuStock(c *gin.Context) {
 		utils.Fail(c, 400, model.StatusIdNotExist+err.Error())
 		return
 	}
-	// 调用服务层查询SKU库存信息
-	skuStock, err := ih.InventoryService.GetSkuStock(id)
+	// 调用 product-service 查询 SKU 库存信息
+	skuStock, errMsg, err := ih.productRPC.GetSkuStock(id)
 	if err != nil {
 		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 查询成功，返回SKU库存信息
@@ -71,10 +85,14 @@ func (ih *InventoryHandler) GetSkuListBySpu(c *gin.Context) {
 		utils.Fail(c, 400, model.StatusIdNotExist+err.Error())
 		return
 	}
-	// 调用服务层查询SPU下所有SKU库存信息
-	skuStockList, err := ih.InventoryService.GetSkuStockListBySpu(id)
+	// 调用 product-service 查询 SPU 下所有 SKU 库存信息
+	skuStockList, errMsg, err := ih.productRPC.GetSkuStockList(id)
 	if err != nil {
 		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 查询成功，返回SKU库存列表
@@ -109,10 +127,14 @@ func (ih *InventoryHandler) AdjustStock(c *gin.Context) {
 		utils.Fail(c, 400, err.Error())
 		return
 	}
-	// 调用服务层执行库存调整
-	adjustStock, err := ih.InventoryService.AdjustStock(userId, req)
+	// 调用 product-service 执行库存调整(行锁 + 写流水 + 改库存三步同事务)
+	adjustStock, errMsg, err := ih.productRPC.AdjustStock(req.SkuId, req.ChangeQty, req.Remark, userId)
 	if err != nil {
 		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 调整成功，返回调整前后库存数据
@@ -146,9 +168,13 @@ func (ih *InventoryHandler) GetStockLog(c *gin.Context) {
 		return
 	}
 	// 调用服务层分页查询库存变更日志
-	stockLogList, err := ih.InventoryService.GetStockLogList(req)
+	stockLogList, errMsg, err := ih.productRPC.ListStockLogs(req)
 	if err != nil {
 		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 查询成功，返回日志列表和分页信息
@@ -177,9 +203,13 @@ func (ih *InventoryHandler) GetWarnStockList(c *gin.Context) {
 		return
 	}
 	// 调用服务层查询低库存预警列表
-	warnStockList, err := ih.InventoryService.GetWarnStockList(req)
+	warnStockList, errMsg, err := ih.productRPC.GetWarnStockList(req.Threshold, req.SpuStatus)
 	if err != nil {
 		failRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 查询成功，返回预警列表

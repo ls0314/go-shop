@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"demo-shop-back/src/infra/tradeclient"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/service"
@@ -10,9 +11,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// PaymentHandler 支付管理handler层实例
+// PaymentHandler 支付管理handler层实例。
+//
+// 支付流水表已迁至 trade-service(独立库 trade_db),本层只做
+// "HTTP 入参绑定 → RPC → HTTP 出参",不再直连 user_payment_record。
 type PaymentHandler struct {
-	PaymentService *service.PaymentService // 支付服务层对象指针
+	tradeRPC *tradeclient.TradeClient
 }
 
 // NewPaymentHandler 创建支付管理handler层实例
@@ -20,7 +24,7 @@ type PaymentHandler struct {
 // 返回值：*PaymentHandler - 支付handler指针
 func NewPaymentHandler(deps service.ServiceDeps) *PaymentHandler {
 	return &PaymentHandler{
-		PaymentService: service.NewPaymentService(deps),
+		tradeRPC: deps.TradeRPC,
 	}
 }
 
@@ -64,9 +68,13 @@ func (p *PaymentHandler) CreatePayment(c *gin.Context) {
 		return
 	}
 
-	resp, err := p.PaymentService.CreatePayment(id, userId, &req)
+	resp, errMsg, err := p.tradeRPC.CreatePayment(id, userId, req.PayMethod)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, resp)
@@ -94,9 +102,13 @@ func (p *PaymentHandler) GetPayment(c *gin.Context) {
 		return
 	}
 
-	resp, err := p.PaymentService.GetPayment(userId, payNo)
+	resp, errMsg, err := p.tradeRPC.GetPayment(userId, payNo)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, resp)
@@ -127,9 +139,17 @@ func (p *PaymentHandler) MockCallback(c *gin.Context) {
 		utils.Fail(c, 400, model.StatusBadRequest)
 		return
 	}
-	err := p.PaymentService.HandleCallback(model.PayMethodMock, req)
+	// **错误语义与其它接口不同**:这里 err != nil 也可能表示
+	// "支付已成功但后续步骤(订单推进/扣库存)失败,请重试回调" ——
+	// 那是向前补偿的信号,不是回调无效。见 payment.proto 的说明。
+	// 故此处用 failTradeRPC(区分依赖不可用)而不是一律 500。
+	_, errMsg, err := p.tradeRPC.HandleCallback(req.PayNo, req.TradeNo)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, nil)
@@ -165,9 +185,14 @@ func (p *PaymentHandler) GetPaymentList(c *gin.Context) {
 		return
 	}
 
-	resp, err := p.PaymentService.GetPaymentList(req)
+	resp, errMsg, err := p.tradeRPC.GetPaymentList(req.Page, req.PageSize, req.PayStatus,
+		req.PayMethod, req.OrderNo, req.StartTime, req.EndTime)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, resp)

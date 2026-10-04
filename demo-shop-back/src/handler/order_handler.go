@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"demo-shop-back/src/infra/tradeclient"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
 	"demo-shop-back/src/service"
@@ -10,9 +11,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// OrderHandler 订单管理handler层实例
+// OrderHandler 订单管理handler层实例。
+//
+// 订单三表已迁至 trade-service(独立库 trade_db),本层只做
+// "HTTP 入参绑定 → RPC → HTTP 出参"。
+//
+// **仍持有 AddressService**:地址表没迁(它归 user 域,见待办 §7.1),
+// 而下单需要地址快照 —— 本层先用它校验归属并把地址取出来,
+// 再把快照传给 trade。这样 trade 不必跨库读地址,也不破坏
+// "订单存的是下单那一刻的地址"这个语义。
 type OrderHandler struct {
-	OrderService *service.OrderService // 订单服务层对象指针
+	tradeRPC   *tradeclient.TradeClient
+	addressSvc *service.AddressService
 }
 
 // NewOrderHandler 创建订单管理handler层实例
@@ -20,7 +30,8 @@ type OrderHandler struct {
 // 返回值：*OrderHandler - 订单handler指针
 func NewOrderHandler(deps service.ServiceDeps) *OrderHandler {
 	return &OrderHandler{
-		OrderService: service.NewOrderService(deps),
+		tradeRPC:   deps.TradeRPC,
+		addressSvc: service.NewAddressService(deps),
 	}
 }
 
@@ -52,9 +63,38 @@ func (o *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	resp, err := o.OrderService.CreateOrder(&orderReq, userId, userName)
+	// 取地址快照。为什么要在这里取而不是让 trade 去查:
+	// 地址表在 user_db,trade 跨库读不到;而且订单存的是**下单那一刻**的
+	// 地址快照,由本层从权威数据源取一次再传过去,语义最贴切。
+	// GetAddress 内部会校验归属(防横向越权),故这次调用同时完成了鉴权。
+	addr, err := o.addressSvc.GetAddress(userId, orderReq.AddressId)
 	if err != nil {
 		utils.Error(c, 500, err.Error())
+		return
+	}
+
+	resp, errMsg, err := o.tradeRPC.CreateOrder(&tradeclient.CreateOrderReq{
+		UserId:        userId,
+		UserName:      userName,
+		IdempotentKey: orderReq.IdempotentKey,
+		BuyerRemark:   orderReq.BuyerRemark,
+		UserCouponId:  orderReq.UserCouponId,
+		AddressSnapshot: tradeclient.AddressSnapshot{
+			ReceiverName:  addr.ReceiverName,
+			ReceiverPhone: addr.ReceiverPhone,
+			Province:      addr.Province,
+			City:          addr.City,
+			District:      addr.District,
+			DetailAddress: addr.DetailAddress,
+			PostalCode:    addr.PostalCode,
+		},
+	})
+	if err != nil {
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, resp)
@@ -87,9 +127,13 @@ func (o *OrderHandler) GetUserOrderList(c *gin.Context) {
 		return
 	}
 
-	resp, err := o.OrderService.GetUserOrderList(userId, req)
+	resp, errMsg, err := o.tradeRPC.GetUserOrderList(userId, req.Page, req.PageSize, req.OrderStatus)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, resp)
@@ -121,9 +165,13 @@ func (o *OrderHandler) GetUserOrderInfo(c *gin.Context) {
 		return
 	}
 
-	resp, err := o.OrderService.GetUserOrder(id, userId)
+	resp, errMsg, err := o.tradeRPC.GetUserOrder(id, userId)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, resp)
@@ -156,9 +204,13 @@ func (o *OrderHandler) CancelOrder(c *gin.Context) {
 		return
 	}
 
-	resp, err := o.OrderService.CancelOrder(id, userId, userName)
+	resp, errMsg, err := o.tradeRPC.CancelOrder(id, userId, userName)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 
@@ -191,9 +243,14 @@ func (o *OrderHandler) GetOrderList(c *gin.Context) {
 		return
 	}
 
-	resp, err := o.OrderService.GetOrderList(req)
+	resp, errMsg, err := o.tradeRPC.GetOrderList(req.Page, req.PageSize, req.OrderStatus, req.OrderNo,
+		req.StartTime, req.EndTime)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, resp)
@@ -221,9 +278,13 @@ func (o *OrderHandler) GetOrderInfo(c *gin.Context) {
 		return
 	}
 
-	resp, err := o.OrderService.GetOrder(id)
+	resp, errMsg, err := o.tradeRPC.GetOrder(id)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, resp)
@@ -268,9 +329,13 @@ func (o *OrderHandler) OrderShip(c *gin.Context) {
 		return
 	}
 
-	resp, err := o.OrderService.OrderShip(id, userName, req)
+	resp, errMsg, err := o.tradeRPC.ShipOrder(id, userName, req.ExpressCompany, req.TrackingNO)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, resp)
@@ -303,9 +368,13 @@ func (o *OrderHandler) ConfirmOrder(c *gin.Context) {
 		return
 	}
 
-	resp, err := o.OrderService.ConfirmOrder(id, userId, userName)
+	resp, errMsg, err := o.tradeRPC.ConfirmOrder(id, userId, userName)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	utils.Success(c, resp)

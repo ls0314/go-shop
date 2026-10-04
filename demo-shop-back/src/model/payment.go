@@ -1,25 +1,13 @@
 package model
 
-import (
-	"time"
-
-	"gorm.io/datatypes"
-)
-
-type UserPayment struct {
-	PaymentId int64          `gorm:"primary_key;autoIncrement;column:payment_id" json:"payment_id"`
-	PayNo     string         `gorm:"column:pay_no" json:"pay_no"`
-	OrderId   int64          `gorm:"column:order_id" json:"order_id"`
-	UserId    int64          `gorm:"column:user_id" json:"user_id"`
-	PayMethod string         `gorm:"column:pay_method" json:"pay_method"`
-	PayAmount float64        `gorm:"column:pay_amount" json:"pay_amount"`
-	PayStatus string         `gorm:"column:pay_status" json:"pay_status"`
-	TradeNo   string         `gorm:"column:trade_no" json:"trade_no"`
-	PayTime   time.Time      `gorm:"column:pay_time" json:"pay_time"`
-	NotifyLog datatypes.JSON `gorm:"column:notify_log" json:"notify_log"`
-	ExpireAt  time.Time      `gorm:"column:expire_at" json:"expire_at"`
-	CreatedAt time.Time      `gorm:"column:created_at" json:"created_at"`
-	UpdateAdt time.Time      `gorm:"column:updated_at" json:"updated_at"`
-}
-
-func (UserPayment) TableName() string { return "user_payment_record" }
+// 支付实体(UserPayment)已删除。
+//
+// `user_payment_record` 表已随 C4 迁到 trade-service 的 trade_db,
+// `demo_shop` 里的表由
+// `db/migrations/000017_retire_order_domain_tables` DROP 掉了。
+//
+// 支付域实体现在在 `services/trade/internal/model/payment.go`。
+// 落库形状有一处**刻意**的差异:trade 侧把 `notify_log` 保留为
+// 原始回调报文(排障刚需 —— 渠道说"我回调过了"时能拿出当时收到什么),
+// 而上面的 `UpdateAdt` 字段名是拼写错误(应为 `UpdatedAt`),
+// 迁出时一并修正了。

@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"demo-shop-back/src/infra/tradeclient"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
+	"demo-shop-back/src/model/response"
 	"demo-shop-back/src/service"
 	"demo-shop-back/src/utils"
 	"strconv"
@@ -10,9 +12,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CartItemHandler 购物车管理handler层实例
+// CartItemHandler 购物车管理handler层实例。
+//
+// 购物车表已迁至 trade-service(独立库 trade_db),本层只做
+// "HTTP 入参绑定 → RPC → HTTP 出参",不再直连 user_cart_item、
+// 也不再在本地联商品表 —— 商品展示字段由 trade 侧经 product RPC 回填。
 type CartItemHandler struct {
-	CartItemService *service.CartItemService // 购物车服务层对象指针
+	tradeRPC *tradeclient.TradeClient
 }
 
 // NewCartItemHandler 创建购物车管理handler层实例
@@ -20,7 +26,7 @@ type CartItemHandler struct {
 // 返回值：*CartItemHandler - 购物车handler指针
 func NewCartItemHandler(deps service.ServiceDeps) *CartItemHandler {
 	return &CartItemHandler{
-		CartItemService: service.NewCartItemService(deps),
+		tradeRPC: deps.TradeRPC,
 	}
 }
 
@@ -39,8 +45,20 @@ func NewCartItemHandler(deps service.ServiceDeps) *CartItemHandler {
 //	500：服务层处理失败（8001 SKU不存在/8002 库存不足/8003 购物车上限/8004 数量超限）
 //	200：加入成功，返回购物车项ID和总数量
 func (ci *CartItemHandler) AddCartItem(c *gin.Context) {
-	// 实例化后绑定请求参数
-	var cartItem model.UserCartItem
+	// 绑定请求体。
+	//
+	// 用**局部结构**而不是 model.UserCartItem:后者是"一行数据"的形状
+	// (带 user_id / is_selected / created_at 等由服务端决定的列),
+	// 拿它绑请求体会让"客户端能传哪些字段"变得看不出来 ——
+	// 实际上只该接受 sku_id 与 quantity。
+	//
+	// 保留 user_id 字段仅为兼容既有前端(它会带上来),但**服务端一律
+	// 用 JWT 里的 userId**:否则就是替别人加购。
+	var cartItem struct {
+		UserId   int64 `json:"user_id"`
+		SkuId    int64 `json:"sku_id"`
+		Quantity int64 `json:"quantity"`
+	}
 	if err := c.ShouldBindJSON(&cartItem); err != nil {
 		utils.Fail(c, 400, model.StatusBadRequest)
 		return
@@ -51,16 +69,17 @@ func (ci *CartItemHandler) AddCartItem(c *gin.Context) {
 		utils.Fail(c, 400, err.Error())
 		return
 	}
-	// 若客户端未传user_id则注入JWT用户ID（防越权）
-	if cartItem.UserId == 0 {
-		cartItem.UserId = userId
-	}
 	// 调用服务层加入购物车（含商品校验、重复累加、上限检查）
-	resp, err := ci.CartItemService.CreateCartItem(userId, &cartItem)
+	cartItemId, quantity, errMsg, err := ci.tradeRPC.CreateCartItem(userId, cartItem.SkuId, cartItem.Quantity)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
 		return
 	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
+		return
+	}
+	resp := response.CartItemCreateResp{CartItemId: cartItemId, Quantity: quantity}
 	// 加入成功，返回购物车项信息
 	utils.Success(c, resp)
 }
@@ -82,9 +101,13 @@ func (ci *CartItemHandler) GetCartItemList(c *gin.Context) {
 		return
 	}
 	// 调用服务层获取购物车列表（含实时联表查询和可用性计算）
-	resp, err := ci.CartItemService.GetCartItemList(userId)
+	resp, errMsg, err := ci.tradeRPC.GetCartItemList(userId)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 查询成功，返回购物车列表
@@ -130,9 +153,13 @@ func (ci *CartItemHandler) UpdateCartItem(c *gin.Context) {
 		return
 	}
 	// 调用服务层更新购物车项（含归属校验和库存校验）
-	resp, err := ci.CartItemService.UpdateCartItem(id, userId, updateCartItem)
+	resp, errMsg, err := ci.tradeRPC.UpdateCartItem(id, userId, updateCartItem.Quantity, updateCartItem.IsSelected)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 更新成功，返回更新后完整信息
@@ -167,8 +194,13 @@ func (ci *CartItemHandler) DeleteCartItem(c *gin.Context) {
 		return
 	}
 	// 调用服务层删除购物车项（含归属校验）
-	if err := ci.CartItemService.DeleteCartItem(id, userId); err != nil {
-		utils.Error(c, 500, err.Error())
+	errMsg, err := ci.tradeRPC.DeleteCartItem(id, userId)
+	if err != nil {
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 删除成功
@@ -202,9 +234,13 @@ func (ci *CartItemHandler) SelectAllCartItem(c *gin.Context) {
 		return
 	}
 	// 调用服务层执行全选/取消全选
-	total, err := ci.CartItemService.SelectAllCartItem(userId, req.IsSelected)
+	total, errMsg, err := ci.tradeRPC.SelectAllCartItems(userId, req.IsSelected)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 操作成功，返回受影响的记录数
@@ -230,9 +266,13 @@ func (ci *CartItemHandler) GetCartItemTotal(c *gin.Context) {
 		return
 	}
 	// 调用服务层统计购物车项数量
-	total, err := ci.CartItemService.GetCartItemTotal(userId)
+	total, errMsg, err := ci.tradeRPC.GetCartItemCount(userId)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 查询成功，返回总数
@@ -258,9 +298,13 @@ func (ci *CartItemHandler) GetPayPreviewCartItem(c *gin.Context) {
 		return
 	}
 	// 调用服务层获取选中项结算预览
-	resp, err := ci.CartItemService.GetPayPreviewCartItem(userId)
+	resp, errMsg, err := ci.tradeRPC.GetCartPayPreview(userId)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failTradeRPC(c, err)
+		return
+	}
+	if errMsg != "" {
+		utils.Error(c, 500, errMsg)
 		return
 	}
 	// 查询成功，返回结算预览数据

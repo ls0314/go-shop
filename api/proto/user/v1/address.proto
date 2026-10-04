@@ -1,0 +1,170 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "demo-shop/api/gen/user/v1;v1_userv1";
+
+import "google/protobuf/timestamp.proto";
+import "user/v1/common.proto";
+
+// ============================================================
+// 地址域(收货地址)
+// ============================================================
+//
+// **归属决策见 DS-A-25 §4.5.2 第 1 条:address → user-service**。
+// 判据是数据所有权问"谁写它"—— 地址由用户自助维护,不是订单的附属物。
+//
+// 从单体迁入。单体时代它是一张 demo_shop.user_address 表 + 6 条 HTTP 路由;
+// 表在 C1 就按归属建到了 user_db(见 migrations/000006),但**读写路径一直
+// 没搬** —— 于是两个库各有一张同名表,其中 user_db 那张是空的。这正是
+// 券域与订单域都踩过的那类中间态,故本次补齐。
+
+// Address 收货地址。
+message Address {
+  int64 address_id = 1;
+  int64 user_id = 2;
+  string receiver_name = 3;
+  string receiver_phone = 4;
+  string province = 5;
+  string city = 6;
+  string district = 7;
+  string detail_address = 8;
+  string postal_code = 9;
+  bool is_default = 10;
+  // address_tag 地址标签(家/公司/学校…)
+  string address_tag = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+// AddressSnapshot 下单用的地址快照。
+//
+// **只有这七个字段**:订单存的是"下单那一刻的地址",它不需要
+// address_id / is_default / address_tag —— 那些是地址簿的管理属性,
+// 与"货发到哪"无关。少传它们也让契约更难被误用
+// (比如拿快照里的 address_id 去反查,而用户之后可能已经删了那条地址)。
+message AddressSnapshot {
+  string receiver_name = 1;
+  string receiver_phone = 2;
+  string province = 3;
+  string city = 4;
+  string district = 5;
+  string detail_address = 6;
+  string postal_code = 7;
+}
+
+// ============================================================
+// 读写
+// ============================================================
+
+message CreateAddressReq {
+  int64 user_id = 1;
+  string receiver_name = 2;
+  string receiver_phone = 3;
+  string province = 4;
+  string city = 5;
+  string district = 6;
+  string detail_address = 7;
+  string postal_code = 8;
+  // is_default 指定为默认地址。
+  // 若该用户还没有任何地址,服务端**强制**设为默认(忽略此字段)——
+  // 否则会得到一个"有地址但没有默认地址"的状态,而结算页要预选默认地址
+  bool is_default = 9;
+  string address_tag = 10;
+}
+
+message CreateAddressResp {
+  int64 address_id = 1;
+  string error_msg = 2;
+}
+
+message GetAddressReq {
+  int64 user_id = 1;
+  int64 address_id = 2;
+}
+
+message GetAddressResp {
+  Address address = 1;
+  string error_msg = 2;
+}
+
+message ListAddressesReq {
+  int64 user_id = 1;
+}
+
+message ListAddressesResp {
+  // 默认地址排最前,其余按 updated_at 倒序
+  repeated Address items = 1;
+  string error_msg = 2;
+}
+
+// UpdateAddressReq 部分更新。
+//
+// 用 repeated FieldUpdate 而不是"可空字段":proto3 的标量无法区分
+// "没传"与"传了零值",而地址的部分更新必须能区分 ——
+// 否则一次只改手机号的请求会把 is_default 一起抹成 false。
+message UpdateAddressReq {
+  int64 user_id = 1;
+  int64 address_id = 2;
+  repeated FieldUpdate updates = 3;
+}
+
+message UpdateAddressResp {
+  Address address = 1;
+  string error_msg = 2;
+}
+
+message DeleteAddressReq {
+  int64 user_id = 1;
+  int64 address_id = 2;
+}
+
+message DeleteAddressResp {
+  string error_msg = 1;
+}
+
+message SetDefaultAddressReq {
+  int64 user_id = 1;
+  int64 address_id = 2;
+}
+
+message SetDefaultAddressResp {
+  string error_msg = 1;
+}
+
+// ============================================================
+// 下单链路专用
+// ============================================================
+
+message GetAddressSnapshotReq {
+  int64 user_id = 1;
+  int64 address_id = 2;
+}
+
+message GetAddressSnapshotResp {
+  AddressSnapshot snapshot = 1;
+  string error_msg = 2;
+}
+
+// AddressService 收货地址服务。
+//
+// 鉴权:不在这里做。每个请求都带 user_id,服务端**逐操作校验归属** ——
+// 地址是"本人可读写"语义的资源,"接口→权限码"式的鉴权不适用(那是
+// RBAC 的事,见 DS-A-25 §4.5.2 第 11 条对 user_info 的同一处理)。
+service AddressService {
+  rpc CreateAddress(CreateAddressReq) returns (CreateAddressResp);
+  rpc GetAddress(GetAddressReq) returns (GetAddressResp);
+  rpc ListAddresses(ListAddressesReq) returns (ListAddressesResp);
+  rpc UpdateAddress(UpdateAddressReq) returns (UpdateAddressResp);
+  rpc DeleteAddress(DeleteAddressReq) returns (DeleteAddressResp);
+  rpc SetDefaultAddress(SetDefaultAddressReq) returns (SetDefaultAddressResp);
+
+  // GetAddressSnapshot 取下单用的地址快照。
+  //
+  // 与 GetAddress 分开而不是复用它:两者的字段集与用途都不同 ——
+  // 快照不含管理属性,而 GetAddress 会返回完整的地址簿条目。
+  // 更要紧的是**调用方的失败处置不同**:下单时把"地址不存在"与
+  // "user-service 不可用"混在一起,会得到"用户地址填错了"这种误导性提示
+  // (DS-A-25 §4.5.2 第 1 条专门点了这一条)。
+  rpc GetAddressSnapshot(GetAddressSnapshotReq) returns (GetAddressSnapshotResp);
+}

@@ -30,6 +30,11 @@ type ServiceContext struct {
 
 	UserRepo        *repository.UserRepo
 	UserProfileRepo *repository.UserProfileRepo
+
+	// AddressRepo 收货地址。表在 C1 就按归属建到了 user_db
+	// (migrations/000006),但读写路径一直留在单体 —— 本次搬过来
+	// (DS-A-25 §4.5.2 第 1 条:address → user-service)。
+	AddressRepo *repository.AddressRepo
 }
 
 func NewServiceContext(config config.Config) *ServiceContext {
@@ -63,5 +68,7 @@ func NewServiceContext(config config.Config) *ServiceContext {
 
 		UserRepo:        repository.NewUserRepo(db),
 		UserProfileRepo: repository.NewUserProfileRepo(db),
+
+		AddressRepo: repository.NewAddressRepo(db),
 	}
 }

@@ -52,4 +52,20 @@ var (
 	// 令牌校验
 	TokenExpired = errors.New("token已过期")
 	TokenInvalid = errors.New("token错误")
+
+	// 地址域。
+	//
+	// **文案与单体 error_info.go 逐字一致** —— 它们是跨服务契约:
+	// 单体的 addressclient 用 error_msg 走 map 还原成本地哨兵
+	// (否则 HTTP 层丢掉了"地址不存在"与"无权修改"的区分),
+	// 而前端直接展示这些文案。改一个字就会让还原失败并静默降级成普通错误。
+	//
+	// 另注意 UserNotSetAddress 的**措辞**:"用户越权修改地址"。
+	// 它不是"地址不存在",但单体的 6 个接口都用它表达"这条地址不属于你",
+	// 迁出时保持不动 —— 改成语义更准的措辞会改变前端提示。
+	AddressNotExist   = errors.New("地址不存在")
+	AddressListIsNull = errors.New("地址列表为空")
+	AddressNumsIsFull = errors.New("地址数量已达上限")
+	UserNotSetAddress = errors.New("用户越权修改地址")
+	ReceiverNotNull   = errors.New("收货人姓名与手机号不能为空")
 )

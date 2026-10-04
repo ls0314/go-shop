@@ -3,6 +3,7 @@ package service
 import (
 	"demo-shop-back/db"
 	"demo-shop-back/src/infra"
+	"demo-shop-back/src/infra/addressclient"
 	"demo-shop-back/src/infra/cache"
 	"demo-shop-back/src/infra/couponclient"
 	"demo-shop-back/src/infra/es"
@@ -38,6 +39,15 @@ type ServiceDeps struct {
 	// 三张域的表已迁至 trade-service 的独立库 trade_db,
 	// 本进程不再直连 user_cart_item / user_order_* / user_payment_record。
 	TradeRPC *tradeclient.TradeClient
+	// AddressRPC 地址域读写。表在 C1 就按归属建到了 user_db
+	// (services/user/migrations/000006),但读写路径一直留在本进程 ——
+	// 本次搬到 user-service(DS-A-25 §4.5.2 第 1 条:address → user-service)。
+	//
+	// 本进程的旧实现(service.AddressService / repository.AddressRepo /
+	// model.UserAddress)已随本次迁移删除。**demo_shop.user_address 那张表
+	// 按既定口径不单独退役** —— 等单体整体退役时一起清,期间它不再被任何
+	// 代码读写(故也不需要为它加"已停更"的警告注释:没有代码看着它)。
+	AddressRPC *addressclient.AddressClient
 }
 
 // NewServiceDeps 在 composition root 读一次全局依赖。
@@ -59,6 +69,19 @@ func NewServiceDeps() ServiceDeps {
 		log.Printf("[WARN] 连接 user-service 失败,判权将不可用: %v", err)
 	} else {
 		deps.UserRPC = client
+	}
+
+	// 地址域:与判权同一个服务(不同 gRPC service),连不上不阻断启动,
+	// 地址接口回 503。单独建连的理由见 addressclient 的说明 ——
+	// 让"地址域不可用"与"判权不可用"在日志上各自可辨。
+	addrClient, err := addressclient.NewAddressClient(
+		envList("DEMO_SHOP_ETCD_HOSTS", "127.0.0.1:2379"),
+		getEnv("DEMO_SHOP_ETCD_KEY", "user-service"),
+	)
+	if err != nil {
+		log.Printf("[WARN] 连接 user-service 地址域失败,地址接口将不可用: %v", err)
+	} else {
+		deps.AddressRPC = addrClient
 	}
 
 	// 商品/类目读写同样走 RPC(与库存同一个服务,复用 etcd key)。

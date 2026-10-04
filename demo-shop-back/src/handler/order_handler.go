@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"demo-shop-back/src/infra/addressclient"
 	"demo-shop-back/src/infra/tradeclient"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/model/requset"
@@ -13,16 +14,22 @@ import (
 
 // OrderHandler 订单管理handler层实例。
 //
-// 订单三表已迁至 trade-service(独立库 trade_db),本层只做
-// "HTTP 入参绑定 → RPC → HTTP 出参"。
+// 订单三表已迁至 trade-service(独立库 trade_db),地址表已迁至
+// user-service(独立库 user_db),本层只做 "HTTP 入参绑定 → RPC → HTTP 出参"。
 //
-// **仍持有 AddressService**:地址表没迁(它归 user 域,见待办 §7.1),
-// 而下单需要地址快照 —— 本层先用它校验归属并把地址取出来,
-// 再把快照传给 trade。这样 trade 不必跨库读地址,也不破坏
-// "订单存的是下单那一刻的地址"这个语义。
+// **下单为什么由本层取地址快照、而不是 trade 自己去取**:
+// 本层与 trade 都要跨服务取地址,区别在于"谁承担这一跳"。
+// 让门面取的好处是 trade 少一个下游依赖(它只需要信任传进来的快照),
+// 代价是多一跳在门面 —— 而门面本来就是唯一知道"用户是谁、选了哪条地址"的地方。
 type OrderHandler struct {
-	tradeRPC   *tradeclient.TradeClient
-	addressSvc *service.AddressService
+	tradeRPC *tradeclient.TradeClient
+	// addressRPC 下单要取地址快照。
+	//
+	// 用 GetAddressSnapshot 而非 GetAddress:前者只返回发货需要的七个字段,
+	// 且把"地址不存在"(业务失败)与"user-service 不可用"(基础设施失败)
+	// 分得开 —— 下单时把后者说成"地址填错了"是最误导的一类提示
+	// (DS-A-25 §4.5.2 第 1 条专门点了这条)。
+	addressRPC *addressclient.AddressClient
 }
 
 // NewOrderHandler 创建订单管理handler层实例
@@ -31,7 +38,7 @@ type OrderHandler struct {
 func NewOrderHandler(deps service.ServiceDeps) *OrderHandler {
 	return &OrderHandler{
 		tradeRPC:   deps.TradeRPC,
-		addressSvc: service.NewAddressService(deps),
+		addressRPC: deps.AddressRPC,
 	}
 }
 
@@ -67,9 +74,13 @@ func (o *OrderHandler) CreateOrder(c *gin.Context) {
 	// 地址表在 user_db,trade 跨库读不到;而且订单存的是**下单那一刻**的
 	// 地址快照,由本层从权威数据源取一次再传过去,语义最贴切。
 	// GetAddress 内部会校验归属(防横向越权),故这次调用同时完成了鉴权。
-	addr, err := o.addressSvc.GetAddress(userId, orderReq.AddressId)
+	// 用 GetAddressSnapshot 而不是 GetAddress:两者失败语义不同 ——
+	// 前者把"地址不存在"与"user-service 不可用"分得开(后者会还原成
+	// ErrUnavailable),下单时给用户一个"地址填错了"的误导提示是
+	// 最不该发生的(DS-A-25 §4.5.2 第 1 条专门点了这条)。
+	addr, err := o.addressRPC.GetAddressSnapshot(userId, orderReq.AddressId)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failAddressRPC(c, err)
 		return
 	}
 

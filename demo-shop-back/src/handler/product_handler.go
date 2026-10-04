@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"demo-shop-back/src/infra/addressclient"
 	"demo-shop-back/src/infra/productclient"
 	"demo-shop-back/src/infra/tradeclient"
 	"demo-shop-back/src/model"
@@ -50,6 +51,21 @@ func failRPC(c *gin.Context, err error) {
 // 混在一起会让"哪个下游挂了"在日志里看不清。
 func failTradeRPC(c *gin.Context, err error) {
 	if errors.Is(err, tradeclient.ErrUnavailable) || isServiceUnavailableMsg(err.Error()) {
+		utils.Unavailable(c, err.Error())
+		return
+	}
+	utils.Error(c, 500, err.Error())
+}
+
+// failAddressRPC 地址域的 RPC 错误处理。
+//
+// 注意**业务失败也走这里**:地址不存在/越权修改在客户端已由
+// RestoreError 还原成本地哨兵,故它们会落到下面的 500 分支 ——
+// 与单体原先的行为一致(那 6 个接口本来就都回 500)。
+// 若将来要做 404/403 的语义区分,判据就在这个函数里加,
+// 而不是散回各 handler。
+func failAddressRPC(c *gin.Context, err error) {
+	if errors.Is(err, addressclient.ErrUnavailable) || isServiceUnavailableMsg(err.Error()) {
 		utils.Unavailable(c, err.Error())
 		return
 	}

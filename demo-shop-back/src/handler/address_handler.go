@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"demo-shop-back/src/infra/addressclient"
 	"demo-shop-back/src/model"
 	"demo-shop-back/src/service"
 	"demo-shop-back/src/utils"
@@ -9,17 +10,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// AddressHandler 用户地址管理handler层实例
+// AddressHandler 用户地址管理handler层实例。
+//
+// 地址表的所有权已迁 user-service 的 user_db(DS-A-25 §4.5.2 第 1 条),
+// 本层只做 "HTTP 入参绑定 → RPC → HTTP 出参"。
+//
+// 请求体用 addressclient.Address 而不是某个实体的形状:地址是"一次调用"
+// 的输入,不是"一行数据"—— 后者会带上 is_deleted 之类由服务端决定的列,
+// 让"客户端能传哪些字段"从代码上看不出来。
 type AddressHandler struct {
-	AddressService *service.AddressService // 地址服务层对象指针
+	addressRPC *addressclient.AddressClient
 }
 
 // NewAddressHandler 创建地址管理handler层实例
-// 接收值：无接收值，全局实例化
-// 返回值：*AddressHandler - 地址handler指针
 func NewAddressHandler(deps service.ServiceDeps) *AddressHandler {
 	return &AddressHandler{
-		AddressService: service.NewAddressService(deps),
+		addressRPC: deps.AddressRPC,
 	}
 }
 
@@ -46,7 +52,7 @@ func NewAddressHandler(deps service.ServiceDeps) *AddressHandler {
 //	200：创建成功，返回新地址ID
 func (ah *AddressHandler) CreateAddress(c *gin.Context) {
 	// 实例化后绑定请求参数
-	var address model.UserAddress
+	var address addressclient.Address
 	if err := c.ShouldBind(&address); err != nil {
 		utils.Fail(c, 400, model.StatusBadRequest)
 		return
@@ -59,9 +65,9 @@ func (ah *AddressHandler) CreateAddress(c *gin.Context) {
 	}
 	address.UserId = userId
 	// 调用服务层创建地址
-	addressId, err := ah.AddressService.CreateAddress(&address)
+	addressId, err := ah.addressRPC.CreateAddress(&address)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failAddressRPC(c, err)
 		return
 	}
 	// 创建成功，返回新地址ID
@@ -85,9 +91,9 @@ func (ah *AddressHandler) GetAddressList(c *gin.Context) {
 		return
 	}
 	// 调用服务层获取地址列表
-	addressList, err := ah.AddressService.GetAddressList(userId)
+	addressList, err := ah.addressRPC.GetAddressList(userId)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failAddressRPC(c, err)
 		return
 	}
 	// 查询成功，返回地址列表
@@ -122,9 +128,9 @@ func (ah *AddressHandler) GetAddress(c *gin.Context) {
 		return
 	}
 	// 调用服务层查询地址详情（含归属校验）
-	address, err := ah.AddressService.GetAddress(userId, id)
+	address, err := ah.addressRPC.GetAddress(userId, id)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failAddressRPC(c, err)
 		return
 	}
 	// 查询成功，返回地址信息
@@ -169,9 +175,9 @@ func (ah *AddressHandler) UpdateAddress(c *gin.Context) {
 		return
 	}
 	// 调用服务层更新地址（含归属校验）
-	address, err := ah.AddressService.UpdateAddress(userId, id, updateAddress)
+	address, err := ah.addressRPC.UpdateAddress(userId, id, updateAddress)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failAddressRPC(c, err)
 		return
 	}
 	// 更新成功，返回更新后完整地址
@@ -206,9 +212,9 @@ func (ah *AddressHandler) DeleteAddress(c *gin.Context) {
 		return
 	}
 	// 调用服务层执行软删除（含归属校验和默认转移）
-	err = ah.AddressService.DeleteAddress(userId, id)
+	err = ah.addressRPC.DeleteAddress(userId, id)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failAddressRPC(c, err)
 		return
 	}
 	// 删除成功
@@ -243,9 +249,9 @@ func (ah *AddressHandler) SetDefaultAddress(c *gin.Context) {
 		return
 	}
 	// 调用服务层在事务内设置默认地址
-	err = ah.AddressService.SetDefaultAddress(userId, id)
+	err = ah.addressRPC.SetDefaultAddress(userId, id)
 	if err != nil {
-		utils.Error(c, 500, err.Error())
+		failAddressRPC(c, err)
 		return
 	}
 	// 设置成功

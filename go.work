@@ -3,8 +3,10 @@ go 1.25.11
 use (
 	./api
 	./demo-shop-back
-	./services/product
-	./services/user
+	./pkg
+	./services/bff
 	./services/marketing
+	./services/product
 	./services/trade
+	./services/user
 )

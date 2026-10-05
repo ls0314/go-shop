@@ -1,0 +1,1082 @@
+syntax = "v1"
+
+info (
+	title:   "demo-shop BFF"
+	desc:    "对外 HTTP 收敛层。鉴权:本地 RS256 验签 + identity 透传;不判权。"
+	version: "1.0"
+)
+
+// ============================================================
+// 本文件是 BFF 的唯一契约来源
+// ============================================================
+//
+// 字段名与响应形状**都是从单体 handler 逐个提取的**,不是按 proto 推的。
+// 两者不同,原因是单体 handler 手写,做了两件事:
+//
+// ① proto → model 的字段改名(如 resp.Items → gin.H{"list": ...})
+// ② 把 proto 的包装层剥掉(如 resp.Role → utils.Success(c, role))
+//
+// 故照 proto 的结构写 .api 会得到"前端解不到值但不报错"的接口 ——
+// 这类缺陷最难发现。凡有疑问,判据是单体 handler 里
+// `utils.Success` 的第二个参数是什么。
+//
+// ============================================================
+// goctl 1.9.2 的语法约束(实测)
+// ============================================================
+//
+//  1. **不支持 `any`**,只认 `interface{}`
+//  2. **不支持类型别名** `type X = Y` —— 类型声明必须是 struct 字面量
+//  3. **`{ X }` 是 Go 匿名内嵌**,字段会提升,JSON 与展开一致。
+//     本文件用它表达"响应就是那个实体",避免把字段抄 4 遍。
+//     代价:logic 里要先取值再拷进内嵌字段。
+//  4. `returns (int64)` / `returns ([]MenuItem)` 等**标量返回可用**
+//
+// ============================================================
+// 查询参数名是 camelCase(易错)
+// ============================================================
+//
+// 单体的 RBAC 与 category 域用 `c.Query("roleType")` 这类**直接取值**,
+// 参数名是 camelCase;而业务域(商品/订单/券)用 request struct 的
+// `form` tag,是 snake_case。
+//
+// **两者不能混**。把 roleType 写成 role_type 的后果是
+// httpx.Parse 静默丢弃该参数 → **筛选条件失效,列表返回全部,不报错**。
+//
+// 故本文件里:
+//
+// RBAC / category  → camelCase(pageSize / roleType / permType /
+//                    menuType / deptType / resourceType)
+// 分页参数         → 一律 pageSize(单体全部用 DefaultQuery("pageSize"))
+//
+// ============================================================
+// 中间件:11 个 @server 块全部带 RequestMeta
+// ============================================================
+//
+// RequestMeta 把 client_ip / device 放进 context(登录日志要用),
+// 它对**所有**路由生效 —— 包括不鉴权的登录/注册。
+//
+// 不能把它寄生在 Auth 里:登录挂在 PublicRateLimit 组上、不经过 Auth,
+// 而那恰恰是最需要记 IP 的接口(要能看出某个 IP 在爆破)。
+//
+// **每加一个新的 @server 块都要带上 RequestMeta** —— 漏掉的后果是
+// 那个组的登录日志字段为空,而客户端与前端都察觉不到。
+// ============================================================
+// 通用类型
+// ============================================================
+type (
+	// Empty 无入参 / 无载荷。
+	//
+	// **注意与单体的差异**:单体那些 `utils.Success(c, nil)` 的接口
+	// 返回 `"data": null`,而 returns (Empty) 会生成 `&types.Empty{}`,
+	// 序列化成 `"data": {}`。若前端判 `data === null` 会走错分支。
+	// 端到端验证时确认一次。
+	Empty  {}
+	// HealthResp 探活响应
+	HealthResp {
+		Status string `json:"status"`
+	}
+)
+
+// ============================================================
+// 路径参数类型
+// ============================================================
+//
+// **参数名不能改**:判权将按 c.FullPath() 反查权限码,而 FullPath
+// 里含参数名。把 :userId 改成 :id 会让该接口的判权失效。
+//
+// 分这么多同构的类型(每个域一个)是因为 goctl 的路径参数类型
+// 不能跨路由复用得太随意 —— 且这样每个域的类型名自带归属,
+// 读 .api 时不用回头找定义。
+type (
+	AddrIdReq {
+		Id int64 `path:"id"`
+	}
+	UserIdReq {
+		Id int64 `path:"id"`
+	}
+	RoleIdReq {
+		Id int64 `path:"id"`
+	}
+	PermissionIdReq {
+		Id int64 `path:"id"`
+	}
+	MenuIdReq {
+		Id int64 `path:"id"`
+	}
+	ScopeIdReq {
+		Id int64 `path:"id"`
+	}
+	DeptIdReq {
+		Id int64 `path:"id"`
+	}
+	// RelIdReq 五组关联绑定(role_perm / role_menu / menu_perm /
+	// user_role / user_dept)的 list 与 clear 共用 :id。
+	//
+	// 语义随所属路由变:在 /admin/role/:id/perm 下是 role_id,
+	// 在 /admin/user/:id/role 下是 user_id。逻辑里显式映射。
+	RelIdReq {
+		Id int64 `path:"id"`
+	}
+)
+
+// ============================================================
+// 认证
+// ============================================================
+//
+// 响应形状来自单体 user_handler.go 的 gin.H:
+//
+// Login:        gin.H{"access_token": ..., "refresh_token": ...}
+// RefreshToken: gin.H{"access_token": ...}     ← 只有一个
+// GetSelfInfo:  gin.H{user_id, username, email, phone, status, profile}
+// GetSelfPerms: gin.H{"perms": codes}          ← 键名是 perms
+//
+// 注意 Register 是 utils.Success(c, user) —— **裸 User 对象**,
+// 没有 user 那一层包装。
+type (
+	RegisterReq {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Phone    string `json:"phone,optional"`
+		Email    string `json:"email,optional"`
+		// Nickname 为空时服务端回落为用户名
+		Nickname string `json:"nickname,optional"`
+	}
+	RegisterResp {
+		UserId    int64  `json:"user_id"`
+		Username  string `json:"username"`
+		Email     string `json:"email"`
+		Phone     string `json:"phone"`
+		Status    string `json:"status"`
+		CreatedAt string `json:"created_at"`
+		UpdatedAt string `json:"updated_at"`
+	}
+	LoginReq {
+		// Username 与 Phone 二选一,都为空时按用户名查询
+		Username string `json:"username,optional"`
+		Phone    string `json:"phone,optional"`
+		Password string `json:"password"`
+	}
+	LoginResp {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}
+	RefreshTokenReq {
+		RefreshToken string `json:"refresh_token"`
+	}
+	// RefreshTokenResp **只有 access_token** —— refresh 令牌不轮换,
+	// 与既有前端行为一致(刷新后前端仍持有旧 refresh_token)
+	RefreshTokenResp {
+		AccessToken string `json:"access_token"`
+	}
+	// GetSelfInfoResp 出处 handler/user_handler.go:121 的 gin.H
+	GetSelfInfoResp {
+		UserId   int64  `json:"user_id"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Phone    string `json:"phone"`
+		Status   string `json:"status"`
+		// Profile 是**嵌套对象**(UserProfile 本体),不是摊平的字段
+		Profile SelfProfile `json:"profile"`
+	}
+	SelfProfile {
+		UserInfoId int64  `json:"user_info_id"`
+		UserId     int64  `json:"user_id"`
+		Nickname   string `json:"nickname"`
+		RealName   string `json:"real_name"`
+		Gender     string `json:"gender"`
+		AvatarUrl  string `json:"avatar_url"`
+		Birthdate  string `json:"birthdate"`
+		CreatedAt  string `json:"created_at"`
+		UpdatedAt  string `json:"updated_at"`
+	}
+	// GetSelfPermsResp 出处 handler/user_handler.go:153 gin.H{"perms": codes}
+	// **键名是 perms 而不是 proto 的 perm_codes**
+	GetSelfPermsResp {
+		Perms []string `json:"perms"`
+	}
+)
+
+// ============================================================
+// 用户管理
+// ============================================================
+//
+// **本域的响应形状与其它域都不同**:
+//
+// 单实体(Get/Create/Update) → 裸 User 对象
+// 列表                        → {list, total, page, **pageSize**}
+//
+// 那个 pageSize 是 camelCase —— 单体 handler 手工写的键名
+// (handler/user_handler.go:200),而其它域的列表只有 {list, total}。
+type (
+	ListUsersReq {
+		Page     int    `form:"page,optional"`
+		PageSize int    `form:"pageSize,optional"`
+		Status   string `form:"status,optional"`
+	}
+	ListUsersResp {
+		List     []UserItem `json:"list"`
+		Total    int64      `json:"total"`
+		Page     int        `json:"page"`
+		PageSize int        `json:"pageSize"`
+	}
+	UserItem {
+		UserId    int64  `json:"user_id"`
+		Username  string `json:"username"`
+		Email     string `json:"email"`
+		Phone     string `json:"phone"`
+		Status    string `json:"status"`
+		CreatedAt string `json:"created_at"`
+		UpdatedAt string `json:"updated_at"`
+	}
+	GetUserResp {
+		UserItem
+	}
+	CreateUserReq {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Phone    string `json:"phone,optional"`
+		Email    string `json:"email,optional"`
+		Status   string `json:"status,optional"`
+	}
+	CreateUserResp {
+		UserItem
+	}
+	UpdateUserReq {
+		Id       int64   `path:"id"`
+		Username *string `json:"username,optional"`
+		Phone    *string `json:"phone,optional"`
+		Email    *string `json:"email,optional"`
+		Status   *string `json:"status,optional"`
+		Password *string `json:"password,optional"`
+	}
+	UpdateUserResp {
+		UserItem
+	}
+)
+
+// ============================================================
+// 用户档案
+// ============================================================
+//
+// 路由在 /admin/user/info 下但**不判权** —— 授权模型是**归属校验**:
+//
+// CreateUserInfo: 归属强制为 JWT 里的 userId,请求体里没有这个字段
+// 其余 3 条:      JWT 里的 userId 必须等于路径 :id
+//
+// 前缀里的 "admin" 是历史遗留命名,不代表需要管理员权限。
+// **不要因为看到 /admin 就给它加权限码** —— 那会让普通用户改不了自己资料。
+//
+// 三条的 data 都是 **UserProfile 本体**(单体 utils.Success(c, profile))。
+type (
+	CreateUserInfoReq {
+		Nickname  string `json:"nickname,optional"`
+		RealName  string `json:"real_name,optional"`
+		Gender    string `json:"gender,optional"`
+		AvatarUrl string `json:"avatar_url,optional"`
+		Birthdate string `json:"birthdate,optional"`
+	}
+	CreateUserInfoResp {
+		UserInfoId int64  `json:"user_info_id"`
+		UserId     int64  `json:"user_id"`
+		Nickname   string `json:"nickname"`
+		RealName   string `json:"real_name"`
+		Gender     string `json:"gender"`
+		AvatarUrl  string `json:"avatar_url"`
+		Birthdate  string `json:"birthdate"`
+		CreatedAt  string `json:"created_at"`
+		UpdatedAt  string `json:"updated_at"`
+	}
+	GetUserInfoResp {
+		UserInfoId int64  `json:"user_info_id"`
+		UserId     int64  `json:"user_id"`
+		Nickname   string `json:"nickname"`
+		RealName   string `json:"real_name"`
+		Gender     string `json:"gender"`
+		AvatarUrl  string `json:"avatar_url"`
+		Birthdate  string `json:"birthdate"`
+		CreatedAt  string `json:"created_at"`
+		UpdatedAt  string `json:"updated_at"`
+	}
+	UpdateUserInfoReq {
+		Id        int64   `path:"id"`
+		Nickname  *string `json:"nickname,optional"`
+		RealName  *string `json:"real_name,optional"`
+		Gender    *string `json:"gender,optional"`
+		AvatarUrl *string `json:"avatar_url,optional"`
+		Birthdate *string `json:"birthdate,optional"`
+	}
+	UpdateUserInfoResp {
+		UserInfoId int64  `json:"user_info_id"`
+		UserId     int64  `json:"user_id"`
+		Nickname   string `json:"nickname"`
+		RealName   string `json:"real_name"`
+		Gender     string `json:"gender"`
+		AvatarUrl  string `json:"avatar_url"`
+		Birthdate  string `json:"birthdate"`
+		CreatedAt  string `json:"created_at"`
+		UpdatedAt  string `json:"updated_at"`
+	}
+)
+
+// ============================================================
+// 角色
+// ============================================================
+//
+// 单实体响应是**裸角色对象**(单体 utils.Success(c, role)),
+// 故用匿名内嵌 RoleItem 表达 —— 序列化后字段提升,与裸对象一致。
+//
+// 内嵌的代价:*RoleItem 与 *GetRoleResp 是两个具名类型,
+// logic 里不能直接赋值,要先 `item := converter.RoleItem(...)`
+// 再 `&types.GetRoleResp{RoleItem: item}`。
+type (
+	RoleItem {
+		RoleId      int64  `json:"role_id"`
+		RoleName    string `json:"role_name"`
+		RoleType    string `json:"role_type"`
+		Description string `json:"description"`
+		IsSystem    bool   `json:"is_system"`
+		IsDefault   bool   `json:"is_default"`
+		DataScope   string `json:"data_scope"`
+		CreatedAt   string `json:"created_at"`
+	}
+	ListRolesReq {
+		Page     int    `form:"page,optional"`
+		PageSize int    `form:"pageSize,optional"`
+		RoleType string `form:"roleType,optional"`
+	}
+	ListRolesResp {
+		List  []RoleItem `json:"list"`
+		Total int64      `json:"total"`
+	}
+	GetRoleResp {
+		RoleItem
+	}
+	CreateRoleReq {
+		RoleName    string `json:"role_name"`
+		RoleType    string `json:"role_type,optional"`
+		Description string `json:"description,optional"`
+		DataScope   string `json:"data_scope,optional"`
+		IsDefault   bool   `json:"is_default,optional"`
+	}
+	CreateRoleResp {
+		RoleItem
+	}
+	// UpdateRoleReq 刻意**不含 role_type 与 is_system**:
+	// 改 role_type 会让既有 role_perm 绑定的语义不明;
+	// is_system 是"不可改不可删"标记,只能由种子数据设置。
+	UpdateRoleReq {
+		Id          int64   `path:"id"`
+		RoleName    *string `json:"role_name,optional"`
+		Description *string `json:"description,optional"`
+		DataScope   *string `json:"data_scope,optional"`
+		IsDefault   *bool   `json:"is_default,optional"`
+	}
+	UpdateRoleResp {
+		RoleItem
+	}
+)
+
+// ============================================================
+// 权限点
+// ============================================================
+type (
+	PermissionItem {
+		PermissionId   int64  `json:"permission_id"`
+		PermissionCode string `json:"permission_code"`
+		PermissionName string `json:"permission_name"`
+		PermissionType string `json:"permission_type"`
+		RequestMethod  string `json:"request_method"`
+		ApiPath        string `json:"api_path"`
+		Description    string `json:"description"`
+		IsSystem       bool   `json:"is_system"`
+	}
+	// 过滤参数是 **permType**(不是 permissionType)—— 单体
+	// permission_handler.go 是 c.Query("permType")
+	ListPermissionsReq {
+		Page           int    `form:"page,optional"`
+		PageSize       int    `form:"pageSize,optional"`
+		PermissionType string `form:"permType,optional"`
+	}
+	ListPermissionsResp {
+		List  []PermissionItem `json:"list"`
+		Total int64            `json:"total"`
+	}
+	GetPermissionResp {
+		PermissionItem
+	}
+	CreatePermissionReq {
+		PermissionCode string `json:"permission_code"`
+		PermissionName string `json:"permission_name"`
+		PermissionType string `json:"permission_type"`
+		RequestMethod  string `json:"request_method,optional"`
+		// ApiPath 是判权的键,**必须与路由模板逐字一致**(含 :id 等参数名),
+		// 且带 /api/v1 前缀。BFF 不校验也不"修正"它 ——
+		// 那会让同一个值在两处被不同地解释。
+		ApiPath     string `json:"api_path,optional"`
+		Description string `json:"description,optional"`
+	}
+	CreatePermissionResp {
+		PermissionItem
+	}
+	UpdatePermissionReq {
+		Id             int64   `path:"id"`
+		PermissionName *string `json:"permission_name,optional"`
+		ApiPath        *string `json:"api_path,optional"`
+		Description    *string `json:"description,optional"`
+	}
+	UpdatePermissionResp {
+		PermissionItem
+	}
+)
+
+// ============================================================
+// 菜单
+// ============================================================
+//
+// MetaInfo 是 google.protobuf.Struct → JSON 对象,故用 interface{}。
+// **必须走 AsMap()**:直接序列化 structpb.Struct 会输出
+// {"fields": {...}} 这种 protobuf 内部结构,前端解 meta_info.title
+// 会全变 undefined。
+type (
+	MenuItem {
+		MenuId    int64       `json:"menu_id"`
+		ParentId  int64       `json:"parent_id"`
+		MenuName  string      `json:"menu_name"`
+		MenuType  string      `json:"menu_type"`
+		Icon      string      `json:"icon"`
+		RoutePath string      `json:"route_path"`
+		Component string      `json:"component"`
+		IsVisible bool        `json:"is_visible"`
+		IsCache   bool        `json:"is_cache"`
+		SortOrder int64       `json:"sort_order"`
+		MetaInfo  interface{} `json:"meta_info"`
+		CreatedAt string      `json:"created_at"`
+		// Children 递归。树查询时填充,列表查询时为空
+		// (proto 注释明确写了这一点)。
+		Children []MenuItem `json:"children"`
+	}
+	ListMenusReq {
+		Page     int    `form:"page,optional"`
+		PageSize int    `form:"pageSize,optional"`
+		MenuType string `form:"menuType,optional"`
+	}
+	ListMenusResp {
+		List  []MenuItem `json:"list"`
+		Total int64      `json:"total"`
+	}
+	GetMenuResp {
+		MenuItem
+	}
+	CreateMenuReq {
+		ParentId  int64       `json:"parent_id,optional"`
+		MenuName  string      `json:"menu_name"`
+		MenuType  string      `json:"menu_type"`
+		Icon      string      `json:"icon,optional"`
+		RoutePath string      `json:"route_path,optional"`
+		Component string      `json:"component,optional"`
+		IsVisible bool        `json:"is_visible,optional"`
+		IsCache   bool        `json:"is_cache,optional"`
+		SortOrder int64       `json:"sort_order,optional"`
+		MetaInfo  interface{} `json:"meta_info,optional"`
+	}
+	CreateMenuResp {
+		MenuItem
+	}
+	UpdateMenuReq {
+		Id        int64       `path:"id"`
+		MenuName  *string     `json:"menu_name,optional"`
+		Icon      *string     `json:"icon,optional"`
+		RoutePath *string     `json:"route_path,optional"`
+		Component *string     `json:"component,optional"`
+		IsVisible *bool       `json:"is_visible,optional"`
+		IsCache   *bool       `json:"is_cache,optional"`
+		SortOrder *int64      `json:"sort_order,optional"`
+		MetaInfo  interface{} `json:"meta_info,optional"`
+	}
+	UpdateMenuResp {
+		MenuItem
+	}
+	// GetMenuTreeByUserIdReq 是 **POST** 且 body 带 user_id
+	// (前端登录后生成动态路由)。但 logic **不信任这个字段** ——
+	// 它用 JWT 里的身份,否则任何登录用户都能查别人的权限范围。
+	GetMenuTreeByUserIdReq {
+		UserId int64 `json:"user_id,optional"`
+	}
+	// GetMenuTreeByRoleIdReq 是 GET,路径参数 :id 的语义是 role_id
+	// (角色分配菜单页回显已选)
+	GetMenuTreeByRoleIdReq {
+		Id int64 `path:"id"`
+	}
+)
+
+// 两个树查询的响应都是**裸数组**(单体 utils.Success(c, menuTree)),
+// 故路由上写 returns ([]MenuItem),不包 {list: [...]}。
+// ============================================================
+// 部门
+// ============================================================
+type (
+	DeptItem {
+		DeptId    int64      `json:"dept_id"`
+		ParentId  int64      `json:"parent_id"`
+		DeptName  string     `json:"dept_name"`
+		DeptType  string     `json:"dept_type"`
+		LeaderId  int64      `json:"leader_id"`
+		SortOrder int64      `json:"sort_order"`
+		Status    string     `json:"status"`
+		CreatedAt string     `json:"created_at"`
+		Children  []DeptItem `json:"children"`
+	}
+	ListDeptsReq {
+		Page     int    `form:"page,optional"`
+		PageSize int    `form:"pageSize,optional"`
+		DeptType string `form:"deptType,optional"`
+	}
+	ListDeptsResp {
+		List  []DeptItem `json:"list"`
+		Total int64      `json:"total"`
+	}
+	GetDeptResp {
+		DeptItem
+	}
+	CreateDeptReq {
+		ParentId  int64  `json:"parent_id,optional"`
+		DeptName  string `json:"dept_name"`
+		DeptType  string `json:"dept_type,optional"`
+		LeaderId  int64  `json:"leader_id,optional"`
+		SortOrder int64  `json:"sort_order,optional"`
+		Status    string `json:"status,optional"`
+	}
+	CreateDeptResp {
+		DeptItem
+	}
+	UpdateDeptReq {
+		Id        int64   `path:"id"`
+		DeptName  *string `json:"dept_name,optional"`
+		DeptType  *string `json:"dept_type,optional"`
+		LeaderId  *int64  `json:"leader_id,optional"`
+		SortOrder *int64  `json:"sort_order,optional"`
+		Status    *string `json:"status,optional"`
+	}
+	UpdateDeptResp {
+		DeptItem
+	}
+	// GetDeptTreeByUserIdReq 路径参数是 **:userId**(与同组 GET /:id 不同)。
+	// 参数名不可改(判权按 FullPath 反查)。
+	//
+	// 响应同样是**裸数组**(returns ([]DeptItem))。
+	//
+	// 与菜单树的语义差别:菜单树无权限时返回**空数组**,
+	// 而**部门树在用户无所属部门时返回业务错误**(proto 注释写明)。
+	GetDeptTreeByUserIdReq {
+		UserId int64 `path:"userId"`
+	}
+)
+
+// ============================================================
+// 数据权限
+// ============================================================
+type (
+	ScopeItem {
+		ScopeId        int64  `json:"scope_id"`
+		RoleId         int64  `json:"role_id"`
+		ResourceType   string `json:"resource_type"`
+		FieldName      string `json:"field_name"`
+		ConditionType  string `json:"condition_type"`
+		ConditionValue string `json:"condition_value"`
+		Description    string `json:"description"`
+		CreatedAt      string `json:"created_at"`
+	}
+	ListScopesReq {
+		Page         int    `form:"page,optional"`
+		PageSize     int    `form:"pageSize,optional"`
+		ResourceType string `form:"resourceType,optional"`
+	}
+	ListScopesResp {
+		List  []ScopeItem `json:"list"`
+		Total int64       `json:"total"`
+	}
+	GetScopeResp {
+		ScopeItem
+	}
+	CreateScopeReq {
+		RoleId         int64  `json:"role_id"`
+		ResourceType   string `json:"resource_type"`
+		FieldName      string `json:"field_name,optional"`
+		ConditionType  string `json:"condition_type,optional"`
+		ConditionValue string `json:"condition_value,optional"`
+		Description    string `json:"description,optional"`
+	}
+	CreateScopeResp {
+		ScopeItem
+	}
+	UpdateScopeReq {
+		Id             int64   `path:"id"`
+		ResourceType   *string `json:"resource_type,optional"`
+		FieldName      *string `json:"field_name,optional"`
+		ConditionType  *string `json:"condition_type,optional"`
+		ConditionValue *string `json:"condition_value,optional"`
+		Description    *string `json:"description,optional"`
+	}
+	UpdateScopeResp {
+		ScopeItem
+	}
+)
+
+// ============================================================
+// 五组关联绑定
+// ============================================================
+//
+// 五组结构同构:assign(POST,全量替换)/ list(GET)/ clear(DELETE)。
+//
+// **assign 是"先清空再写入",不是追加** —— 前端传的必须是完整集合:
+//
+// 原本 [1,2] 想加 3 → 传 [1,2,3] ✅;传 [3] ❌ (1,2 被清掉)
+//
+// 空数组是合法输入(表示清空),**不要拦** —— 前端"全部取消勾选后
+// 保存"会用到。
+//
+// **assign 的响应**:单体是 utils.Success(c, req) —— **回显请求体**。
+// 而这里写的是 returns (Empty)(回 {})。原因:写
+// returns (AssignRolePermsReq) 会让 goctl 生成"入参与出参同类型"的
+// 签名,能编译但读代码时看不出是回显。
+//
+// **这是与单体的已知可见差异**,端到端验证时确认前端是否依赖回显。
+type (
+	AssignRolePermsReq {
+		RoleId  int64   `json:"role_id"`
+		PermIds []int64 `json:"perm_ids"`
+	}
+	AssignRoleMenusReq {
+		RoleId  int64   `json:"role_id"`
+		MenuIds []int64 `json:"menu_ids"`
+	}
+	AssignMenuPermsReq {
+		MenuId  int64   `json:"menu_id"`
+		PermIds []int64 `json:"perm_ids"`
+	}
+	AssignUserRolesReq {
+		UserId  int64   `json:"user_id"`
+		RoleIds []int64 `json:"role_ids"`
+	}
+	AssignUserDeptsReq {
+		UserId  int64   `json:"user_id"`
+		DeptIds []int64 `json:"dept_ids"`
+		// PrimaryIndex 主部门在 dept_ids 中的**下标**,不是部门ID。
+		// 越界或为负表示无主部门。
+		//
+		// **不要"顺手修正"成 ID**:服务端按下标解析,传 ID 会被当成下标 ——
+		// 若 ID 恰好落在 [0, len) 区间会静默选错主部门。
+		PrimaryIndex int64 `json:"primary_index,optional"`
+	}
+	ListRolePermsResp {
+		List  []PermissionItem `json:"list"`
+		Total int64            `json:"total"`
+	}
+	ListRoleMenusResp {
+		List  []MenuItem `json:"list"`
+		Total int64      `json:"total"`
+	}
+	ListMenuPermsResp {
+		List  []PermissionItem `json:"list"`
+		Total int64            `json:"total"`
+	}
+	ListUserRolesResp {
+		List  []RoleItem `json:"list"`
+		Total int64      `json:"total"`
+	}
+	ListUserDeptsResp {
+		List  []DeptItem `json:"list"`
+		Total int64      `json:"total"`
+		// PrimaryDeptId 主部门的**部门ID**,无主部门时为 0。
+		//
+		// 与 AssignUserDeptsReq.PrimaryIndex 不是一个东西:
+		// 一个下标、一个 ID。前端典型用法是把 dept_id == primary_dept_id
+		// 的那一项标为"主部门"。
+		PrimaryDeptId int64 `json:"primary_dept_id"`
+	}
+)
+
+// ============================================================
+// 地址域
+// ============================================================
+//
+// **地址域与 RBAC 域的响应形状约定不同** —— 单体 address_handler.go:
+//
+// CreateAddress    → Success(c, addressId)    裸数字
+// GetAddressList   → Success(c, addressList)  裸数组
+// GetAddress       → Success(c, address)      裸对象
+// UpdateAddress    → Success(c, address)      裸对象
+// DeleteAddress    → Success(c, nil)          null
+// SetDefaultAddress→ Success(c, nil)          null
+//
+// 即:**全是裸值,没有任何包装**。而 RBAC 的列表是
+// gin.H{"list": ..., "total": ...}。两者不能互相类推。
+//
+// 故地址域的列表是 returns ([]AddressItem)(裸数组,无 total),
+// 单实体是内嵌 AddressItem(裸对象)。
+//
+// CreatedAt 是 **string**:单体 response.AddressResp 用
+// time.Time.String() 格式化,前端直接展示(不是 proto 的 Timestamp)。
+type (
+	AddressItem {
+		AddressId     int64  `json:"address_id"`
+		ReceiverName  string `json:"receiver_name"`
+		ReceiverPhone string `json:"receiver_phone"`
+		Province      string `json:"province"`
+		City          string `json:"city"`
+		District      string `json:"district"`
+		DetailAddress string `json:"detail_address"`
+		PostalCode    string `json:"postal_code"`
+		IsDefault     bool   `json:"is_default"`
+		AddressTag    string `json:"address_tag"`
+		CreatedAt     string `json:"created_at"`
+	}
+	CreateAddressReq {
+		ReceiverName  string `json:"receiver_name"`
+		ReceiverPhone string `json:"receiver_phone"`
+		Province      string `json:"province"`
+		City          string `json:"city"`
+		District      string `json:"district"`
+		DetailAddress string `json:"detail_address"`
+		PostalCode    string `json:"postal_code,optional"`
+		IsDefault     bool   `json:"is_default,optional"`
+		AddressTag    string `json:"address_tag,optional"`
+	}
+	// 单实体响应:裸对象(匿名内嵌),不是 {address: {...}}
+	GetAddressResp {
+		AddressItem
+	}
+	UpdateAddressReq {
+		Id            int64   `path:"id"`
+		ReceiverName  *string `json:"receiver_name,optional"`
+		ReceiverPhone *string `json:"receiver_phone,optional"`
+		Province      *string `json:"province,optional"`
+		City          *string `json:"city,optional"`
+		District      *string `json:"district,optional"`
+		DetailAddress *string `json:"detail_address,optional"`
+		PostalCode    *string `json:"postal_code,optional"`
+		IsDefault     *bool   `json:"is_default,optional"`
+		AddressTag    *string `json:"address_tag,optional"`
+	}
+	UpdateAddressResp {
+		AddressItem
+	}
+)
+
+// ============================================================
+// 路由:免登录 + IP 限流(register / login)
+// ============================================================
+//
+// 单体 userPublic 组没挂中间件,但这两条**路由级**挂了 PerIPRateLimit。
+// go-zero 的 .api 不支持路由级中间件,故用独立组表达 —— 效果等价,
+// 且限流发生在进业务之前。
+@server (
+	prefix:     /api/v1/user
+	group:      user
+	middleware: RequestMeta,PublicRateLimit
+)
+service bff {
+	@handler Register
+	post /register (RegisterReq) returns (RegisterResp)
+
+	@handler Login
+	post /login (LoginReq) returns (LoginResp)
+}
+
+// ============================================================
+// 路由:免登录(refresh / healthz)
+// ============================================================
+// refresh **既不限流也不验签**:纯转发给 user-service 由它自行验签
+// (它持私钥,能区分 access/refresh)。DS-A-26 §六 明确写了这条 ——
+// 提前在任一侧删掉验签,会让未迁移模块整片 401。
+@server (
+	prefix:     /api/v1/user
+	group:      user
+	middleware: RequestMeta,Public
+)
+service bff {
+	@handler RefreshToken
+	post /refresh (RefreshTokenReq) returns (RefreshTokenResp)
+}
+
+// healthz 不挂 Auth(探针不该需要令牌),但要挂 RequestMeta ——
+// 保持一致,且限流中间件里有个按路径豁免 healthz 的逻辑依赖
+// FullPath 的形态。
+@server (
+	prefix:     /api/v1
+	group:      health
+	middleware: RequestMeta,Public
+)
+service bff {
+	@handler Health
+	get /healthz (Empty) returns (HealthResp)
+}
+
+// ============================================================
+// 路由:登录即可 —— 用户自助
+// ============================================================
+@server (
+	prefix:     /api/v1/user
+	group:      user
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler GetSelfInfo
+	get /info (Empty) returns (GetSelfInfoResp)
+
+	@handler GetSelfPerms
+	get /perms (Empty) returns (GetSelfPermsResp)
+}
+
+// ============================================================
+// 路由:登录即可 —— 地址域
+// ============================================================
+@server (
+	prefix:     /api/v1/addresses
+	group:      address
+	middleware: RequestMeta,Auth
+)
+service bff {
+	// data 是**裸数字**(单体 utils.Success(c, addressId))
+	@handler CreateAddress
+	post / (CreateAddressReq) returns (int64)
+
+	// 地址域的列表是**裸数组**(单体 Success(c, addressList)),
+	// 没有 {list: ..., total: ...} 包装,也没有 total ——
+	// 与 RBAC 域的列表形状不同,见上方地址域说明。
+	@handler ListAddresses
+	get / (Empty) returns ([]AddressItem)
+
+	@handler GetAddress
+	get /:id (AddrIdReq) returns (GetAddressResp)
+
+	@handler UpdateAddress
+	put /:id (UpdateAddressReq) returns (UpdateAddressResp)
+
+	@handler DeleteAddress
+	delete /:id (AddrIdReq) returns (Empty)
+
+	// 参数名 :id 与方法 PUT —— 单体是 PUT /:id/default
+	@handler SetDefaultAddress
+	put /:id/default (AddrIdReq) returns (Empty)
+}
+
+// ============================================================
+// 路由:登录即可 —— 管理端(不判权,权限码留后续)
+// ============================================================
+//
+// 判权实现时按 c.FullPath() + Method 反查权限码(与单体 auth.go 同一手法),
+// 故路径模板(含参数名)与方法必须逐字照抄。
+@server (
+	prefix:     /api/v1/admin/user
+	group:      user
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler ListUsers
+	get / (ListUsersReq) returns (ListUsersResp)
+
+	@handler CreateUser
+	post / (CreateUserReq) returns (CreateUserResp)
+
+	// go-zero 按静态段优先,/:id 不会吞掉 /assign-role 与 /assign-dept
+	@handler AssignUserRole
+	post /assign-role (AssignUserRolesReq) returns (Empty)
+
+	@handler AssignUserDept
+	post /assign-dept (AssignUserDeptsReq) returns (Empty)
+
+	@handler GetUser
+	get /:id (UserIdReq) returns (GetUserResp)
+
+	@handler UpdateUser
+	put /:id (UpdateUserReq) returns (UpdateUserResp)
+
+	@handler DeleteUser
+	delete /:id (UserIdReq) returns (Empty)
+
+	@handler ListUserRoles
+	get /:id/role (RelIdReq) returns (ListUserRolesResp)
+
+	@handler ClearUserRoles
+	delete /:id/clear-role (RelIdReq) returns (Empty)
+
+	@handler ListUserDepts
+	get /:id/dept (RelIdReq) returns (ListUserDeptsResp)
+
+	@handler ClearUserDepts
+	delete /:id/clear-dept (RelIdReq) returns (Empty)
+}
+
+// 用户档案:**管理端前缀但本人可读写**,不判权,归属校验在 logic
+@server (
+	prefix:     /api/v1/admin/user/info
+	group:      user
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler CreateUserInfo
+	post /create (CreateUserInfoReq) returns (CreateUserInfoResp)
+
+	@handler GetUserInfo
+	get /:id (UserIdReq) returns (GetUserInfoResp)
+
+	@handler UpdateUserInfo
+	put /:id (UpdateUserInfoReq) returns (UpdateUserInfoResp)
+
+	@handler DeleteUserInfo
+	delete /:id (UserIdReq) returns (Empty)
+}
+
+@server (
+	prefix:     /api/v1/admin/role
+	group:      role
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler CreateRole
+	post / (CreateRoleReq) returns (CreateRoleResp)
+
+	@handler ListRoles
+	get / (ListRolesReq) returns (ListRolesResp)
+
+	@handler AssignRolePerms
+	post /assign-perm (AssignRolePermsReq) returns (Empty)
+
+	@handler AssignRoleMenus
+	post /assign-menu (AssignRoleMenusReq) returns (Empty)
+
+	@handler GetRole
+	get /:id (RoleIdReq) returns (GetRoleResp)
+
+	@handler UpdateRole
+	put /:id (UpdateRoleReq) returns (UpdateRoleResp)
+
+	@handler DeleteRole
+	delete /:id (RoleIdReq) returns (Empty)
+
+	@handler ListRolePerms
+	get /:id/perm (RelIdReq) returns (ListRolePermsResp)
+
+	@handler ClearRolePerms
+	delete /:id/clear-perm (RelIdReq) returns (Empty)
+
+	@handler ListRoleMenus
+	get /:id/menu (RelIdReq) returns (ListRoleMenusResp)
+
+	@handler ClearRoleMenus
+	delete /:id/clear-menu (RelIdReq) returns (Empty)
+}
+
+@server (
+	prefix:     /api/v1/admin/permissions
+	group:      permission
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler CreatePermission
+	post / (CreatePermissionReq) returns (CreatePermissionResp)
+
+	@handler ListPermissions
+	get / (ListPermissionsReq) returns (ListPermissionsResp)
+
+	@handler GetPermission
+	get /:id (PermissionIdReq) returns (GetPermissionResp)
+
+	@handler UpdatePermission
+	put /:id (UpdatePermissionReq) returns (UpdatePermissionResp)
+
+	@handler DeletePermission
+	delete /:id (PermissionIdReq) returns (Empty)
+}
+
+@server (
+	prefix:     /api/v1/admin/menu
+	group:      menu
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler CreateMenu
+	post / (CreateMenuReq) returns (CreateMenuResp)
+
+	@handler ListMenus
+	get / (ListMenusReq) returns (ListMenusResp)
+
+	// **管理端前缀但刻意不判权**:前端登录后要立刻拿动态路由,
+	// 此时权限码可能还没加载完 —— 若这条也判权会死锁
+	// (要拿菜单得先有权限,要有权限得先拿菜单)。
+	// 服务端按 userId 过滤,故不泄露别人能看什么。
+	@handler GetMenuTreeByUserId
+	post /tree (GetMenuTreeByUserIdReq) returns ([]MenuItem)
+
+	@handler AssignMenuPerms
+	post /assign-perm (AssignMenuPermsReq) returns (Empty)
+
+	@handler GetMenu
+	get /:id (MenuIdReq) returns (GetMenuResp)
+
+	// 路径参数 :id 的语义是 role_id
+	@handler GetMenuTreeByRoleId
+	get /:id/tree (GetMenuTreeByRoleIdReq) returns ([]MenuItem)
+
+	@handler UpdateMenu
+	put /:id (UpdateMenuReq) returns (UpdateMenuResp)
+
+	@handler DeleteMenu
+	delete /:id (MenuIdReq) returns (Empty)
+
+	@handler ListMenuPerms
+	get /:id/perm (RelIdReq) returns (ListMenuPermsResp)
+
+	@handler ClearMenuPerms
+	delete /:id/clear-perm (RelIdReq) returns (Empty)
+}
+
+@server (
+	prefix:     /api/v1/admin/scope
+	group:      scope
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler CreateScope
+	post / (CreateScopeReq) returns (CreateScopeResp)
+
+	@handler ListScopes
+	get / (ListScopesReq) returns (ListScopesResp)
+
+	@handler GetScope
+	get /:id (ScopeIdReq) returns (GetScopeResp)
+
+	@handler UpdateScope
+	put /:id (UpdateScopeReq) returns (UpdateScopeResp)
+
+	@handler DeleteScope
+	delete /:id (ScopeIdReq) returns (Empty)
+}
+
+@server (
+	prefix:     /api/v1/admin/dept
+	group:      dept
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler CreateDept
+	post / (CreateDeptReq) returns (CreateDeptResp)
+
+	@handler ListDepts
+	get / (ListDeptsReq) returns (ListDeptsResp)
+
+	// 参数名 :userId —— 与同组 GET /:id 不同,必须保留
+	@handler GetDeptTreeByUserId
+	get /tree/:userId (GetDeptTreeByUserIdReq) returns ([]DeptItem)
+
+	@handler GetDept
+	get /:id (DeptIdReq) returns (GetDeptResp)
+
+	@handler UpdateDept
+	put /:id (UpdateDeptReq) returns (UpdateDeptResp)
+
+	@handler DeleteDept
+	delete /:id (DeptIdReq) returns (Empty)
+}
+

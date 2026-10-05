@@ -1,0 +1,51 @@
+Name: bff
+Host: 0.0.0.0
+Port: 9003
+Mode: dev
+
+# 验签公钥:与单体共用同一份(jwt_keys/dev_public.pem)。
+# 相对路径按"工作目录 = services/bff/"算,退两级到仓库根。
+JwtPublicKeyPath: ../../jwt_keys/dev_public.pem
+
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+
+# 四个下游的服务发现键(与各服务自己的 Etcd.Key 逐字一致)。
+# 填的是 etcd key 而非地址 —— 客户端靠服务发现定位实例。
+User:
+  EtcdKey: user-service
+Product:
+  EtcdKey: product-service
+Marketing:
+  EtcdKey: marketing-service
+Trade:
+  EtcdKey: trade-service
+
+Log:
+  Mode: console
+  Level: info
+
+RateLimit:
+  IPRPS: 5
+  IPBurst: 10
+
+# TrustedProxies:
+#   - 172.16.0.0/12
+
+# 允许跨域的前端来源。
+#
+# **漏配它的症状很像"接口没被路由到"**:前端在 localhost:5173,
+# 请求 BFF 的 :9003 是跨域,响应没有 Access-Control-Allow-Origin
+# 时浏览器会**丢弃**它(哪怕服务端返回 200),前端只看到网络错误。
+# 而 curl 直接打 BFF 是通的 —— 这个对比会让排查方向偏到路由上。
+#
+# 单体把这一条硬编码在 routes.go 里(localhost:5173),故从单体
+# 切到 BFF 时若忘了配,所有前端调用都会失败。
+#
+# 部署到生产要改成真实域名:
+#
+# AllowedOrigins:
+#   - https://shop.example.com
+AllowedOrigins:
+  - http://localhost:5173

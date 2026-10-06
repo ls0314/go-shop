@@ -1080,3 +1080,541 @@ service bff {
 	delete /:id (DeptIdReq) returns (Empty)
 }
 
+// ============================================================================
+// ============================================================================
+// 订单域(trade-service)
+// ============================================================================
+// ============================================================================
+//
+// ============================================================
+// 响应形状的来源:单体 model/response/*.go,不是 proto
+// ============================================================
+//
+// 这是订单域最重要的一条。单体的 tradeclient 把 proto 转成了
+// **专为 HTTP 定义的** response.* 结构体,而那一步做了三类改动:
+//
+// ① 改名   proto total_price → http subtotal
+//           proto available   → http is_available
+//           proto selected_items → http items
+//           proto details     → http detail_list
+//           proto logs        → http log_list
+// ② 类型   proto spec_values 是 **JSON 文本字符串**,
+//           http 是 **JSONMap(对象)**
+//           proto address_snapshot 是**字符串**,
+//           http 是 **datatypes.JSON(对象)**
+// ③ 隐藏   proto 的 user_id / created_at / updated_at / sku_status /
+//           spu_status 在 http 里是 `json:"-"`(不返回)
+//           proto 的 expire_at / idempotent_key 不返回
+//
+// **照 proto 写 .api 会让前端大面积拿到 undefined**,而且不报错。
+// 故下面每个类型都标注了它对应单体 response 里的哪个结构体。
+//
+// ============================================================
+// 三处 HTTP 有而 proto 没有的字段(BFF 要自己算)
+// ============================================================
+//
+//   GetCartPayPreview 的 total_count / has_unavailable / unavailable_items
+//     proto 的 CartPayPreview 只有 selected_items / total_quantity /
+//     total_amount —— 另外三个由单体 tradeclient 在转换时算出。
+//
+//   GetOrderList(管理端)的 receiver_name / receiver_phone
+//     来自解析 address_snapshot 那个 JSON 字符串。
+//
+//   GetOrder(管理端)的 user_id / username
+//     proto 的 GetOrderResp.username 有,user_id 要从 Order.user_id 取。
+//
+// ============================================================
+// 购物车协议的特殊之处:CreateCartItem 返回被降级了
+// ============================================================
+//
+// proto 的 CreateCartItemResp 返回**整行 CartItem**(注释:"前端不必再
+// 拉一次列表"),而单体把它降级成了 {cart_item_id, quantity}。
+//
+// BFF **保持单体的降级**(前端零感知)。要升回整行是一次契约变更,
+// 应当单独做并通知前端 —— 虽然前端大概率会欢迎(少一次列表请求)。
+// ============================================================
+// 购物车
+// ============================================================
+type (
+	// CartItem 对应单体 response.CartItemListResp
+	CartItem {
+		CartItemId int64  `json:"cart_item_id"`
+		SkuId      int64  `json:"sku_id"`
+		SpuId      int64  `json:"spu_id"`
+		SpuName    string `json:"spu_name"`
+		MainImage  string `json:"main_image"`
+		SkuName    string `json:"sku_name"`
+		// SpecValues 是**对象**,不是字符串 —— proto 那边是 JSON 文本,
+		// 需要解析(单体用 jsonTextToMap)。
+		//
+		// 解析失败时返回**空对象**并记日志,不报错:它只是规格展示
+		// (如"红色:XL"),不该让整个购物车列表失败,而空对象前端能容错。
+		// 这是一个**刻意的静默降级**,与项目里"未知错误落到 500"的
+		// 原则相反,故在此写明。
+		SpecValues interface{} `json:"spec_values"`
+		SkuImage   string      `json:"sku_image"`
+		Price      float64     `json:"price"`
+		Stock      int64       `json:"stock"`
+		Quantity   int64       `json:"quantity"`
+		IsSelected bool        `json:"is_selected"`
+		// Subtotal 来自 proto 的 total_price(改名)
+		Subtotal float64 `json:"subtotal"`
+		// IsAvailable 来自 proto 的 available(改名)
+		IsAvailable bool `json:"is_available"`
+		// UnavailableReason available=true 时为空串
+		UnavailableReason string `json:"unavailable_reason"`
+	}
+	// AddCartItemReq 单体收 {sku_id, quantity}(用户从 JWT 取)
+	AddCartItemReq {
+		SkuId    int64 `json:"sku_id"`
+		Quantity int64 `json:"quantity"`
+	}
+	// AddCartItemResp 单体降级后的形状(见上方说明)
+	AddCartItemResp {
+		CartItemId int64 `json:"cart_item_id"`
+		Quantity   int64 `json:"quantity"`
+	}
+	// ListCartItemsResp 不用它 —— 那条路由返回**裸数组**
+	// (`returns ([]CartItem)`),因为单体是 utils.Success(c, resp),
+	// 而 resp 就是 []response.CartItemListResp。
+	CartItemIdReq {
+		Id int64 `path:"id"`
+	}
+	// UpdateCartItemReq 整条更新,**不是部分更新**。
+	//
+	// 单体是 c.ShouldBindJSON(&updateCartItem) 后把两个字段原样传给
+	// RPC(requset.UpdateCartItemReq 是**非指针**的 int64 / bool)——
+	// 即它**不区分"没传"与"传了零值"**:
+	//
+	//	只传 {"quantity": 3}  → is_selected 是 false,
+	//	                        会把已勾选的商品**取消勾选**
+	//
+	// 所以前端改数量时**必须把 is_selected 一起传**。
+	//
+	// **故这里两个字段都不是 optional** —— 标 optional 会让实现者
+	// 以为需要区分"没传",从而发明一套单体与前端都没有的语义。
+	UpdateCartItemReq {
+		Id         int64 `path:"id"`
+		Quantity   int64 `json:"quantity"`
+		IsSelected bool  `json:"is_selected"`
+	}
+	// SelectAllCartReq 单体收 {is_selected}
+	SelectAllCartReq {
+		IsSelected bool `json:"is_selected"`
+	}
+	// SelectAllCartResp 单体:gin.H{"affected": total}
+	SelectAllCartResp {
+		Affected int64 `json:"affected"`
+	}
+	// CartCountResp 单体:gin.H{"count": total}
+	CartCountResp {
+		Count int64 `json:"count"`
+	}
+	// CartPayPreviewResp 对应单体 response.CartItemPayResp
+	//
+	// proto 的 CartPayPreview 只有 selected_items / total_quantity /
+	// total_amount;另三个字段(total_count / has_unavailable /
+	// unavailable_items)由 BFF 计算。
+	//
+	// **注意 Items 是包装的(不是裸数组)** —— 与 GetCartItemList
+	// 不同。单体这里就是 gin 序列化一个 struct,故有 items 键。
+	CartPayPreviewResp {
+		Items          []CartItem `json:"items"`
+		TotalCount     int64      `json:"total_count"`
+		TotalQuantity  int64      `json:"total_quantity"`
+		TotalAmount    float64    `json:"total_amount"`
+		HasUnavailable bool       `json:"has_unavailable"`
+		// UnavailableItems 前端用它渲染"以下商品不可购买"的提示区
+		UnavailableItems []CartItem `json:"unavailable_items"`
+	}
+)
+
+// ============================================================
+// 订单
+// ============================================================
+type (
+	// OrderDetail 对应单体 response.UserGetOrderDetail
+	OrderDetail {
+		DetailId   int64   `json:"detail_id"`
+		SkuId      int64   `json:"sku_id"`
+		SpuName    string  `json:"spu_name"`
+		SkuName    string  `json:"sku_name"`
+		SpecValues string  `json:"spec_values"`
+		MainImage  string  `json:"main_image"`
+		Quantity   int64   `json:"quantity"`
+		UnitPrice  float64 `json:"unit_price"`
+		TotalPrice float64 `json:"total_price"`
+	}
+	// OrderLog 对应单体 response.UserGetOrderLog
+	OrderLog {
+		LogId       int64  `json:"log_id"`
+		OrderId     int64  `json:"order_id"`
+		OrderStatus string `json:"order_status"`
+		Action      string `json:"action"`
+		Operator    string `json:"operator"`
+		Detail      string `json:"detail"`
+		CreatedAt   string `json:"created_at"`
+	}
+	// CreateOrderReq 单体的 requset.CreatOrderReq
+	//
+	// **address_id 是给 BFF 用的,不传给 trade** ——
+	// BFF 先用它调 user-service 的 GetAddressSnapshot 取地址快照,
+	// 再把快照传给 trade 的 CreateOrder。
+	//
+	// 为什么不直接传 address_id 让 trade 自己查:地址表在 user_db,
+	// trade 跨库读不到;而且订单存的是**下单那一刻**的地址快照,
+	// 由调用方从权威源取一次再传,语义最贴切。
+	CreateOrderReq {
+		AddressId int64 `json:"address_id"`
+		// IdempotentKey 由**前端生成**(UUID),全局唯一 ——
+		// 它是所有跨服务操作的幂等判据,不是 order_no。
+		IdempotentKey string `json:"idempotent_key"`
+		BuyerRemark   string `json:"buyer_remark,optional"`
+		UserCouponId  int64  `json:"user_coupon_id,optional"`
+	}
+	// CreateOrderResp 对应单体 response.CreateOrderResp
+	CreateOrderResp {
+		OrderId     int64   `json:"order_id"`
+		OrderNo     string  `json:"order_no"`
+		PayAmount   float64 `json:"pay_amount"`
+		TotalAmount float64 `json:"total_amount"`
+		OrderStatus string  `json:"order_status"`
+		PayExpireAt string  `json:"pay_expire_at"`
+		CreatedAt   string  `json:"created_at"`
+	}
+	// UserOrderListItem 对应单体 response.UserGetOrderList
+	UserOrderListItem {
+		OrderId     int64   `json:"order_id"`
+		OrderNo     string  `json:"order_no"`
+		OrderStatus string  `json:"order_status"`
+		TotalAmount float64 `json:"total_amount"`
+		PayAmount   float64 `json:"pay_amount"`
+		DetailCount int64   `json:"detail_count"`
+		FirstImage  string  `json:"first_image"`
+		CreatedAt   string  `json:"created_at"`
+	}
+	// ListUserOrdersReq 查询参数是 **snake_case**(订单域用 request
+	// struct 的 form tag,与 RBAC 域的 c.Query camelCase 不同)
+	ListUserOrdersReq {
+		Page        int    `form:"page,optional"`
+		PageSize    int    `form:"page_size,optional"`
+		OrderStatus string `form:"order_status,optional"`
+	}
+	// ListUserOrdersResp 对应单体 response.UserGetOrderListResp
+	ListUserOrdersResp {
+		List     []UserOrderListItem `json:"list"`
+		Total    int64               `json:"total"`
+		Page     int                 `json:"page"`
+		PageSize int                 `json:"page_size"`
+	}
+	OrderIdReq {
+		Id int64 `path:"id"`
+	}
+	// GetUserOrderResp 对应单体 response.UserGetOrderResp
+	//
+	// AddressSnapshot 是**对象**(单体的 datatypes.JSON)—— proto 那边
+	// 是字符串,需要解析。
+	//
+	// 注意 details/logs 在 HTTP 里叫 **detail_list / log_list**。
+	GetUserOrderResp {
+		OrderId         int64         `json:"order_id"`
+		OrderNo         string        `json:"order_no"`
+		OrderStatus     string        `json:"order_status"`
+		TotalAmount     float64       `json:"total_amount"`
+		PayAmount       float64       `json:"pay_amount"`
+		PayMethod       string        `json:"pay_method"`
+		PayTime         string        `json:"pay_time"`
+		AddressSnapshot interface{}   `json:"address_snapshot"`
+		BuyerRemark     string        `json:"buyer_remark"`
+		DetailList      []OrderDetail `json:"detail_list"`
+		LogList         []OrderLog    `json:"log_list"`
+		CreatedAt       string        `json:"created_at"`
+	}
+	// CancelOrderResp 对应单体 response.OrderStatusResp
+	CancelOrderResp {
+		OrderId     int64  `json:"order_id"`
+		OrderNo     string `json:"order_no"`
+		OrderStatus string `json:"order_status"`
+	}
+	// ConfirmOrderResp 同上(ConfirmOrder 也返回 OrderStatusResp)
+	ConfirmOrderResp {
+		OrderId     int64  `json:"order_id"`
+		OrderNo     string `json:"order_no"`
+		OrderStatus string `json:"order_status"`
+	}
+)
+
+// ============================================================
+// 订单(管理端)
+// ============================================================
+type (
+	// AdminOrderListItem 对应单体 response.GetOrderList
+	//
+	// ReceiverName / ReceiverPhone **来自解析 address_snapshot** ——
+	// proto 的 Order 没有这两个字段,BFF 要从那个 JSON 字符串里取。
+	AdminOrderListItem {
+		OrderId       int64   `json:"order_id"`
+		OrderNo       string  `json:"order_no"`
+		OrderStatus   string  `json:"order_status"`
+		TotalAmount   float64 `json:"total_amount"`
+		PayAmount     float64 `json:"pay_amount"`
+		PayMethod     string  `json:"pay_method"`
+		UserName      string  `json:"user_name"`
+		ReceiverName  string  `json:"receiver_name"`
+		ReceiverPhone string  `json:"receiver_phone"`
+		CreatedAt     string  `json:"created_at"`
+	}
+	// ListOrdersReq 对应单体 requset.GetOrderListReq(snake_case)
+	ListOrdersReq {
+		Page        int    `form:"page,optional"`
+		PageSize    int    `form:"page_size,optional"`
+		OrderStatus string `form:"order_status,optional"`
+		OrderNo     string `form:"order_no,optional"`
+		StartTime   string `form:"start_time,optional"`
+		EndTime     string `form:"end_time,optional"`
+	}
+	// ListOrdersResp 对应单体 response.GetOrderListResp
+	//
+	// **注意字段顺序无关,但键名有 page/page_size/total/list** ——
+	// 与用户端的 ListUserOrdersResp 键名相同,故这里可以用同一个类型。
+	// 但两者元素不同(这个带 user_name/receiver_*),故分开定义。
+	ListOrdersResp {
+		Page     int                  `json:"page"`
+		PageSize int                  `json:"page_size"`
+		Total    int64                `json:"total"`
+		List     []AdminOrderListItem `json:"list"`
+	}
+	// GetOrderResp 对应单体 response.GetOrderResp
+	//
+	// 比用户端多了 user_id / username。
+	GetOrderResp {
+		OrderId         int64         `json:"order_id"`
+		OrderNo         string        `json:"order_no"`
+		OrderStatus     string        `json:"order_status"`
+		TotalAmount     float64       `json:"total_amount"`
+		PayAmount       float64       `json:"pay_amount"`
+		PayMethod       string        `json:"pay_method"`
+		PayTime         string        `json:"pay_time"`
+		AddressSnapshot interface{}   `json:"address_snapshot"`
+		BuyerRemark     string        `json:"buyer_remark"`
+		DetailList      []OrderDetail `json:"detail_list"`
+		LogList         []OrderLog    `json:"log_list"`
+		CreatedAt       string        `json:"created_at"`
+		Username        string        `json:"username"`
+		UserId          int64         `json:"user_id"`
+	}
+	// ShipOrderReq 单体收 {express_company, tracking_no};:id 是 order_id。
+	// 操作人(username)从 JWT 取。
+	ShipOrderReq {
+		Id             int64  `path:"id"`
+		ExpressCompany string `json:"express_company"`
+		TrackingNo     string `json:"tracking_no"`
+	}
+	// ShipOrderResp 对应单体 response.OrderShipResp
+	ShipOrderResp {
+		OrderId        int64  `json:"order_id"`
+		OrderNo        string `json:"order_no"`
+		OrderStatus    string `json:"order_status"`
+		ExpressCompany string `json:"express_company"`
+		TrackingNo     string `json:"tracking_no"`
+	}
+)
+
+// ============================================================
+// 支付
+// ============================================================
+type (
+	// CreatePaymentReq 单体收 {pay_method};:id 是 order_id
+	CreatePaymentReq {
+		Id        int64  `path:"id"`
+		PayMethod string `json:"pay_method"`
+	}
+	// CreatePaymentResp 对应单体 response.CreatePaymentResp
+	//
+	// 注意 pay_url / qr_code 在单体带 `omitempty` —— 空时不出现该键。
+	// goctl 不支持 omitempty,故这里它们**总是出现**(值为空串)。
+	// 前端若用 `'pay_url' in data` 判断,行为会变;若用 truthy 判断则无影响。
+	CreatePaymentResp {
+		PaymentId int64   `json:"payment_id"`
+		PayNo     string  `json:"pay_no"`
+		PayAmount float64 `json:"pay_amount"`
+		PayStatus string  `json:"pay_status"`
+		PayUrl    string  `json:"pay_url"`
+		QrCode    string  `json:"qr_code"`
+	}
+	// GetPaymentReq 路径参数是 :payNo
+	GetPaymentReq {
+		PayNo string `path:"payNo"`
+	}
+	// GetPaymentResp 对应单体 response.GetPaymentResp
+	GetPaymentResp {
+		PaymentId int64   `json:"payment_id"`
+		PayNo     string  `json:"pay_no"`
+		OrderId   int64   `json:"order_id"`
+		OrderNo   string  `json:"order_no"`
+		PayMethod string  `json:"pay_method"`
+		PayAmount float64 `json:"pay_amount"`
+		PayStatus string  `json:"pay_status"`
+		PayTime   string  `json:"pay_time"`
+		TradeNo   string  `json:"trade_no"`
+	}
+	// MockCallbackReq 单体从 JSON body 取 {pay_no, trade_no}
+	MockCallbackReq {
+		PayNo   string `json:"pay_no"`
+		TradeNo string `json:"trade_no,optional"`
+	}
+	// AdminPaymentListItem 对应单体 response.GetPaymentList
+	AdminPaymentListItem {
+		PaymentId int64   `json:"payment_id"`
+		PayNo     string  `json:"pay_no"`
+		OrderNo   string  `json:"order_no"`
+		Username  string  `json:"username"`
+		PayMethod string  `json:"pay_method"`
+		PayAmount float64 `json:"pay_amount"`
+		PayStatus string  `json:"pay_status"`
+		PayTime   string  `json:"pay_time"`
+	}
+	// ListPaymentsReq 对应单体 requset.GetPaymentListReq(snake_case)
+	//
+	// 注意 page_size **默认 20**(不是订单列表的 10)——
+	// 单体 handler 的注释写明"默认20,最大100"。
+	ListPaymentsReq {
+		Page      int    `form:"page,optional"`
+		PageSize  int    `form:"page_size,optional"`
+		PayStatus string `form:"pay_status,optional"`
+		PayMethod string `form:"pay_method,optional"`
+		OrderNo   string `form:"order_no,optional"`
+		StartTime string `form:"start_time,optional"`
+		EndTime   string `form:"end_time,optional"`
+	}
+	// ListPaymentsResp 对应单体 response.GetPaymentListResp
+	ListPaymentsResp {
+		List     []AdminPaymentListItem `json:"list"`
+		Total    int64                  `json:"total"`
+		Page     int                    `json:"page"`
+		PageSize int                    `json:"page_size"`
+	}
+)
+
+// ============================================================
+// 路由:购物车
+// ============================================================
+@server (
+	prefix:     /api/v1/cart
+	group:      cart
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler AddCartItem
+	post / (AddCartItemReq) returns (AddCartItemResp)
+
+	// 裸数组(单体 utils.Success(c, resp),resp 是切片)
+	@handler ListCartItems
+	get / (Empty) returns ([]CartItem)
+
+	// 注意 /count 与 /preview 是静态段,go-zero 按静态优先,
+	// 不会被 /:id 吞掉
+	@handler GetCartCount
+	get /count (Empty) returns (CartCountResp)
+
+	@handler GetCartPayPreview
+	get /preview (Empty) returns (CartPayPreviewResp)
+
+	@handler UpdateCartItem
+	put /:id (UpdateCartItemReq) returns (CartItem)
+
+	// select-all 与 /:id 都是 PUT;静态段优先,故不冲突
+	@handler SelectAllCart
+	put /select-all (SelectAllCartReq) returns (SelectAllCartResp)
+
+	@handler DeleteCartItem
+	delete /:id (CartItemIdReq) returns (Empty)
+}
+
+// ============================================================
+// 路由:用户订单
+// ============================================================
+@server (
+	prefix:     /api/v1/orders
+	group:      order
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler CreateOrder
+	post / (CreateOrderReq) returns (CreateOrderResp)
+
+	@handler ListUserOrders
+	get / (ListUserOrdersReq) returns (ListUserOrdersResp)
+
+	@handler GetUserOrder
+	get /:id (OrderIdReq) returns (GetUserOrderResp)
+
+	// 参数名 :id 与方法 PUT —— 单体是 PUT /:id/cancel
+	@handler CancelOrder
+	put /:id/cancel (OrderIdReq) returns (CancelOrderResp)
+
+	@handler ConfirmOrder
+	put /:id/confirm (OrderIdReq) returns (ConfirmOrderResp)
+}
+
+// ============================================================
+// 路由:用户支付
+// ============================================================
+@server (
+	prefix:     /api/v1/pay
+	group:      payment
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler CreatePayment
+	post /order/:id (CreatePaymentReq) returns (CreatePaymentResp)
+
+	// 参数名 :payNo(不是 :id)—— 必须保留
+	@handler GetPayment
+	get /:payNo (GetPaymentReq) returns (GetPaymentResp)
+}
+
+// 支付渠道回调:**免鉴权**(渠道不会带我们的令牌)。
+//
+// **错误语义特殊**:单体 MockCallback 是 utils.Success(c, nil),
+// 而真实渠道回调的约定是"返回非 2xx = 请重试回调"。
+// 故这条路由的失败必须让渠道能区分"受理了"与"没受理"。
+@server (
+	prefix:     /api/v1/pay
+	group:      payment
+	middleware: RequestMeta,Public
+)
+service bff {
+	@handler MockPaymentCallback
+	post /callback/mock (MockCallbackReq) returns (Empty)
+}
+
+// ============================================================
+// 路由:订单管理端(不判权,权限码留后续)
+// ============================================================
+@server (
+	prefix:     /api/v1/admin/orders
+	group:      order
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler ListOrders
+	get / (ListOrdersReq) returns (ListOrdersResp)
+
+	@handler GetOrder
+	get /:id (OrderIdReq) returns (GetOrderResp)
+
+	@handler ShipOrder
+	put /:id/ship (ShipOrderReq) returns (ShipOrderResp)
+}
+
+@server (
+	prefix:     /api/v1/admin/pay
+	group:      payment
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler ListPayments
+	get /list (ListPaymentsReq) returns (ListPaymentsResp)
+}
+

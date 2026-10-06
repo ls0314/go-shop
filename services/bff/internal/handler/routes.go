@@ -7,9 +7,12 @@ import (
 	"net/http"
 
 	address "demo-shop/services/bff/internal/handler/address"
+	cart "demo-shop/services/bff/internal/handler/cart"
 	dept "demo-shop/services/bff/internal/handler/dept"
 	health "demo-shop/services/bff/internal/handler/health"
 	menu "demo-shop/services/bff/internal/handler/menu"
+	order "demo-shop/services/bff/internal/handler/order"
+	payment "demo-shop/services/bff/internal/handler/payment"
 	permission "demo-shop/services/bff/internal/handler/permission"
 	role "demo-shop/services/bff/internal/handler/role"
 	scope "demo-shop/services/bff/internal/handler/scope"
@@ -57,6 +60,50 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/api/v1/addresses"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/",
+					Handler: cart.AddCartItemHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/",
+					Handler: cart.ListCartItemsHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/:id",
+					Handler: cart.UpdateCartItemHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodDelete,
+					Path:    "/:id",
+					Handler: cart.DeleteCartItemHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/count",
+					Handler: cart.GetCartCountHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/preview",
+					Handler: cart.GetCartPayPreviewHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/select-all",
+					Handler: cart.SelectAllCartHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/cart"),
 	)
 
 	server.AddRoutes(
@@ -169,6 +216,111 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/api/v1/admin/menu"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/",
+					Handler: order.CreateOrderHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/",
+					Handler: order.ListUserOrdersHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/:id",
+					Handler: order.GetUserOrderHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/:id/cancel",
+					Handler: order.CancelOrderHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/:id/confirm",
+					Handler: order.ConfirmOrderHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/orders"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodGet,
+					Path:    "/",
+					Handler: order.ListOrdersHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/:id",
+					Handler: order.GetOrderHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/:id/ship",
+					Handler: order.ShipOrderHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/admin/orders"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodGet,
+					Path:    "/:payNo",
+					Handler: payment.GetPaymentHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/order/:id",
+					Handler: payment.CreatePaymentHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/pay"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Public},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/callback/mock",
+					Handler: payment.MockPaymentCallbackHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/pay"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodGet,
+					Path:    "/list",
+					Handler: payment.ListPaymentsHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/admin/pay"),
 	)
 
 	server.AddRoutes(

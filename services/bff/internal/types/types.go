@@ -3,6 +3,16 @@
 
 package types
 
+type AddCartItemReq struct {
+	SkuId    int64 `json:"sku_id"`
+	Quantity int64 `json:"quantity"`
+}
+
+type AddCartItemResp struct {
+	CartItemId int64 `json:"cart_item_id"`
+	Quantity   int64 `json:"quantity"`
+}
+
 type AddrIdReq struct {
 	Id int64 `path:"id"`
 }
@@ -19,6 +29,30 @@ type AddressItem struct {
 	IsDefault     bool   `json:"is_default"`
 	AddressTag    string `json:"address_tag"`
 	CreatedAt     string `json:"created_at"`
+}
+
+type AdminOrderListItem struct {
+	OrderId       int64   `json:"order_id"`
+	OrderNo       string  `json:"order_no"`
+	OrderStatus   string  `json:"order_status"`
+	TotalAmount   float64 `json:"total_amount"`
+	PayAmount     float64 `json:"pay_amount"`
+	PayMethod     string  `json:"pay_method"`
+	UserName      string  `json:"user_name"`
+	ReceiverName  string  `json:"receiver_name"`
+	ReceiverPhone string  `json:"receiver_phone"`
+	CreatedAt     string  `json:"created_at"`
+}
+
+type AdminPaymentListItem struct {
+	PaymentId int64   `json:"payment_id"`
+	PayNo     string  `json:"pay_no"`
+	OrderNo   string  `json:"order_no"`
+	Username  string  `json:"username"`
+	PayMethod string  `json:"pay_method"`
+	PayAmount float64 `json:"pay_amount"`
+	PayStatus string  `json:"pay_status"`
+	PayTime   string  `json:"pay_time"`
 }
 
 type AssignMenuPermsReq struct {
@@ -45,6 +79,53 @@ type AssignUserDeptsReq struct {
 type AssignUserRolesReq struct {
 	UserId  int64   `json:"user_id"`
 	RoleIds []int64 `json:"role_ids"`
+}
+
+type CancelOrderResp struct {
+	OrderId     int64  `json:"order_id"`
+	OrderNo     string `json:"order_no"`
+	OrderStatus string `json:"order_status"`
+}
+
+type CartCountResp struct {
+	Count int64 `json:"count"`
+}
+
+type CartItem struct {
+	CartItemId        int64       `json:"cart_item_id"`
+	SkuId             int64       `json:"sku_id"`
+	SpuId             int64       `json:"spu_id"`
+	SpuName           string      `json:"spu_name"`
+	MainImage         string      `json:"main_image"`
+	SkuName           string      `json:"sku_name"`
+	SpecValues        interface{} `json:"spec_values"`
+	SkuImage          string      `json:"sku_image"`
+	Price             float64     `json:"price"`
+	Stock             int64       `json:"stock"`
+	Quantity          int64       `json:"quantity"`
+	IsSelected        bool        `json:"is_selected"`
+	Subtotal          float64     `json:"subtotal"`
+	IsAvailable       bool        `json:"is_available"`
+	UnavailableReason string      `json:"unavailable_reason"`
+}
+
+type CartItemIdReq struct {
+	Id int64 `path:"id"`
+}
+
+type CartPayPreviewResp struct {
+	Items            []CartItem `json:"items"`
+	TotalCount       int64      `json:"total_count"`
+	TotalQuantity    int64      `json:"total_quantity"`
+	TotalAmount      float64    `json:"total_amount"`
+	HasUnavailable   bool       `json:"has_unavailable"`
+	UnavailableItems []CartItem `json:"unavailable_items"`
+}
+
+type ConfirmOrderResp struct {
+	OrderId     int64  `json:"order_id"`
+	OrderNo     string `json:"order_no"`
+	OrderStatus string `json:"order_status"`
 }
 
 type CreateAddressReq struct {
@@ -87,6 +168,37 @@ type CreateMenuReq struct {
 
 type CreateMenuResp struct {
 	MenuItem
+}
+
+type CreateOrderReq struct {
+	AddressId     int64  `json:"address_id"`
+	IdempotentKey string `json:"idempotent_key"`
+	BuyerRemark   string `json:"buyer_remark,optional"`
+	UserCouponId  int64  `json:"user_coupon_id,optional"`
+}
+
+type CreateOrderResp struct {
+	OrderId     int64   `json:"order_id"`
+	OrderNo     string  `json:"order_no"`
+	PayAmount   float64 `json:"pay_amount"`
+	TotalAmount float64 `json:"total_amount"`
+	OrderStatus string  `json:"order_status"`
+	PayExpireAt string  `json:"pay_expire_at"`
+	CreatedAt   string  `json:"created_at"`
+}
+
+type CreatePaymentReq struct {
+	Id        int64  `path:"id"`
+	PayMethod string `json:"pay_method"`
+}
+
+type CreatePaymentResp struct {
+	PaymentId int64   `json:"payment_id"`
+	PayNo     string  `json:"pay_no"`
+	PayAmount float64 `json:"pay_amount"`
+	PayStatus string  `json:"pay_status"`
+	PayUrl    string  `json:"pay_url"`
+	QrCode    string  `json:"qr_code"`
 }
 
 type CreatePermissionReq struct {
@@ -202,6 +314,39 @@ type GetMenuTreeByUserIdReq struct {
 	UserId int64 `json:"user_id,optional"`
 }
 
+type GetOrderResp struct {
+	OrderId         int64         `json:"order_id"`
+	OrderNo         string        `json:"order_no"`
+	OrderStatus     string        `json:"order_status"`
+	TotalAmount     float64       `json:"total_amount"`
+	PayAmount       float64       `json:"pay_amount"`
+	PayMethod       string        `json:"pay_method"`
+	PayTime         string        `json:"pay_time"`
+	AddressSnapshot interface{}   `json:"address_snapshot"`
+	BuyerRemark     string        `json:"buyer_remark"`
+	DetailList      []OrderDetail `json:"detail_list"`
+	LogList         []OrderLog    `json:"log_list"`
+	CreatedAt       string        `json:"created_at"`
+	Username        string        `json:"username"`
+	UserId          int64         `json:"user_id"`
+}
+
+type GetPaymentReq struct {
+	PayNo string `path:"payNo"`
+}
+
+type GetPaymentResp struct {
+	PaymentId int64   `json:"payment_id"`
+	PayNo     string  `json:"pay_no"`
+	OrderId   int64   `json:"order_id"`
+	OrderNo   string  `json:"order_no"`
+	PayMethod string  `json:"pay_method"`
+	PayAmount float64 `json:"pay_amount"`
+	PayStatus string  `json:"pay_status"`
+	PayTime   string  `json:"pay_time"`
+	TradeNo   string  `json:"trade_no"`
+}
+
 type GetPermissionResp struct {
 	PermissionItem
 }
@@ -239,6 +384,21 @@ type GetUserInfoResp struct {
 	UpdatedAt  string `json:"updated_at"`
 }
 
+type GetUserOrderResp struct {
+	OrderId         int64         `json:"order_id"`
+	OrderNo         string        `json:"order_no"`
+	OrderStatus     string        `json:"order_status"`
+	TotalAmount     float64       `json:"total_amount"`
+	PayAmount       float64       `json:"pay_amount"`
+	PayMethod       string        `json:"pay_method"`
+	PayTime         string        `json:"pay_time"`
+	AddressSnapshot interface{}   `json:"address_snapshot"`
+	BuyerRemark     string        `json:"buyer_remark"`
+	DetailList      []OrderDetail `json:"detail_list"`
+	LogList         []OrderLog    `json:"log_list"`
+	CreatedAt       string        `json:"created_at"`
+}
+
 type GetUserResp struct {
 	UserItem
 }
@@ -272,6 +432,39 @@ type ListMenusReq struct {
 type ListMenusResp struct {
 	List  []MenuItem `json:"list"`
 	Total int64      `json:"total"`
+}
+
+type ListOrdersReq struct {
+	Page        int    `form:"page,optional"`
+	PageSize    int    `form:"page_size,optional"`
+	OrderStatus string `form:"order_status,optional"`
+	OrderNo     string `form:"order_no,optional"`
+	StartTime   string `form:"start_time,optional"`
+	EndTime     string `form:"end_time,optional"`
+}
+
+type ListOrdersResp struct {
+	Page     int                  `json:"page"`
+	PageSize int                  `json:"page_size"`
+	Total    int64                `json:"total"`
+	List     []AdminOrderListItem `json:"list"`
+}
+
+type ListPaymentsReq struct {
+	Page      int    `form:"page,optional"`
+	PageSize  int    `form:"page_size,optional"`
+	PayStatus string `form:"pay_status,optional"`
+	PayMethod string `form:"pay_method,optional"`
+	OrderNo   string `form:"order_no,optional"`
+	StartTime string `form:"start_time,optional"`
+	EndTime   string `form:"end_time,optional"`
+}
+
+type ListPaymentsResp struct {
+	List     []AdminPaymentListItem `json:"list"`
+	Total    int64                  `json:"total"`
+	Page     int                    `json:"page"`
+	PageSize int                    `json:"page_size"`
 }
 
 type ListPermissionsReq struct {
@@ -323,6 +516,19 @@ type ListUserDeptsResp struct {
 	PrimaryDeptId int64      `json:"primary_dept_id"`
 }
 
+type ListUserOrdersReq struct {
+	Page        int    `form:"page,optional"`
+	PageSize    int    `form:"page_size,optional"`
+	OrderStatus string `form:"order_status,optional"`
+}
+
+type ListUserOrdersResp struct {
+	List     []UserOrderListItem `json:"list"`
+	Total    int64               `json:"total"`
+	Page     int                 `json:"page"`
+	PageSize int                 `json:"page_size"`
+}
+
 type ListUserRolesResp struct {
 	List  []RoleItem `json:"list"`
 	Total int64      `json:"total"`
@@ -370,6 +576,37 @@ type MenuItem struct {
 	MetaInfo  interface{} `json:"meta_info"`
 	CreatedAt string      `json:"created_at"`
 	Children  []MenuItem  `json:"children"`
+}
+
+type MockCallbackReq struct {
+	PayNo   string `json:"pay_no"`
+	TradeNo string `json:"trade_no,optional"`
+}
+
+type OrderDetail struct {
+	DetailId   int64   `json:"detail_id"`
+	SkuId      int64   `json:"sku_id"`
+	SpuName    string  `json:"spu_name"`
+	SkuName    string  `json:"sku_name"`
+	SpecValues string  `json:"spec_values"`
+	MainImage  string  `json:"main_image"`
+	Quantity   int64   `json:"quantity"`
+	UnitPrice  float64 `json:"unit_price"`
+	TotalPrice float64 `json:"total_price"`
+}
+
+type OrderIdReq struct {
+	Id int64 `path:"id"`
+}
+
+type OrderLog struct {
+	LogId       int64  `json:"log_id"`
+	OrderId     int64  `json:"order_id"`
+	OrderStatus string `json:"order_status"`
+	Action      string `json:"action"`
+	Operator    string `json:"operator"`
+	Detail      string `json:"detail"`
+	CreatedAt   string `json:"created_at"`
 }
 
 type PermissionIdReq struct {
@@ -447,6 +684,14 @@ type ScopeItem struct {
 	CreatedAt      string `json:"created_at"`
 }
 
+type SelectAllCartReq struct {
+	IsSelected bool `json:"is_selected"`
+}
+
+type SelectAllCartResp struct {
+	Affected int64 `json:"affected"`
+}
+
 type SelfProfile struct {
 	UserInfoId int64  `json:"user_info_id"`
 	UserId     int64  `json:"user_id"`
@@ -457,6 +702,20 @@ type SelfProfile struct {
 	Birthdate  string `json:"birthdate"`
 	CreatedAt  string `json:"created_at"`
 	UpdatedAt  string `json:"updated_at"`
+}
+
+type ShipOrderReq struct {
+	Id             int64  `path:"id"`
+	ExpressCompany string `json:"express_company"`
+	TrackingNo     string `json:"tracking_no"`
+}
+
+type ShipOrderResp struct {
+	OrderId        int64  `json:"order_id"`
+	OrderNo        string `json:"order_no"`
+	OrderStatus    string `json:"order_status"`
+	ExpressCompany string `json:"express_company"`
+	TrackingNo     string `json:"tracking_no"`
 }
 
 type UpdateAddressReq struct {
@@ -474,6 +733,12 @@ type UpdateAddressReq struct {
 
 type UpdateAddressResp struct {
 	AddressItem
+}
+
+type UpdateCartItemReq struct {
+	Id         int64 `path:"id"`
+	Quantity   int64 `json:"quantity,optional"`
+	IsSelected bool  `json:"is_selected,optional"`
 }
 
 type UpdateDeptReq struct {
@@ -587,4 +852,15 @@ type UserItem struct {
 	Status    string `json:"status"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
+}
+
+type UserOrderListItem struct {
+	OrderId     int64   `json:"order_id"`
+	OrderNo     string  `json:"order_no"`
+	OrderStatus string  `json:"order_status"`
+	TotalAmount float64 `json:"total_amount"`
+	PayAmount   float64 `json:"pay_amount"`
+	DetailCount int64   `json:"detail_count"`
+	FirstImage  string  `json:"first_image"`
+	CreatedAt   string  `json:"created_at"`
 }

@@ -1,9 +1,7 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.9.2
-
 package svc
 
 import (
+	v1_tradev1 "demo-shop/api/gen/trade/v1"
 	v1_userv1 "demo-shop/api/gen/user/v1"
 	"demo-shop/pkg/auth"
 	"demo-shop/services/bff/internal/config"
@@ -15,33 +13,48 @@ import (
 
 type ServiceContext struct {
 	Config config.Config
+
 	// 中间件按路由组的鉴权要求绑定。
 	//
 	// 字段名**必须与 bff.api 里 middleware: 后的标识符逐字一致** ——
 	// 生成物 routes.go 用 serverCtx.<名字> 引用它们,改名即编译失败。
-	//
-	// RequestMeta 排在最前:它把 client_ip / device 放进 context,
-	// 且对**所有**路由生效(包括不鉴权的登录/注册)。
-	// 见 middleware/requestmetamiddleware.go 的说明。
 	RequestMeta     rest.Middleware
 	Auth            rest.Middleware
 	PublicRateLimit rest.Middleware
 	Public          rest.Middleware
 
 	// ---- 下游 gRPC 客户端 ----
+	//
+	// **直接持有生成的客户端,不包 façade**:转的目标是 .api 生成的
+	// types.* 而不是单体的 model.*,包一层等于为不同目标复刻同一批方法。
 
-	// UserRPC 用户域客户端
-	UserRPC v1_userv1.UserServiceClient
-	// RBACRPC RBAC域客户端
-	RBACRPC v1_userv1.RBACServiceClient
-	// AddressRPC 地址域客户端
+	// UserRPC / RBACRPC / AddressRPC 三个 gRPC service 由**同一个
+	// user-service 进程**提供、同一个 etcd key 发现,故共用一条连接。
+	UserRPC    v1_userv1.UserServiceClient
+	RBACRPC    v1_userv1.RBACServiceClient
 	AddressRPC v1_userv1.AddressServiceClient
+
+	// CartRPC / OrderRPC / PaymentRPC 同理,三个都由 trade-service 提供。
+	CartRPC    v1_tradev1.CartServiceClient
+	OrderRPC   v1_tradev1.OrderServiceClient
+	PaymentRPC v1_tradev1.PaymentServiceClient
 }
 
+// NewServiceContext verifier 由 main 在启动时加载 —— 验签器需要它,
+// 而加载失败应当在启动时 panic(验签不可用等于全站 401)。
+//
+// **注意签名与 goctl 生成的不同**(生成的是单参 c):
+// 这是刻意的,见 .goctl/api/main.tpl。让 svc 自己加载公钥会把
+// "路径配错"推迟成运行时某个请求的 401,而不是启动失败。
 func NewServiceContext(c config.Config, verifier *auth.Verifier) *ServiceContext {
-
-	// user-service服务连接
+	// 两个下游各建一条连接 —— 服务发现按 etcd key,一个 key 一条连接。
+	//
+	// 注意 **user-service 与 trade-service 是两条连接**:它们的 etcd key
+	// 不同(user-service / trade-service),即使将来部署在同一台机器上
+	// 也应当分开建 —— 共用一条会让"其中一个实例下线"影响另一个的
+	// 负载均衡。
 	userConn := rpc.Connect(c.Etcd.Hosts, c.User.EtcdKey)
+	tradeConn := rpc.Connect(c.Etcd.Hosts, c.Trade.EtcdKey)
 
 	return &ServiceContext{
 		Config:          c,
@@ -53,5 +66,9 @@ func NewServiceContext(c config.Config, verifier *auth.Verifier) *ServiceContext
 		UserRPC:    v1_userv1.NewUserServiceClient(userConn),
 		RBACRPC:    v1_userv1.NewRBACServiceClient(userConn),
 		AddressRPC: v1_userv1.NewAddressServiceClient(userConn),
+
+		CartRPC:    v1_tradev1.NewCartServiceClient(tradeConn),
+		OrderRPC:   v1_tradev1.NewOrderServiceClient(tradeConn),
+		PaymentRPC: v1_tradev1.NewPaymentServiceClient(tradeConn),
 	}
 }

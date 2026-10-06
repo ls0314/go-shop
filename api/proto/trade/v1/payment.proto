@@ -32,6 +32,9 @@ message Payment {
   string trade_no = 9;
   google.protobuf.Timestamp created_at = 10;
   google.protobuf.Timestamp updated_at = 11;
+  // 支付时的用户名**快照**,建支付时从订单读(与订单一致)。
+  // 见 order.proto 里 Order.username 的说明。
+  string username = 12;
 }
 
 // ============================================================

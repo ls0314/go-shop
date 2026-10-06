@@ -70,8 +70,10 @@ func (o *OrderService) CreateOrder(ctx context.Context, r *req.CreateOrderReq) (
 	// order 在闭包外声明、闭包内填充:建单事务会通过 GORM 回填自增主键,
 	// 事务提交后这里就能读到 order_id。
 	order := &model.UserOrder{
-		OrderNo:         orderNo,
-		UserId:          r.UserId,
+		OrderNo: orderNo,
+		UserId:  r.UserId,
+		// 用户名快照:下单那一刻的值,不随用户改名而变
+		Username:        r.UserName,
 		OrderStatus:     model.OrderPendingPay,
 		TotalAmount:     totalAmount,
 		PayAmount:       payAmount,

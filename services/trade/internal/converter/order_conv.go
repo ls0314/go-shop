@@ -24,7 +24,7 @@ func FromProtoCreateOrder(p *v1_tradev1.CreateOrderReq) *req.CreateOrderReq {
 	}
 	out := &req.CreateOrderReq{
 		UserId:        p.GetUserId(),
-		UserName:      p.GetUserName(),
+		UserName:      p.GetUsername(),
 		IdempotentKey: p.GetIdempotentKey(),
 		BuyerRemark:   p.GetBuyerRemark(),
 		UserCouponId:  p.GetUserCouponId(),
@@ -101,7 +101,7 @@ func FromProtoShipOrder(p *v1_tradev1.ShipOrderReq) *req.ShipOrderReq {
 	}
 	return &req.ShipOrderReq{
 		OrderId:        p.GetOrderId(),
-		UserName:       p.GetUserName(),
+		UserName:       p.GetUsername(),
 		ExpressCompany: p.GetExpressCompany(),
 		TrackingNo:     p.GetTrackingNo(),
 	}
@@ -136,6 +136,7 @@ func ToProtoOrder(o *model.UserOrder) *v1_tradev1.Order {
 		OrderId:     o.OrderId,
 		OrderNo:     o.OrderNo,
 		UserId:      o.UserId,
+		Username:    o.Username,
 		OrderStatus: o.OrderStatus,
 		TotalAmount: o.TotalAmount,
 		PayAmount:   o.PayAmount,

@@ -37,9 +37,12 @@ type Payment struct {
 	PayStatus string                 `protobuf:"bytes,7,opt,name=pay_status,json=payStatus,proto3" json:"pay_status,omitempty"`
 	PayTime   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=pay_time,json=payTime,proto3" json:"pay_time,omitempty"`
 	// 渠道侧交易号,回调时写入。幂等与对账都靠它
-	TradeNo       string                 `protobuf:"bytes,9,opt,name=trade_no,json=tradeNo,proto3" json:"trade_no,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	TradeNo   string                 `protobuf:"bytes,9,opt,name=trade_no,json=tradeNo,proto3" json:"trade_no,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// 支付时的用户名**快照**,建支付时从订单读(与订单一致)。
+	// 见 order.proto 里 Order.username 的说明。
+	Username      string `protobuf:"bytes,12,opt,name=username,proto3" json:"username,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -149,6 +152,13 @@ func (x *Payment) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Payment) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
 }
 
 type CreatePaymentReq struct {
@@ -710,7 +720,7 @@ var File_trade_v1_payment_proto protoreflect.FileDescriptor
 
 const file_trade_v1_payment_proto_rawDesc = "" +
 	"\n" +
-	"\x16trade/v1/payment.proto\x12\btrade.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9a\x03\n" +
+	"\x16trade/v1/payment.proto\x12\btrade.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb6\x03\n" +
 	"\aPayment\x12\x1d\n" +
 	"\n" +
 	"payment_id\x18\x01 \x01(\x03R\tpaymentId\x12\x15\n" +
@@ -729,7 +739,8 @@ const file_trade_v1_payment_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"e\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
+	"\busername\x18\f \x01(\tR\busername\"e\n" +
 	"\x10CreatePaymentReq\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x03R\aorderId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x1d\n" +

@@ -50,6 +50,14 @@ type Order struct {
 	IdempotentKey string                 `protobuf:"bytes,14,opt,name=idempotent_key,json=idempotentKey,proto3" json:"idempotent_key,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// 下单时的用户名**快照**(不是引用)。
+	//
+	// 与 user_id 并存是刻意的:user_id 用于关联与归属校验,username 只用于
+	// 展示。用户改名后历史订单仍显示当时的名字 —— 这是产品语义选择,
+	// 故它必须在下单时固化,而不是查询时跨库取。
+	//
+	// 调用方(BFF)从 JWT 取当前登录者传入;服务端不校验也不改写。
+	Username      string `protobuf:"bytes,17,opt,name=username,proto3" json:"username,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -194,6 +202,13 @@ func (x *Order) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Order) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
 }
 
 // OrderDetail 订单明细。商品侧字段在下单时**固化快照** ——
@@ -409,9 +424,11 @@ func (x *OrderLog) GetCreatedAt() *timestamppb.Timestamp {
 }
 
 type CreateOrderReq struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	UserId   int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	UserName string                 `protobuf:"bytes,2,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	UserId int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// 下单用户名,由调用方从 JWT 取。服务端只把它写进订单作快照,
+	// 不校验也不改写。命名与 Order.username / Payment.username 保持一致。
+	Username string `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	// 收货地址**快照**,由调用方在结算页选定地址后传入。
 	//
 	// 为什么不让 trade 拿 address_id 去查:① 地址表在 user_db,
@@ -462,9 +479,9 @@ func (x *CreateOrderReq) GetUserId() int64 {
 	return 0
 }
 
-func (x *CreateOrderReq) GetUserName() string {
+func (x *CreateOrderReq) GetUsername() string {
 	if x != nil {
-		return x.UserName
+		return x.Username
 	}
 	return ""
 }
@@ -1092,10 +1109,12 @@ func (x *CancelOrderResp) GetErrorMsg() string {
 }
 
 type ConfirmOrderReq struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrderId       int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	UserName      string                 `protobuf:"bytes,3,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	OrderId int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	UserId  int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// 订单日志的"操作人"。命名与 CancelOrderReq.operator 不同是历史遗留,
+	// 但它传的是**登录用户名**,故与 Order.username 统一为 username。
+	Username      string `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1144,9 +1163,9 @@ func (x *ConfirmOrderReq) GetUserId() int64 {
 	return 0
 }
 
-func (x *ConfirmOrderReq) GetUserName() string {
+func (x *ConfirmOrderReq) GetUsername() string {
 	if x != nil {
-		return x.UserName
+		return x.Username
 	}
 	return ""
 }
@@ -1408,14 +1427,11 @@ func (x *GetOrderReq) GetOrderId() int64 {
 }
 
 type GetOrderResp struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Order   *Order                 `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
-	Details []*OrderDetail         `protobuf:"bytes,2,rep,name=details,proto3" json:"details,omitempty"`
-	Logs    []*OrderLog            `protobuf:"bytes,3,rep,name=logs,proto3" json:"logs,omitempty"`
-	// 下单用户名,管理端列表与详情要展示。由调用方(user 域)回填 ——
-	// 订单表只存 user_id,跨库取不到用户名
-	Username      string `protobuf:"bytes,4,opt,name=username,proto3" json:"username,omitempty"`
-	ErrorMsg      string `protobuf:"bytes,5,opt,name=error_msg,json=errorMsg,proto3" json:"error_msg,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Order         *Order                 `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
+	Details       []*OrderDetail         `protobuf:"bytes,2,rep,name=details,proto3" json:"details,omitempty"`
+	Logs          []*OrderLog            `protobuf:"bytes,3,rep,name=logs,proto3" json:"logs,omitempty"`
+	ErrorMsg      string                 `protobuf:"bytes,4,opt,name=error_msg,json=errorMsg,proto3" json:"error_msg,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1471,13 +1487,6 @@ func (x *GetOrderResp) GetLogs() []*OrderLog {
 	return nil
 }
 
-func (x *GetOrderResp) GetUsername() string {
-	if x != nil {
-		return x.Username
-	}
-	return ""
-}
-
 func (x *GetOrderResp) GetErrorMsg() string {
 	if x != nil {
 		return x.ErrorMsg
@@ -1486,11 +1495,12 @@ func (x *GetOrderResp) GetErrorMsg() string {
 }
 
 type ShipOrderReq struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	OrderId        int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	UserName       string                 `protobuf:"bytes,2,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
-	ExpressCompany string                 `protobuf:"bytes,3,opt,name=express_company,json=expressCompany,proto3" json:"express_company,omitempty"`
-	TrackingNo     string                 `protobuf:"bytes,4,opt,name=tracking_no,json=trackingNo,proto3" json:"tracking_no,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	OrderId int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	// 订单日志的"操作人"(发货的管理员)。与 Order.username 统一命名。
+	Username       string `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	ExpressCompany string `protobuf:"bytes,3,opt,name=express_company,json=expressCompany,proto3" json:"express_company,omitempty"`
+	TrackingNo     string `protobuf:"bytes,4,opt,name=tracking_no,json=trackingNo,proto3" json:"tracking_no,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1532,9 +1542,9 @@ func (x *ShipOrderReq) GetOrderId() int64 {
 	return 0
 }
 
-func (x *ShipOrderReq) GetUserName() string {
+func (x *ShipOrderReq) GetUsername() string {
 	if x != nil {
-		return x.UserName
+		return x.Username
 	}
 	return ""
 }
@@ -1625,7 +1635,7 @@ var File_trade_v1_order_proto protoreflect.FileDescriptor
 
 const file_trade_v1_order_proto_rawDesc = "" +
 	"\n" +
-	"\x14trade/v1/order.proto\x12\btrade.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf9\x04\n" +
+	"\x14trade/v1/order.proto\x12\btrade.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x95\x05\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x03R\aorderId\x12\x19\n" +
 	"\border_no\x18\x02 \x01(\tR\aorderNo\x12\x17\n" +
@@ -1648,7 +1658,8 @@ const file_trade_v1_order_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xae\x02\n" +
+	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
+	"\busername\x18\x11 \x01(\tR\busername\"\xae\x02\n" +
 	"\vOrderDetail\x12\x1b\n" +
 	"\tdetail_id\x18\x01 \x01(\x03R\bdetailId\x12\x19\n" +
 	"\border_id\x18\x02 \x01(\x03R\aorderId\x12\x15\n" +
@@ -1673,10 +1684,10 @@ const file_trade_v1_order_proto_rawDesc = "" +
 	"\boperator\x18\x05 \x01(\tR\boperator\x12\x16\n" +
 	"\x06detail\x18\x06 \x01(\tR\x06detail\x129\n" +
 	"\n" +
-	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xeb\x01\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xea\x01\n" +
 	"\x0eCreateOrderReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
-	"\tuser_name\x18\x02 \x01(\tR\buserName\x123\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x123\n" +
 	"\aaddress\x18\x03 \x01(\v2\x19.trade.v1.AddressSnapshotR\aaddress\x12%\n" +
 	"\x0eidempotent_key\x18\x04 \x01(\tR\ridempotentKey\x12!\n" +
 	"\fbuyer_remark\x18\x05 \x01(\tR\vbuyerRemark\x12$\n" +
@@ -1727,11 +1738,11 @@ const file_trade_v1_order_proto_rawDesc = "" +
 	"\x0fCancelOrderResp\x12%\n" +
 	"\x05order\x18\x01 \x01(\v2\x0f.trade.v1.OrderR\x05order\x12 \n" +
 	"\vcompensated\x18\x02 \x01(\bR\vcompensated\x12\x1b\n" +
-	"\terror_msg\x18\x03 \x01(\tR\berrorMsg\"b\n" +
+	"\terror_msg\x18\x03 \x01(\tR\berrorMsg\"a\n" +
 	"\x0fConfirmOrderReq\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x03R\aorderId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x1b\n" +
-	"\tuser_name\x18\x03 \x01(\tR\buserName\"V\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x1a\n" +
+	"\busername\x18\x03 \x01(\tR\busername\"V\n" +
 	"\x10ConfirmOrderResp\x12%\n" +
 	"\x05order\x18\x01 \x01(\v2\x0f.trade.v1.OrderR\x05order\x12\x1b\n" +
 	"\terror_msg\x18\x02 \x01(\tR\berrorMsg\"\xf0\x01\n" +
@@ -1750,16 +1761,15 @@ const file_trade_v1_order_proto_rawDesc = "" +
 	"\tpage_size\x18\x04 \x01(\x05R\bpageSize\x12\x1b\n" +
 	"\terror_msg\x18\x05 \x01(\tR\berrorMsg\"(\n" +
 	"\vGetOrderReq\x12\x19\n" +
-	"\border_id\x18\x01 \x01(\x03R\aorderId\"\xc7\x01\n" +
+	"\border_id\x18\x01 \x01(\x03R\aorderId\"\xab\x01\n" +
 	"\fGetOrderResp\x12%\n" +
 	"\x05order\x18\x01 \x01(\v2\x0f.trade.v1.OrderR\x05order\x12/\n" +
 	"\adetails\x18\x02 \x03(\v2\x15.trade.v1.OrderDetailR\adetails\x12&\n" +
-	"\x04logs\x18\x03 \x03(\v2\x12.trade.v1.OrderLogR\x04logs\x12\x1a\n" +
-	"\busername\x18\x04 \x01(\tR\busername\x12\x1b\n" +
-	"\terror_msg\x18\x05 \x01(\tR\berrorMsg\"\x90\x01\n" +
+	"\x04logs\x18\x03 \x03(\v2\x12.trade.v1.OrderLogR\x04logs\x12\x1b\n" +
+	"\terror_msg\x18\x04 \x01(\tR\berrorMsg\"\x8f\x01\n" +
 	"\fShipOrderReq\x12\x19\n" +
-	"\border_id\x18\x01 \x01(\x03R\aorderId\x12\x1b\n" +
-	"\tuser_name\x18\x02 \x01(\tR\buserName\x12'\n" +
+	"\border_id\x18\x01 \x01(\x03R\aorderId\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12'\n" +
 	"\x0fexpress_company\x18\x03 \x01(\tR\x0eexpressCompany\x12\x1f\n" +
 	"\vtracking_no\x18\x04 \x01(\tR\n" +
 	"trackingNo\"\x9d\x01\n" +

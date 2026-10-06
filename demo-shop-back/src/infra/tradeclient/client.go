@@ -261,7 +261,7 @@ func (c *TradeClient) CreateOrder(r *CreateOrderReq) (*response.CreateOrderResp,
 
 	resp, err := c.order.CreateOrder(ctx, &v1_tradev1.CreateOrderReq{
 		UserId:        r.UserId,
-		UserName:      r.UserName,
+		Username:      r.UserName,
 		IdempotentKey: r.IdempotentKey,
 		BuyerRemark:   r.BuyerRemark,
 		UserCouponId:  r.UserCouponId,
@@ -442,7 +442,7 @@ func (c *TradeClient) ConfirmOrder(orderId, userId int64, userName string) (*res
 	resp, err := c.order.ConfirmOrder(ctx, &v1_tradev1.ConfirmOrderReq{
 		OrderId:  orderId,
 		UserId:   userId,
-		UserName: userName,
+		Username: userName,
 	})
 	if err != nil {
 		return nil, "", err
@@ -540,7 +540,7 @@ func (c *TradeClient) GetOrder(orderId int64) (*response.GetOrderResp, string, e
 		DetailList:      toModelOrderDetails(resp.Details),
 		LogList:         toModelOrderLogs(resp.Logs),
 		CreatedAt:       asTime(o.GetCreatedAt()),
-		Username:        resp.Username,
+		Username:        o.GetUsername(),
 		UserId:          o.GetUserId(),
 	}, "", nil
 }
@@ -555,7 +555,7 @@ func (c *TradeClient) ShipOrder(orderId int64, userName, expressCompany, trackin
 
 	resp, err := c.order.ShipOrder(ctx, &v1_tradev1.ShipOrderReq{
 		OrderId:        orderId,
-		UserName:       userName,
+		Username:       userName,
 		ExpressCompany: expressCompany,
 		TrackingNo:     trackingNo,
 	})

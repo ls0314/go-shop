@@ -43,6 +43,14 @@ message Order {
   string idempotent_key = 14;
   google.protobuf.Timestamp created_at = 15;
   google.protobuf.Timestamp updated_at = 16;
+  // 下单时的用户名**快照**(不是引用)。
+  //
+  // 与 user_id 并存是刻意的:user_id 用于关联与归属校验,username 只用于
+  // 展示。用户改名后历史订单仍显示当时的名字 —— 这是产品语义选择,
+  // 故它必须在下单时固化,而不是查询时跨库取。
+  //
+  // 调用方(BFF)从 JWT 取当前登录者传入;服务端不校验也不改写。
+  string username = 17;
 }
 
 // OrderDetail 订单明细。商品侧字段在下单时**固化快照** ——
@@ -78,7 +86,9 @@ message OrderLog {
 
 message CreateOrderReq {
   int64 user_id = 1;
-  string user_name = 2;
+  // 下单用户名,由调用方从 JWT 取。服务端只把它写进订单作快照,
+  // 不校验也不改写。命名与 Order.username / Payment.username 保持一致。
+  string username = 2;
   // 收货地址**快照**,由调用方在结算页选定地址后传入。
   //
   // 为什么不让 trade 拿 address_id 去查:① 地址表在 user_db,
@@ -175,7 +185,9 @@ message CancelOrderResp {
 message ConfirmOrderReq {
   int64 order_id = 1;
   int64 user_id = 2;
-  string user_name = 3;
+  // 订单日志的"操作人"。命名与 CancelOrderReq.operator 不同是历史遗留,
+  // 但它传的是**登录用户名**,故与 Order.username 统一为 username。
+  string username = 3;
 }
 
 message ConfirmOrderResp {
@@ -212,15 +224,13 @@ message GetOrderResp {
   Order order = 1;
   repeated OrderDetail details = 2;
   repeated OrderLog logs = 3;
-  // 下单用户名,管理端列表与详情要展示。由调用方(user 域)回填 ——
-  // 订单表只存 user_id,跨库取不到用户名
-  string username = 4;
-  string error_msg = 5;
+  string error_msg = 4;
 }
 
 message ShipOrderReq {
   int64 order_id = 1;
-  string user_name = 2;
+  // 订单日志的"操作人"(发货的管理员)。与 Order.username 统一命名。
+  string username = 2;
   string express_company = 3;
   string tracking_no = 4;
 }

@@ -50,9 +50,12 @@ func (p *PaymentService) CreatePayment(ctx context.Context, orderId, userId int6
 	payNo := PayNoPrefix + utils.FormatOrderNo(p.idGen.NextId())
 
 	record := &model.UserPaymentRecord{
-		PayNo:     payNo,
-		OrderId:   orderId,
-		UserId:    userId,
+		PayNo:   payNo,
+		OrderId: orderId,
+		UserId:  userId,
+		// 用户名快照从**订单**读,不额外传参 —— 保证支付记录的用户名
+		// 与订单一致(见 migrations/000005 的说明)
+		Username:  order.Username,
 		PayMethod: payMethod,
 		PayAmount: order.PayAmount,
 		PayStatus: model.PayPending,

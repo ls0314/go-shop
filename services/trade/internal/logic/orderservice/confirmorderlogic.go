@@ -26,7 +26,7 @@ func NewConfirmOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Conf
 }
 
 func (l *ConfirmOrderLogic) ConfirmOrder(in *v1_tradev1.ConfirmOrderReq) (*v1_tradev1.ConfirmOrderResp, error) {
-	order, err := l.svcCtx.OrderService.ConfirmOrder(in.GetOrderId(), in.GetUserId(), in.GetUserName())
+	order, err := l.svcCtx.OrderService.ConfirmOrder(in.GetOrderId(), in.GetUserId(), in.GetUsername())
 	if err != nil {
 		return &v1_tradev1.ConfirmOrderResp{ErrorMsg: bizErrMsg(err)}, err
 	}

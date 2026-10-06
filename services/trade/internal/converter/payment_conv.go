@@ -18,6 +18,7 @@ func ToProtoPayment(r *model.UserPaymentRecord) *v1_tradev1.Payment {
 		PaymentId: r.PaymentId,
 		PayNo:     r.PayNo,
 		OrderId:   r.OrderId,
+		Username:  r.Username,
 		PayMethod: r.PayMethod,
 		PayAmount: r.PayAmount,
 		PayStatus: r.PayStatus,
@@ -34,9 +35,8 @@ func ToProtoPaymentView(v *model.PaymentView) *v1_tradev1.Payment {
 		return nil
 	}
 	p := ToProtoPayment(&v.UserPaymentRecord)
+	// OrderNo 来自联表;Username 来自流水表自己的快照列(ToProtoPayment 已填)
 	p.OrderNo = v.OrderNo
-	// Username 由调用方(user 域)回填:用户名在 user_db,跨库取不到。
-	// 契约里为它留了字段,本服务不假装能填
 	return p
 }
 

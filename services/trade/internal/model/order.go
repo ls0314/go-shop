@@ -8,9 +8,15 @@ import (
 
 // UserOrder 订单主表结构体, 对应数据表user_order_master
 type UserOrder struct {
-	OrderId         int64          `gorm:"primaryKey;column:order_id" json:"order_id"`
-	OrderNo         string         `gorm:"column:order_no" json:"order_no"`
-	UserId          int64          `gorm:"column:user_id" json:"user_id"`
+	OrderId int64  `gorm:"primaryKey;column:order_id" json:"order_id"`
+	OrderNo string `gorm:"column:order_no" json:"order_no"`
+	UserId  int64  `gorm:"column:user_id" json:"user_id"`
+	// Username 下单时的用户名**快照**(不是引用)。
+	//
+	// 与 UserId 并存是刻意的:user_id 用于关联与归属校验,
+	// username 只用于展示 —— 用户改名后历史订单仍显示当时的名字。
+	// 见 migrations/000005 与 DS-A-25 §4.5.2 第 6 条。
+	Username        string         `gorm:"column:username" json:"username"`
 	OrderStatus     string         `gorm:"column:order_status" json:"order_status"`
 	TotalAmount     float64        `gorm:"column:total_amount" json:"total_amount"`
 	PayAmount       float64        `gorm:"column:pay_amount" json:"pay_amount"`

@@ -79,6 +79,20 @@ var ErrDownstreamUnavailable = errors.New("下游服务不可用")
 // ErrUnauthorized 凭据无效 / 未登录。
 var ErrUnauthorized = errors.New("未授权")
 
+// ErrForbidden 已登录但没有该接口要求的权限。
+//
+// 与 ErrUnauthorized 分开是有意的:401 让前端跳登录页,403 应当提示
+// "无权访问"而不是把人踢去登录 —— 登录了也没有用。单体的
+// PermissionMiddleware 也是分开处理的(回 400 而不是 401)。
+var ErrForbidden = errors.New("无权访问")
+
+// PermissionDeniedMessage 无权限的对外文案(与单体 model.UserHasNotPerm 逐字一致)。
+const PermissionDeniedMessage = "用户无操作权限"
+
+// PermissionNotConfiguredMessage 接口未配置权限点的文案(与单体
+// model.PermissionNotExist 逐字一致)。
+const PermissionNotConfiguredMessage = "权限不存在"
+
 // unavailableSuffix 下游不可用文案的后缀(跨服务契约)。
 const unavailableSuffix = " 不可用"
 
@@ -89,6 +103,10 @@ const InvalidParamMessage = "请求参数错误"
 
 // 下游不可用 → 503(接线断了,不是我错了)
 // 凭据无效   → 401(前端跳登录页)
+// 已登录但无权 → 403(403 而不是 400:前端应当提示"无权访问",
+//
+//	而不是把它当成参数/业务错误去展示)
+//
 // 业务失败   → 400(与单体一致,前端按状态码分流)
 // 其它       → 500(本服务的 bug 或未预期的故障,运维要看)
 func Failure(w http.ResponseWriter, err error) {
@@ -98,6 +116,9 @@ func Failure(w http.ResponseWriter, err error) {
 
 	case errors.Is(err, ErrUnauthorized):
 		Unauthorized(w, err.Error())
+
+	case errors.Is(err, ErrForbidden):
+		Forbidden(w, err.Error())
 
 	case isBizError(err):
 		// 与单体一致回 400。code 也用 400 —— 单体 utils.Fail(c, 400, msg)
@@ -109,6 +130,14 @@ func Failure(w http.ResponseWriter, err error) {
 		// 前端有些页面会展示它。改成通用文案会丢信息。
 		InternalError(w, http.StatusInternalServerError, err.Error())
 	}
+}
+
+// Forbidden 已登录但无权访问(403)
+func Forbidden(w http.ResponseWriter, message string) {
+	write(w, http.StatusForbidden, Envelope{
+		Code:    http.StatusForbidden,
+		Message: message,
+	})
 }
 
 // Unauthorized 凭据无效(401)

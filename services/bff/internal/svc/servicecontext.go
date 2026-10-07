@@ -7,7 +7,7 @@ import (
 	v1_productv1 "demo-shop/api/gen/product/v1"
 	v1_tradev1 "demo-shop/api/gen/trade/v1"
 	v1_userv1 "demo-shop/api/gen/user/v1"
-	"demo-shop/pkg/auth"
+	"demo-shop/services/bff/internal/auth"
 	"demo-shop/services/bff/internal/config"
 	"demo-shop/services/bff/internal/infra/rpc"
 	"demo-shop/services/bff/internal/middleware"

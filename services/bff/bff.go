@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"demo-shop/pkg/auth"
+	"demo-shop/services/bff/internal/auth"
 	"demo-shop/services/bff/internal/config"
 	"demo-shop/services/bff/internal/handler"
 	"demo-shop/services/bff/internal/svc"

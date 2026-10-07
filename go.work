@@ -2,7 +2,6 @@ go 1.25.11
 
 use (
 	./api
-	./pkg
 	./services/bff
 	./services/marketing
 	./services/product

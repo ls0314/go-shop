@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"demo-shop/pkg/auth"
+	"demo-shop/services/bff/internal/auth"
 	"demo-shop/services/bff/internal/response"
 )
 

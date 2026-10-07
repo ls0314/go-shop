@@ -1,0 +1,29 @@
+# product-service 的**容器内**配置。与 etc/product.yaml 只差地址类字段,
+# 理由见 etc/user.docker.yaml 的说明。
+
+Name: product-service
+ListenOn: 0.0.0.0:9005
+Mode: dev
+
+Etcd:
+  Hosts:
+    - etcd:2379
+  Key: product-service
+
+DataSource: postgres://postgres:postgres@postgres:5432/product_db?sslmode=disable
+
+Redis:
+  Host: redis:6379
+  Type: node
+  Pass: demoShop
+  Key: unused
+
+# ES 留空 = 不启用:商品搜索降级为直查数据库,同时不启动 ES 对账任务。
+# compose 里没有 elasticsearch 服务,填地址反而会让服务启动时连不上。
+ES:
+  Addresses: []
+
+Task:
+  ESIncInterval: 5m
+  ESFullInterval: 12h
+  StockInterval: 5m

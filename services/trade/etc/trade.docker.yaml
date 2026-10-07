@@ -1,0 +1,47 @@
+# trade-service 的**容器内**配置。与 etc/trade.yaml 只差地址类字段,
+# 理由见 etc/user.docker.yaml 的说明。
+
+Name: trade-service
+ListenOn: 0.0.0.0:9007
+Mode: dev
+
+Etcd:
+  Hosts:
+    - etcd:2379
+  Key: trade-service
+
+DataSource: postgres://postgres:postgres@postgres:5432/trade_db?sslmode=disable
+
+Redis:
+  Host: redis:6379
+  Type: node
+  Pass: demoShop
+  Key: unused
+
+# WorkerId 雪花算法工作节点 ID(0~1023)。
+#
+# **单实例部署时保持 1**。若将来把本服务扩成多实例,每个实例必须给不同的
+# WorkerId —— 相同会导致雪花 ID 碰撞,而表现是 uk_order_no 报唯一约束冲突,
+# 不是静默脏数据(这点比静默好,但排查时要知道是这个原因)。
+WorkerId: 1
+
+# 下游服务(服务发现),填 etcd key 而非地址
+Product:
+  EtcdKey: product-service
+Marketing:
+  EtcdKey: marketing-service
+
+# RabbitMQ:订单延迟取消消息的投递目标。
+#
+# 与本地那份的差别:本地是 Host: ""(空 = 不投递),容器内指向 compose 的服务名。
+# compose 里的 rabbitmq 用 demoShop 账号与 demoShop vhost(与单体时代一致)。
+RabbitMQ:
+  Host: rabbitmq
+  Port: 5672
+  User: demoShop
+  Password: demoShop
+  Vhost: /demoShop
+
+Task:
+  OutboxInterval: 1s
+  OrderScanInterval: 1m

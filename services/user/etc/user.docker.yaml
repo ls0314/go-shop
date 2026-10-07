@@ -1,0 +1,35 @@
+# user-service 的**容器内**配置。
+#
+# 与 etc/user.yaml(本地直跑)只差地址类字段 —— 本地是 127.0.0.1,
+# 容器内必须是 compose 的服务名。其余(Name/ListenOn/Mode/Key/Task...)逐字相同。
+#
+# 为什么不用环境变量注入(那样只需一份配置):
+# go-zero 的 ${VAR} 插值要显式传 conf.UseEnv(),而三个服务入口都没传;
+# 且它底层是 os.ExpandEnv,**不支持 ${VAR:默认值}** —— 环境变量缺失时
+# 会退化成空串,把"本地忘了 export"变成运行时的诡异故障。
+# 两份配置的代价(每份约 20 行)换来本地开发流程完全不受影响。
+#
+# compose 把它挂到 /app/etc/user.yaml(镜像里那份是本地版,会被覆盖)。
+
+Name: user-service
+ListenOn: 0.0.0.0:9004
+Mode: dev
+
+Etcd:
+  Hosts:
+    - etcd:2379
+  Key: user-service
+
+# 库名 user_db 由 docker/postgres-init 建出(迁移只建表,不建库)
+DataSource: postgres://postgres:postgres@postgres:5432/user_db?sslmode=disable
+
+Redis:
+  Host: redis:6379
+  Type: node
+  Pass: demoShop
+  Key: unused
+
+# **绝对路径**:配置挂在 /app/etc/,相对路径 ../../jwt_keys 会解析到
+# /jwt_keys(不存在)而不是 /app/jwt_keys。
+# compose 挂载:./jwt_keys:/app/jwt_keys:ro
+JwtPrivateKeyPath: /app/jwt_keys/dev_private.pem

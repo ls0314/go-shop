@@ -70,8 +70,15 @@ services:
     networks: [ demo-shop-network ]
     restart: always
 
+  # 搜索:仅 observability profile 启动。
+  #
+  # 为什么归到可观测性里而不是默认开:光 JVM 堆就是 1G(见下方 ES_JAVA_OPTS),
+  # 而**没有它服务照样完整工作** —— product-service 的 ES.Addresses 留空即
+  # 不启用搜索(商品搜索降级为直查 DB),同时不启动 ES 对账任务。
+  # 见 services/product/etc/product.docker.yaml。
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
+    profiles: ["observability"]
     ports: ["9200:9200"]
     environment:
       discovery.type: single-node
@@ -124,55 +131,143 @@ services:
     networks: [demo-shop-network]
     restart: always
 
-  # ============ 双实例(A4):两个进程同时跑,跨进程共享状态才被真正检验 ============
-  backend-1: &backend-base
-    build:
-      context: ./demo-shop-back
-      args:
-        GOPROXY: https://goproxy.cn,direct
-    environment: &backend-env
-      DEMO_SHOP_DB_HOST: postgres
-      DEMO_SHOP_REDIS_ADDR: redis:6379
-      DEMO_SHOP_REDIS_PASSWORD: ${REDIS_PASSWORD:-demoShop}
-      DEMO_SHOP_RABBITMQ_DSN: amqp://demoShop:demoShop@rabbitmq:5672/demoShop
-      DEMO_SHOP_ES_ADDRESSES: http://elasticsearch:9200
-      DEMO_SHOP_JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
-      # 双实例必须不同,否则雪花 ID 碰撞(uk_order_no 会报错而非静默脏数据)
-      DEMO_SHOP_SNOWFLAKE_WORKER_ID: "1"
-      DEMO_SHOP_TRUSTED_PROXIES: 172.16.0.0/12
-      # 种子只让 backend-1 加载:seed 走版本账本,两实例同时首启会并发抢同一批种子
-      DEMO_SHOP_SEED_DIR: /app/db/seeds
-      # 预扣闸门一键开关(压测 A/B 与生产熔断):false=闸门旁路,全量走 DB 双防线
-      DEMO_SHOP_GATE_ENABLED: "true"
+  # ============================================================
+  # 微服务:BFF + 四个后端(单体已于本阶段退役)
+  # ============================================================
+  #
+  # 三条贯穿全段的约定:
+  #
+  #   ① **构建上下文是仓库根**(context: .),不是服务目录 ——
+  #      各服务 import demo-shop/api/...,靠仓库根的 go.work 才编译得过。
+  #      根级 .dockerignore 已排除 node_modules 等大目录。
+  #
+  #   ② **每个服务挂两份东西**:etc/<名>.docker.yaml → /app/etc/<名>.yaml
+  #      (容器内地址),以及可能需要的 jwt_keys。
+  #      配置挂错是关键故障来源,所以各镜像的入口脚本在启动前会检查
+  #      "二进制在不在、配置在不在、配置里有没有残留 127.0.0.1"。
+  #
+  #   ③ **迁移用一次性容器**,服务 depends_on 它们 service_completed_successfully。
+  #      注意:若库不存在,迁移失败会让整条链卡住 —— 库由
+  #      docker/postgres-init 在数据卷初始化时建出(仅首次生效,见该文件说明)。
+
+  migrate-user:
+    build: { context: ., dockerfile: services/user/Dockerfile }
+    # 覆盖镜像的 ENTRYPOINT:同一个镜像里既有主程序也有 cmd/migrate
+    entrypoint: ["/app/bin/user-service-migrate"]
+    command: ["-f", "etc/user.yaml"]
+    volumes:
+      - ./services/user/etc/user.docker.yaml:/app/etc/user.yaml:ro
     depends_on:
-      postgres:      { condition: service_healthy }
-      redis:         { condition: service_healthy }
-      rabbitmq:      { condition: service_healthy }
-      elasticsearch: { condition: service_healthy }
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9001/api/v1/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 60s   # 首次启动要跑迁移,别在迁移期间判死
-    volumes: [uploads-data:/app/uploads]
+      postgres: { condition: service_healthy }
+    networks: [demo-shop-network]
+    restart: "no"     # 一次性任务,失败就该显式失败而不是无限重启
+
+  migrate-product:
+    build: { context: ., dockerfile: services/product/Dockerfile }
+    entrypoint: ["/app/bin/product-service-migrate"]
+    command: ["-f", "etc/product.yaml"]
+    volumes:
+      - ./services/product/etc/product.docker.yaml:/app/etc/product.yaml:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [demo-shop-network]
+    restart: "no"
+
+  migrate-trade:
+    build: { context: ., dockerfile: services/trade/Dockerfile }
+    entrypoint: ["/app/bin/trade-service-migrate"]
+    command: ["-f", "etc/trade.yaml"]
+    volumes:
+      - ./services/trade/etc/trade.docker.yaml:/app/etc/trade.yaml:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [demo-shop-network]
+    restart: "no"
+
+  migrate-marketing:
+    build: { context: ., dockerfile: services/marketing/Dockerfile }
+    entrypoint: ["/app/bin/marketing-service-migrate"]
+    command: ["-f", "etc/marketing.yaml"]
+    volumes:
+      - ./services/marketing/etc/marketing.docker.yaml:/app/etc/marketing.yaml:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [demo-shop-network]
+    restart: "no"
+
+  user-service:
+    build: { context: ., dockerfile: services/user/Dockerfile }
+    volumes:
+      - ./services/user/etc/user.docker.yaml:/app/etc/user.yaml:ro
+      # 私钥:本服务**签发**令牌,四个服务里只有它需要私钥
+      - ./jwt_keys:/app/jwt_keys:ro
+    depends_on:
+      etcd:           { condition: service_healthy }
+      redis:          { condition: service_healthy }
+      migrate-user:   { condition: service_completed_successfully }
     networks: [demo-shop-network]
     restart: always
 
-  backend-2:
-    <<: *backend-base
-    environment:
-      <<: *backend-env
-      DEMO_SHOP_SNOWFLAKE_WORKER_ID: "2"
-      # 不加载种子:backend-1 已跑完,这里只需复用(靠 depends_on 保证顺序)
-      DEMO_SHOP_SEED_DIR: ""
+  product-service:
+    build: { context: ., dockerfile: services/product/Dockerfile }
+    volumes:
+      - ./services/product/etc/product.docker.yaml:/app/etc/product.yaml:ro
     depends_on:
-      postgres:      { condition: service_healthy }
-      redis:         { condition: service_healthy }
-      rabbitmq:      { condition: service_healthy }
-      elasticsearch: { condition: service_healthy }
-      backend-1:     { condition: service_healthy }
-    # 故意不映射宿主机端口:后端只经 nginx 对外。调试时临时加 "9001:9001"
+      etcd:             { condition: service_healthy }
+      redis:            { condition: service_healthy }
+      migrate-product:  { condition: service_completed_successfully }
+    networks: [demo-shop-network]
+    restart: always
+
+  marketing-service:
+    build: { context: ., dockerfile: services/marketing/Dockerfile }
+    volumes:
+      - ./services/marketing/etc/marketing.docker.yaml:/app/etc/marketing.yaml:ro
+    depends_on:
+      etcd:               { condition: service_healthy }
+      redis:              { condition: service_healthy }
+      migrate-marketing:  { condition: service_completed_successfully }
+    networks: [demo-shop-network]
+    restart: always
+
+  trade-service:
+    build: { context: ., dockerfile: services/trade/Dockerfile }
+    volumes:
+      - ./services/trade/etc/trade.docker.yaml:/app/etc/trade.yaml:ro
+    depends_on:
+      etcd:             { condition: service_healthy }
+      redis:            { condition: service_healthy }
+      rabbitmq:         { condition: service_healthy }
+      migrate-trade:    { condition: service_completed_successfully }
+    networks: [demo-shop-network]
+    restart: always
+
+  bff:
+    build: { context: ., dockerfile: services/bff/Dockerfile }
+    ports: ["9003:9003"]
+    volumes:
+      - ./services/bff/etc/bff.docker.yaml:/app/etc/bff.yaml:ro
+      # 公钥:BFF 只验签,签不出来(私钥在 user-service)
+      - ./jwt_keys:/app/jwt_keys:ro
+    depends_on:
+      # 四个下游都得先注册到 etcd,BFF 才解析得到实例。
+      # 这里只等"容器起来"而不等"服务健康" —— 四个服务都没有 healthcheck,
+      # 而 BFF 的 rpc.Connect 是懒连接,启动顺序不影响它后续解析。
+      - etcd
+      - user-service
+      - product-service
+      - marketing-service
+      - trade-service
+    healthcheck:
+      # 用 BFF 自己的公开健康端点(挂 Public 中间件,不需要令牌)
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9003/api/v1/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks: [demo-shop-network]
+    restart: always
+
 
   frontend:
     build:
@@ -180,11 +275,11 @@ services:
       args:
         NPM_REGISTRY: https://registry.npmmirror.com
     environment:
-      # upstream 名(定义在 nginx.conf.template 中),不再是单个主机名
-      BACKEND_UPSTREAM: backend_cluster
+      # nginx 的 proxy_pass 目标。单体时代是 backend_cluster(两个单体实例),
+      # 现在是**单个 BFF** —— nginx.conf.template 里的 upstream 已同步改名。
+      BACKEND_UPSTREAM: bff
     depends_on:
-      backend-1: { condition: service_healthy }
-      backend-2: { condition: service_healthy }
+      bff: { condition: service_healthy }
     ports: ["8080:80"]
     networks: [demo-shop-network]
     restart: always
@@ -197,9 +292,22 @@ services:
       retries: 6
       start_period: 20s
 
-  # 可观测性(DS-A-22):指标抓取 + 可视化面板
+  # ============================================================
+  # 可观测性(DS-A-22)。**默认不启动** —— 需要时显式带 profile:
+  #   docker compose --profile observability up -d
+  # ============================================================
+  #
+  # 为什么默认关掉:三个容器约占 2.5~3G 内存,而它们对"把服务跑起来"
+  # 不是必需的:
+  #   - product-service 的 ES.Addresses 留空即不启用搜索,商品搜索降级为
+  #     直查 DB(见 services/product/etc/product.docker.yaml);
+  #   - 指标端点仍在各服务上暴露,只是没人抓。
+  #
+  # 注意 elasticsearch 的定义**在文件上部**(挨着其余中间件),它同样
+  # 挂了 observability profile。
   prometheus:
     image: prom/prometheus:v2.53.0
+    profiles: ["observability"]
     ports: ["9090:9090"]
     volumes:
       - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -208,6 +316,7 @@ services:
 
   grafana:
     image: grafana/grafana:11.1.0
+    profiles: ["observability"]
     ports: ["3000:3000"]
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
@@ -224,8 +333,9 @@ volumes:
   postgres-data:
   redis-data:
   rabbitmq-data:
-  elasticsearch-data:
-  uploads-data:
+  # 对象存储:文件上传的落点(取代了单体时代的 uploads-data 共享卷)
   minio-data:
   grafana-data:
   etcd-data:
+  # 仅 observability profile 用到(elasticsearch 服务定义在文件上部)
+  elasticsearch-data:

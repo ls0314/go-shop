@@ -1,0 +1,27 @@
+# marketing-service 的**容器内**配置。与 etc/marketing.yaml 只差地址类字段,
+# 理由见 etc/user.docker.yaml 的说明。
+
+Name: marketing-service
+ListenOn: 0.0.0.0:9009
+Mode: dev
+
+Etcd:
+  Hosts:
+    - etcd:2379
+  Key: marketing-service
+
+DataSource: postgres://postgres:postgres@postgres:5432/marketing_db?sslmode=disable
+
+Redis:
+  Host: redis:6379
+  Type: node
+  Pass: demoShop
+  Key: unused
+
+# MetricsPort Prometheus 指标端点的独立监听端口。
+# 领券埋点(coupon_receive_total / coupon_receive_duration_seconds)暴露在这里,
+# 而抓取端在 docker/prometheus.yml 里配置(该文件目前仍指向已退役的单体,待修)。
+MetricsPort: "9006"
+
+Tasks:
+  CouponInterval: 5m

@@ -1,0 +1,31 @@
+# 构建上下文是**仓库根**(服务 import demo-shop/api/...,以服务目录为上下文编译不过),
+# 所以这里必须把大而无关的东西排除掉 —— 否则每次 docker build 都要把几百 MB
+# 传进 daemon,而且 node_modules 会拖慢上下文打包。
+#
+# 注意:go.work 会 `use ./api ./services/...`,所以 api/ 与 services/ **不能**排除。
+
+# 前端:node_modules 通常几百 MB,且构建前端镜像有它自己的上下文
+demo_shop_front/node_modules
+demo_shop_front/dist
+
+# 工作区内的构建/临时缓存(见 .gitignore)
+.gotmp/
+.gocache/
+**/.gotmp/
+**/.gocache/
+
+# 文档与设计稿
+*.md
+docs/
+.acl-recovery/
+
+# IDE
+.idea/
+.vscode/
+
+# Git 自身
+.git/
+.gitignore
+
+# 已退役单体的归档(只在 git 分支里,这里排除以防本地残留)
+demo-shop-back/

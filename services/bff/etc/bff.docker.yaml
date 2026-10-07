@@ -1,0 +1,59 @@
+# BFF 的**容器内**配置。与 etc/bff.yaml 的差别见下面各处注释。
+
+Name: bff
+Host: 0.0.0.0
+Port: 9003
+Mode: dev
+
+# 绝对路径:配置挂在 /app/etc/,相对路径 ../../jwt_keys 会解析到 /jwt_keys(不存在)。
+# compose 挂载:./jwt_keys:/app/jwt_keys:ro
+JwtPublicKeyPath: /app/jwt_keys/dev_public.pem
+
+Etcd:
+  Hosts:
+    - etcd:2379
+
+# 四个下游的服务发现键(与各服务自己的 Etcd.Key 逐字一致)。
+# 填的是 etcd key 而非地址 —— 客户端靠服务发现定位实例。
+User:
+  EtcdKey: user-service
+Product:
+  EtcdKey: product-service
+Marketing:
+  EtcdKey: marketing-service
+Trade:
+  EtcdKey: trade-service
+
+Log:
+  Mode: console
+  Level: info
+
+RateLimit:
+  IPRPS: 5
+  IPBurst: 10
+
+# ============================================================
+# 对象存储:两个地址**必须不同**,这是本文件最容易配错的地方
+# ============================================================
+#
+#   Endpoint      服务端上传用 —— 容器内必须走服务名 minio:9000。
+#                 填 127.0.0.1 会让 BFF 连自己,表现为上传超时/503。
+#   PublicBaseURL 生成给**前端**的 URL —— 必须是**浏览器可达**的地址,
+#                 所以保持 http://localhost:9000(compose 把 9000 映射到了宿主)。
+#                 若跟着改成 minio:9000,前端图片会全部裂开 ——
+#                 浏览器不认识容器内的服务名。
+S3:
+  Endpoint: minio:9000
+  PublicBaseURL: http://localhost:9000
+  Bucket: demo-shop
+  AccessKey: demoshop
+  SecretKey: demoshop123
+  UseSSL: false
+
+# 允许跨域的前端来源。
+#
+# **生产路径下其实用不到**:前端镜像走 nginx,页面与 /api/v1 同源(都在 :8080),
+# 浏览器不发跨域请求。这里保留 5173 是为了兼容直连 BFF 的调试场景
+# (本地 Vite 开发服务器是 5173)。
+AllowedOrigins:
+  - http://localhost:5173

@@ -19,7 +19,10 @@ const (
 	refreshTokenTTL = 24 * time.Hour
 )
 
-// CustomClaims 必须与 demo-shop-back/src/utils/jwt.go 中同名结构逐字一致。
+// CustomClaims 是 access / refresh 令牌的载荷。
+//
+// 字段名与 json tag **都必须保持稳定**:BFF 与各服务只持公钥做验签,
+// 它们按这些名字读值,改名等于让所有在途令牌失效。
 type CustomClaims struct {
 	UserID    int64  `json:"user_id"`
 	Username  string `json:"username"`

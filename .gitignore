@@ -10,8 +10,6 @@
 
 # Go 运行时产物
 *.exe
-demo-shop-back/uploads/
-demo-shop-back/temp/
 
 # Go 构建缓存(不应出现在项目内;仅作保险,正常应配置到工作区之外)
 .gocache/

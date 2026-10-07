@@ -1,6 +1,8 @@
 package svc
 
 import (
+	"fmt"
+
 	v1_marketingv1 "demo-shop/api/gen/marketing/v1"
 	v1_productv1 "demo-shop/api/gen/product/v1"
 	v1_tradev1 "demo-shop/api/gen/trade/v1"
@@ -9,7 +11,9 @@ import (
 	"demo-shop/services/bff/internal/config"
 	"demo-shop/services/bff/internal/infra/rpc"
 	"demo-shop/services/bff/internal/middleware"
+	"demo-shop/services/bff/internal/storage"
 
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest"
 )
 
@@ -48,6 +52,9 @@ type ServiceContext struct {
 
 	// CouponRPC 由 marketing-service 提供。
 	CouponRPC v1_marketingv1.CouponServiceClient
+
+	// Storage 对象存储(MinIO),上传域用。
+	Storage *storage.ObjectStorage
 }
 
 // NewServiceContext verifier 由 main 在启动时加载 —— 验签器需要它,
@@ -67,6 +74,13 @@ func NewServiceContext(c config.Config, verifier *auth.Verifier) *ServiceContext
 	tradeConn := rpc.Connect(c.Etcd.Hosts, c.Trade.EtcdKey)
 	productConn := rpc.Connect(c.Etcd.Hosts, c.Product.EtcdKey)
 	marketingConn := rpc.Connect(c.Etcd.Hosts, c.Marketing.EtcdKey)
+
+	// 对象存储连不上应当在**启动时**失败,而不是等到第一次上传 ——
+	// 与验签器同一个理由:接线问题早暴露。
+	store, err := storage.New(c.S3)
+	if err != nil {
+		logx.Must(fmt.Errorf("对象存储初始化失败(endpoint=%s bucket=%s): %w", c.S3.Endpoint, c.S3.Bucket, err))
+	}
 
 	return &ServiceContext{
 		Config:          c,
@@ -88,5 +102,7 @@ func NewServiceContext(c config.Config, verifier *auth.Verifier) *ServiceContext
 		InventoryRPC: v1_productv1.NewInventoryServiceClient(productConn),
 
 		CouponRPC: v1_marketingv1.NewCouponServiceClient(marketingConn),
+
+		Storage: store,
 	}
 }

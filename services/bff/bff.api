@@ -2465,3 +2465,44 @@ service bff {
 	post /receive/:id (ReceiveCouponReq) returns (ReceiveCouponResp)
 }
 
+// ============================================================
+// 文件上传
+// ============================================================
+type (
+	// UploadResp 对应单体 model.UploadResp。
+	// IsCompleted 由 omitempty 控制:只在 true 时有意义,故前端判的是
+	// data.file_url 是否存在(upload.ts:34)。
+	UploadResp {
+		IsCompleted bool   `json:"is_completed"`
+		FileUrl     string `json:"file_url,omitempty"`
+	}
+	// UploadChunkReq 请求类型只作为**路由声明**存在。
+	//
+	// 实际解析不走 goctl 生成的 handler —— go-zero 的 mapping 解析器
+	// **不支持 multipart 文件**(unmarshaler.go 里没有任何 FileHeader /
+	// multipart 处理),文件必须由 handler 手工 r.FormFile 取。
+	// 文本字段(同名的 5 个)则可由 httpx.Parse 解析。
+	//
+	// 字段与单体 model.ChunkUploadReq 逐字对齐,便于将来有人想做分片时
+	// 能直接复用;当前前端固定发 total_chunks=1。
+	UploadChunkReq {
+		FileMd5     string `form:"file_md5,optional"`
+		FileName    string `form:"file_name,optional"`
+		ChunkNumber int    `form:"chunk_number,optional"`
+		TotalChunks int    `form:"total_chunks,optional"`
+		FileSize    int64  `form:"file_size,optional"`
+	}
+)
+
+// 上传**属于登录用户**,但不判权 —— 权限点是按管理端资源划分的,
+// 而上传是跨域共用的基础能力(商品图 / 券图 / 将来头像都用它)。
+@server (
+	prefix:     /api/v1/upload
+	group:      upload
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler UploadChunk
+	post /chunk (UploadChunkReq) returns (UploadResp)
+}
+

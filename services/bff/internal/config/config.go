@@ -28,6 +28,9 @@ type Config struct {
 	RateLimit      RateLimitConfig
 	TrustedProxies []string `json:",optional"`
 
+	// S3 文件上传(MinIO)
+	S3 S3Config
+
 	// AllowedOrigins 允许跨域的前端来源(CORS)。
 	//
 	// ============================================================
@@ -69,4 +72,22 @@ type RateLimitConfig struct {
 
 type EtcdConfig struct {
 	Hosts []string `json:",default=[\"127.0.0.1:2379\"]"`
+}
+
+// S3Config 对象存储配置。
+//
+// Endpoint 与 PublicBaseURL 是**两个地址**,不能合并:
+// Endpoint 供服务端上传(容器内 http://minio:9000),
+// PublicBaseURL 供前端访问(浏览器里的 http://localhost:9000)。
+// 配成同一个会让前端图片全部裂开 —— 对象存储最容易踩的一处。
+type S3Config struct {
+	// Endpoint 服务端上传用的地址,不带 scheme
+	Endpoint string `json:",default=127.0.0.1:9000"`
+	// PublicBaseURL 生成给前端的 URL 前缀,带 scheme
+	PublicBaseURL string `json:",default=http://localhost:9000"`
+	// Bucket 存储桶名,启动时不存在则自动创建并设为匿名可读
+	Bucket    string `json:",default=demo-shop"`
+	AccessKey string `json:",default=demoshop"`
+	SecretKey string `json:",default=demoshop123"`
+	UseSSL    bool   `json:",default=false"`
 }

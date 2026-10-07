@@ -21,6 +21,7 @@ import (
 	product "demo-shop/services/bff/internal/handler/product"
 	role "demo-shop/services/bff/internal/handler/role"
 	scope "demo-shop/services/bff/internal/handler/scope"
+	upload "demo-shop/services/bff/internal/handler/upload"
 	user "demo-shop/services/bff/internal/handler/user"
 	"demo-shop/services/bff/internal/svc"
 
@@ -661,6 +662,20 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/api/v1/admin/scope"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/chunk",
+					Handler: upload.UploadChunkHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/upload"),
 	)
 
 	server.AddRoutes(

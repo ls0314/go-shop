@@ -30,6 +30,18 @@ RateLimit:
   IPRPS: 5
   IPBurst: 10
 
+# 对象存储(MinIO)。Endpoint 与 PublicBaseURL 是两个地址,不能合并:
+# Endpoint 供服务端上传(本机直跑用 127.0.0.1;容器内应填 minio:9000),
+# PublicBaseURL 生成给前端的 URL,**必须是浏览器可达的地址**。
+# 两者配成同一个,前端图片会全部裂开。
+S3:
+  Endpoint: 127.0.0.1:9000
+  PublicBaseURL: http://localhost:9000
+  Bucket: demo-shop
+  AccessKey: demoshop
+  SecretKey: demoshop123
+  UseSSL: false
+
 # TrustedProxies:
 #   - 172.16.0.0/12
 

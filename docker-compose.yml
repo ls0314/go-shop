@@ -86,6 +86,44 @@ services:
     networks: [demo-shop-network]
     restart: always
 
+  # 对象存储:文件上传的落点。
+  # 为什么不再用本地盘:单体时代靠 uploads-data 共享卷 + 双实例,那只在
+  # 单机 compose 下成立;上 K8s / 多机后同一路径不再是同一块盘。
+  #
+  # ============================================================
+  # 镜像来源:pgsty/minio(不是 minio/minio)
+  # ============================================================
+  #
+  # 官方镜像两条路都堵死了(实测 "pull access denied ...
+  # repository does not exist",不是网络问题):
+  #   minio/minio      2025-10 起停止在 Docker Hub 分发
+  #   bitnami/minio    2025-08 起不再免费提供(免费镜像迁往 bitnamilegacy)
+  #
+  # pgsty 是 Pigsty(知名 PostgreSQL 发行版项目)的镜像组织,收录在它的
+  # registry 文档里;tag 跟随官方发版(现存 RELEASE.2026-*),国内多个
+  # 镜像站也已收录,拉取成功率高于 quay.io。
+  #
+  # 信任边界:这仍是第三方镜像,未做 digest 校验。若在意供应链,应改从
+  # quay.io 拉或自建。用的是 latest(官方文档给的拉取方式就是不带 tag);
+  # 若要锁版本,先 `docker images pgsty/minio` 看有哪些 RELEASE.* 再回填。
+  minio:
+    image: pgsty/minio:latest
+    ports: ["9000:9000", "9001:9001"]   # 9000 数据 / 9001 控制台
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-demoshop}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-demoshop123}
+      # 关掉自动更新检查:它会往日志里刷外网请求失败的噪音
+      MINIO_UPDATE: "off"
+    command: server /data --console-address ":9001"
+    volumes: [minio-data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [demo-shop-network]
+    restart: always
+
   # ============ 双实例(A4):两个进程同时跑,跨进程共享状态才被真正检验 ============
   backend-1: &backend-base
     build:
@@ -188,5 +226,6 @@ volumes:
   rabbitmq-data:
   elasticsearch-data:
   uploads-data:
+  minio-data:
   grafana-data:
   etcd-data:

@@ -1186,8 +1186,8 @@ type (
 	// RPC(requset.UpdateCartItemReq 是**非指针**的 int64 / bool)——
 	// 即它**不区分"没传"与"传了零值"**:
 	//
-	//	只传 {"quantity": 3}  → is_selected 是 false,
-	//	                        会把已勾选的商品**取消勾选**
+	// 只传 {"quantity": 3}  → is_selected 是 false,
+	//                         会把已勾选的商品**取消勾选**
 	//
 	// 所以前端改数量时**必须把 is_selected 一起传**。
 	//
@@ -1616,5 +1616,852 @@ service bff {
 service bff {
 	@handler ListPayments
 	get /list (ListPaymentsReq) returns (ListPaymentsResp)
+}
+
+// ============================================================================
+// product-service:类目 / 商品 / 库存
+// ============================================================================
+//
+// 响应形状一律取自单体 model/response/{category,product,inventoryLog}.go,
+// 不按 proto 推断。本域共 4 类差异:
+//
+// ① 改名   proto 的 repeated items → HTTP 的 **list**(全部列表接口)
+// ② 类型   spec_values / spec_template 在 proto 是 **JSON 文本字符串**,
+//          HTTP 是**对象**;min_price / max_price 在 proto 是 int64
+// ③ 隐藏   inventory 的流水在 HTTP 里**不返回 order_no / idempotency_key**
+//          (proto 有,单体模型没有);category 树的 parent_id 被 json:"-"
+// ④ **请求与响应的分页命名不一致**
+//          请求:snake_case(page_size)—— 前端 form tag
+//          响应:products 与 category 是 **pageSize**(camelCase),
+//                inventory 流水是 page_size —— 同一域内都不统一
+//
+// 另有一处命名陷阱:SkuInventoryResp 上**同时**有 stock 与 total_stock,
+// 后者是该 SKU 的"总库存",与 spu 列表响应里的聚合 total_stock **同名不同义**。
+// ============================================================
+// 类目
+// ============================================================
+type (
+	// Category 对应单体 GetCategoryResp(逐字段一致)
+	Category {
+		CategoryId    int64  `json:"category_id"`
+		ParentId      int64  `json:"parent_id"`
+		CategoryName  string `json:"category_name"`
+		CategoryLevel int64  `json:"category_level"`
+		CategoryPath  string `json:"category_path"`
+		SortOrder     int64  `json:"sort_order"`
+		IconUrl       string `json:"icon_url"`
+		IsLeaf        bool   `json:"is_leaf"`
+		IsVisible     bool   `json:"is_visible"`
+		Status        string `json:"status"`
+	}
+	// CreateCategoryReq 前端 CreateCategoryData 的形状
+	CreateCategoryReq {
+		ParentId     int64  `json:"parent_id"`
+		CategoryName string `json:"category_name"`
+		SortOrder    int64  `json:"sort_order,optional"`
+		IconUrl      string `json:"icon_url,optional"`
+		IsVisible    bool   `json:"is_visible,optional"`
+	}
+	// CreateCategoryResp 对应单体 CreateCategoryResp(与 proto 一致)
+	CreateCategoryResp {
+		CategoryId   int64  `json:"category_id"`
+		CategoryPath string `json:"category_path"`
+	}
+	// CategoryIdReq 路径参数 :id
+	CategoryIdReq {
+		Id int64 `path:"id"`
+	}
+	// CategoryListItem 对应单体 GetListCategoryResp
+	CategoryListItem {
+		CategoryId    int64  `json:"category_id"`
+		ParentId      int64  `json:"parent_id"`
+		CategoryName  string `json:"category_name"`
+		CategoryLevel int64  `json:"category_level"`
+		SortOrder     int64  `json:"sort_order"`
+		IsLeaf        bool   `json:"is_leaf"`
+		IsVisible     bool   `json:"is_visible"`
+		Status        string `json:"status"`
+	}
+	// CategoryTreeItem 对应单体 GetTreeCategoryResp
+	//
+	// **没有 parent_id** —— 单体在它上面标了 json:"-"(树里父节点由层级
+	// 隐含,不必重复)。照 proto 的 CategoryTreeNode 写也正好没有,两者一致。
+	CategoryTreeItem {
+		CategoryId    int64              `json:"category_id"`
+		CategoryName  string             `json:"category_name"`
+		CategoryLevel int64              `json:"category_level"`
+		IsVisible     bool               `json:"is_visible"`
+		Status        string             `json:"status"`
+		Children      []CategoryTreeItem `json:"children"`
+	}
+	// CategoryTreeReq 查询参数是 **snake_case**(前端 CategoryTreeParams)
+	CategoryTreeReq {
+		Level           int64 `form:"level,optional"`
+		IncludeDisabled bool  `form:"include_disabled,optional"`
+	}
+	// CategoryChildrenReq 同样 snake_case
+	CategoryChildrenReq {
+		Id              int64 `path:"id"`
+		IncludeDisabled bool  `form:"include_disabled,optional"`
+	}
+	// CategoryListReq 请求参数 camelCase(**注意与响应一致、与其它域相反**):
+	// 单体用 c.DefaultQuery("pageSize", "10"),前端 GetCategoryListParams 也是 pageSize。
+	CategoryListReq {
+		Page     int `form:"page,optional"`
+		PageSize int `form:"pageSize,optional"`
+	}
+	// CategoryListResp 对应单体 gin.H{list,total,page,pageSize}
+	//
+	// **键名是 pageSize(camelCase)** —— 与 products 同,与 orders/coupons 的
+	// page_size 相反。照 proto 写 total/items 会让前端拿到 undefined。
+	CategoryListResp {
+		List     []CategoryListItem `json:"list"`
+		Total    int64              `json:"total"`
+		Page     int                `json:"page"`
+		PageSize int                `json:"pageSize"`
+	}
+	// UpdateCategoryReq 前端 UpdateCategoryData 的形状
+	//
+	// **不是整体替换**:服务端把字段拼成 updates_json,用 mapstructure 按
+	// json tag 解码到实体。故任何字段都能改,包括 parent_id —— 服务端会
+	// 重推 category_path 并**同步改写所有后代的 path**。
+	//
+	// ============================================================
+	// **所有字段都必须是指针** —— 否则局部更新无法表达"没传"
+	// ============================================================
+	//
+	// 局部更新的语义是"传了才改",而 updates_json 是**合并**语义:放进
+	// JSON 的键才会被改。所以 BFF 必须能区分"这个字段前端没传"与
+	// "前端传了零值":
+	//
+	// 非指针 bool:is_visible=false 与"没传"都是 false
+	//   → 要么永远无法隐藏类目(不传 false),要么每次 PUT 都必须
+	//     带上 is_visible 当前值(传 false 才生效)
+	// 非指针 int64:parent_id=0 与"没传"都是 0
+	//   → **"把类目移回根层级"这个操作根本无法表达**
+	//
+	// 指针能精确表达 presence:nil = 没传,非 nil = 传了(哪怕值是零值)。
+	//
+	// **单体为什么没这个问题**:它把 body 绑成 map[string]interface{} 后
+	// 整体转发(category_handler.go:232),map 天然保留"键是否出现"。
+	// goctl 生成物做不到,故用指针补回来。
+	//
+	// menu 域的 is_visible/is_cache、dept 的 leader_id/sort_order、role 的
+	// is_default 都是同样的先例。
+	UpdateCategoryReq {
+		Id           int64   `path:"id"`
+		CategoryName *string `json:"category_name,optional"`
+		SortOrder    *int64  `json:"sort_order,optional"`
+		IconUrl      *string `json:"icon_url,optional"`
+		IsVisible    *bool   `json:"is_visible,optional"`
+		Status       *string `json:"status,optional"`
+		ParentId     *int64  `json:"parent_id,optional"`
+	}
+)
+
+// ============================================================
+// 商品
+// ============================================================
+type (
+	// ProductImage 对应单体 ImageList
+	ProductImage {
+		ImageId   int64  `json:"image_id"`
+		ImageUrl  string `json:"image_url"`
+		SortOrder int64  `json:"sort_order"`
+		IsMain    bool   `json:"is_main"`
+	}
+	// AdminSku 对应单体 SkuList(管理端,含 cost_price / lock_stock)
+	AdminSku {
+		SkuId      int64             `json:"sku_id"`
+		SpuId      int64             `json:"spu_id"`
+		SkuName    string            `json:"sku_name"`
+		SpecValues map[string]string `json:"spec_values"`
+		Price      float64           `json:"price"`
+		CostPrice  float64           `json:"cost_price"`
+		Stock      int64             `json:"stock"`
+		LockStock  int64             `json:"lock_stock"`
+		SoldCount  int64             `json:"sold_count"`
+		SkuCode    string            `json:"sku_code"`
+		SkuImage   string            `json:"sku_image"`
+		SkuStatus  string            `json:"sku_status"`
+	}
+	// UserSku 对应单体 UserSkuList(用户端**不含** cost_price / lock_stock)
+	UserSku {
+		SkuId      int64       `json:"sku_id"`
+		SpuId      int64       `json:"spu_id"`
+		SkuName    string      `json:"sku_name"`
+		SpecValues interface{} `json:"spec_values"`
+		Price      float64     `json:"price"`
+		Stock      int64       `json:"stock"`
+		SoldCount  int64       `json:"sold_count"`
+		SkuCode    string      `json:"sku_code"`
+		SkuImage   string      `json:"sku_image"`
+		SkuStatus  string      `json:"sku_status"`
+	}
+	// AdminSpuListItem 对应单体 SpuList
+	//
+	// min_price / max_price 是 **int64** —— proto 注释写明"DB 侧按整数分位
+	// 返回"。前端也是 number,故不转换。
+	AdminSpuListItem {
+		SpuId        int64  `json:"spu_id"`
+		SpuName      string `json:"spu_name"`
+		CategoryId   int64  `json:"category_id"`
+		CategoryName string `json:"category_name"`
+		Brand        string `json:"brand"`
+		MainImage    string `json:"main_image"`
+		SpuStatus    string `json:"spu_status"`
+		Priority     int64  `json:"priority"`
+		CreatedAt    string `json:"created_at"`
+		UpdatedAt    string `json:"updated_at"`
+		MinPrice     int64  `json:"min_price"`
+		MaxPrice     int64  `json:"max_price"`
+		TotalStock   int64  `json:"total_stock"`
+		TotalSold    int64  `json:"total_sold"`
+	}
+	// UserSpuListItem 对应单体 UserSpuList(字段比管理端少)
+	UserSpuListItem {
+		SpuId        int64  `json:"spu_id"`
+		SpuName      string `json:"spu_name"`
+		CategoryName string `json:"category_name"`
+		Brand        string `json:"brand"`
+		MainImage    string `json:"main_image"`
+		MinPrice     int64  `json:"min_price"`
+		MaxPrice     int64  `json:"max_price"`
+		TotalSold    int64  `json:"total_sold"`
+		Stock        int64  `json:"stock"`
+	}
+	// AdminProductListReq 查询参数 **snake_case**(单体 SpuQueryReq 的 form tag)
+	AdminProductListReq {
+		Page       int    `form:"page,optional"`
+		PageSize   int    `form:"page_size,optional"`
+		SpuName    string `form:"spu_name,optional"`
+		CategoryId int64  `form:"category_id,optional"`
+		SpuStatus  string `form:"spu_status,optional"`
+		Brand      string `form:"brand,optional"`
+		Sort       string `form:"sort,optional"`
+	}
+	// AdminProductListResp 对应单体 GetProductListResp
+	//
+	// **请求 snake_case、响应 camelCase pageSize** —— 同一条接口两侧不一致,
+	// 这是单体遗留(请求走 form tag,响应走 json tag 手写)。
+	AdminProductListResp {
+		List     []AdminSpuListItem `json:"list"`
+		Total    int64              `json:"total"`
+		Page     int                `json:"page"`
+		PageSize int                `json:"pageSize"`
+	}
+	// UserProductListReq 用户端同样 snake_case
+	//
+	// **没有 spu_status**(管理端的 AdminProductListReq 有)—— proto 的
+	// UserGetProductListReq 无此字段,且服务端**硬编码只看已上架**
+	// (客户端传 withdrawn 想偷看下架商品不会被接受)。留着它容易让人
+	// 以为能筛状态,故由 .api 直接不提供。
+	UserProductListReq {
+		Page       int    `form:"page,optional"`
+		PageSize   int    `form:"page_size,optional"`
+		SpuName    string `form:"spu_name,optional"`
+		CategoryId int64  `form:"category_id,optional"`
+		Brand      string `form:"brand,optional"`
+		Sort       string `form:"sort,optional"`
+	}
+	// UserProductListResp 对应单体 UserGetProductListResp(同样 pageSize)
+	UserProductListResp {
+		List     []UserSpuListItem `json:"list"`
+		Total    int64             `json:"total"`
+		Page     int               `json:"page"`
+		PageSize int               `json:"pageSize"`
+	}
+	// ProductIdReq 路径参数 :id(商品用 spu_id)
+	ProductIdReq {
+		Id int64 `path:"id"`
+	}
+	// SpecTemplateItem 规格模板的一项,如 {"name":"颜色","values":["红","蓝"]}。
+	//
+	// ============================================================
+	// 为什么必须声明成结构体切片,而不是 interface{}
+	// ============================================================
+	//
+	// 前端发的是**数组**(types/product.ts 的 `SpecTemplateItem[]`),而
+	// go-zero 的 mapping 反序列化器**没有 `reflect.Interface` 分支** ——
+	// 给 interface{} 字段喂一个数组会直接报:
+	//
+	// 请求参数解析失败: type mismatch for field "spec_template"  → 400
+	//
+	// 这是实测到的报错,不是推测。
+	//
+	// 同一批类型里凡 wire 上是数组的字段(`[]CategoryTreeItem`、
+	// `[]AdminSku`、`[]ProductImage` …)都是显式切片类型 ——
+	// spec_template 原本被写成 interface{} 是本 .api 的**不一致**,现已纠正。
+	//
+	// 注意 `spec_values` 是**另一种情况**:它是"规格名 → 规格值"的**对象**
+	// (如 {"颜色":"红"}),wire 上是 map,故仍可用 interface{} 承接。
+	SpecTemplateItem {
+		Name   string   `json:"name"`
+		Values []string `json:"values"`
+	}
+	// AdminProductResp 对应单体 GetProductResp
+	//
+	// SpecTemplate 在 proto 里是 JSON 文本,在 HTTP 里是**数组**
+	// (见 SpecTemplateItem)。管理端 sku_list 用 AdminSku。
+	AdminProductResp {
+		SpuId        int64              `json:"spu_id"`
+		SpuName      string             `json:"spu_name"`
+		CategoryId   int64              `json:"category_id"`
+		CategoryName string             `json:"category_name"`
+		Brand        string             `json:"brand"`
+		Description  string             `json:"description"`
+		MainImage    string             `json:"main_image"`
+		SpecTemplate []SpecTemplateItem `json:"spec_template"`
+		SpuStatus    string             `json:"spu_status"`
+		Priority     int64              `json:"priority"`
+		SkuList      []AdminSku         `json:"sku_list"`
+		ImageList    []ProductImage     `json:"image_list"`
+		CreatedAt    string             `json:"created_at"`
+		UpdatedAt    string             `json:"updated_at"`
+	}
+	// UserProductResp 对应单体 UserGetProductResp(用户端 sku_list 不含成本价)
+	UserProductResp {
+		SpuId        int64              `json:"spu_id"`
+		SpuName      string             `json:"spu_name"`
+		CategoryId   int64              `json:"category_id"`
+		CategoryName string             `json:"category_name"`
+		Brand        string             `json:"brand"`
+		Description  string             `json:"description"`
+		MainImage    string             `json:"main_image"`
+		SpecTemplate []SpecTemplateItem `json:"spec_template"`
+		SpuStatus    string             `json:"spu_status"`
+		Priority     int64              `json:"priority"`
+		SkuList      []UserSku          `json:"sku_list"`
+		ImageList    []ProductImage     `json:"image_list"`
+		CreatedAt    string             `json:"created_at"`
+		UpdatedAt    string             `json:"updated_at"`
+	}
+	// CreateSkuItem 建品时的 SKU(无 sku_id —— 由服务端生成)
+	//
+	// SpecValues 用 map[string]string 而不是 interface{}:**请求方向不能用
+	// interface{}**(go-zero 的映射器对 reflect.Interface 必然报
+	// type mismatch,见 SpecTemplateItem 的注释)。前端类型是
+	// Record<string, string>,与此一致。
+	CreateSkuItem {
+		SkuName    string            `json:"sku_name"`
+		SpecValues map[string]string `json:"spec_values"`
+		Price      float64           `json:"price"`
+		CostPrice  float64           `json:"cost_price,optional"`
+		Stock      int64             `json:"stock"`
+		SkuCode    string            `json:"sku_code,optional"`
+		SkuImage   string            `json:"sku_image,optional"`
+		// SkuStatus 前端会传 'active' / 'inactive'。
+		//
+		// **必须声明它**:go-zero 对未声明的 JSON 字段是**静默丢弃**,
+		// 而 product_db 有 CHECK 约束 ck_sku_status IN ('active','inactive')
+		// —— 丢成空串会让 INSERT 直接失败(整个建品接口 503)。
+		// GORM 也不会用列默认值兜(模型没有 default 标签,零值会被显式写进 INSERT)。
+		SkuStatus string `json:"sku_status,optional"`
+	}
+	// CreateProductReq 前端 CreateProductReq 的形状(整体建品:SPU + SKU + 图片)
+	CreateProductReq {
+		SpuName      string             `json:"spu_name"`
+		CategoryId   int64              `json:"category_id"`
+		Brand        string             `json:"brand,optional"`
+		Description  string             `json:"description,optional"`
+		MainImage    string             `json:"main_image,optional"`
+		SpecTemplate []SpecTemplateItem `json:"spec_template,optional"`
+		Priority     int64              `json:"priority,optional"`
+		SkuList      []CreateSkuItem    `json:"sku_list"`
+		ImageList    []ProductImage     `json:"image_list,optional"`
+		// SpuStatus 前端固定传 "published"(创建即上架)。
+		//
+		// **必须声明**(与 SkuStatus 同理:不声明就被丢弃,撞
+		// ck_spu_status CHECK 约束)。
+		//
+		// **但 BFF 不用这个值**:product 的 logic 会**强制改成 draft**
+		// (见 createproductlogic.go)。理由:上架路径(product-service 的
+		// Publish)会做库存/价格校验,而"创建即 published"绕过了它 ——
+		// 单体正是这样,结果是能建出没库存没价格的已上架商品。
+		// 强制草稿后运营必须点一次上架,那次会过校验。
+		//
+		// 代价是**前端可见行为变了**:新建商品以草稿出现。
+		SpuStatus string `json:"spu_status,optional"`
+	}
+	// CreateProductResp 只回 spu_id(proto 的 CreateProductResp 就是两字段)
+	CreateProductResp {
+		SpuId int64 `json:"spu_id"`
+	}
+	// UpdateProductReq 局部更新(前端 UpdateProductReq)
+	//
+	// 与类目同理:服务端拼 updates_json 逐字段合并,故全 optional。
+	UpdateProductReq {
+		Id          int64  `path:"id"`
+		SpuName     string `json:"spu_name,optional"`
+		CategoryId  int64  `json:"category_id,optional"`
+		Brand       string `json:"brand,optional"`
+		Description string `json:"description,optional"`
+		MainImage   string `json:"main_image,optional"`
+		SpuStatus   string `json:"spu_status,optional"`
+		Priority    int64  `json:"priority,optional"`
+	}
+	// UpdateProductFullReq 整体更新(前端 UpdateProductFullReq)
+	//
+	// **SKU 对比规则**(单体 requset 注释):带 sku_id 的更新、不带的插入、
+	// DB 里有而请求里没有的**删除**。故它是"以请求为准的全量覆盖"。
+	UpdateProductFullReq {
+		Id           int64              `path:"id"`
+		SpuName      string             `json:"spu_name"`
+		CategoryId   int64              `json:"category_id"`
+		Brand        string             `json:"brand,optional"`
+		Description  string             `json:"description,optional"`
+		MainImage    string             `json:"main_image,optional"`
+		SpecTemplate []SpecTemplateItem `json:"spec_template,optional"`
+		Priority     int64              `json:"priority,optional"`
+		SkuList      []AdminSku         `json:"sku_list,optional"`
+		ImageList    []ProductImage     `json:"image_list,optional"`
+		// DeleteImageIds 要删除的图片 id 列表。
+		//
+		// **必须声明**:前端编辑页删掉一张图时靠它下发,服务端删图**只认
+		// 这个字段**。不声明它,删图操作会在 go-zero 解析时被静默丢弃 ——
+		// 表现为"点了删除、保存成功、图片还在"。
+		//
+		// **注意图片与 SKU 的删除规则不对称**:
+		// SKU  : 请求里没带的会被**软删**(以请求为准的全量覆盖)
+		// 图片 : 只有出现在 delete_image_ids 里的才删(没带就不动)
+		// 所以"提交了不完整的 sku_list"会静默删 SKU,而图片不会。
+		DeleteImageIds []int64 `json:"delete_image_ids,optional"`
+	}
+)
+
+// ============================================================
+// 库存
+// ============================================================
+type (
+	// SkuInventory 对应单体 SkuInventoryResp
+	//
+	// **注意 stock 与 total_stock 并存**:stock 是可用库存,total_stock 是
+	// 该 SKU 的总库存。而同域的 SkuInventoryListResp 里也有一个 total_stock
+	// 表示**所有 SKU 之和** —— 同名不同义,读代码时极易混。
+	SkuInventory {
+		SkuId      int64       `json:"sku_id"`
+		SkuName    string      `json:"sku_name"`
+		SpuId      int64       `json:"spu_id"`
+		SpuName    string      `json:"spu_name"`
+		SpecValues interface{} `json:"spec_values"`
+		Stock      int64       `json:"stock"`
+		LockStock  int64       `json:"lock_stock"`
+		TotalStock int64       `json:"total_stock"`
+		SoldCount  int64       `json:"sold_count"`
+		SkuStatus  string      `json:"sku_status"`
+	}
+	// SkuStockReq 路径参数 :id(单个 SKU 库存)
+	SkuStockReq {
+		Id int64 `path:"id"`
+	}
+	// SkuStockResp 单个 SKU 库存(裸对象,不是 list)。
+	//
+	// **刻意展开而不是 `type SkuStockResp = SkuInventory`** —— goctl 不支持
+	// 类型别名(实测报 syntax error: expected <struct> expr)。
+	SkuStockResp {
+		SkuId      int64       `json:"sku_id"`
+		SkuName    string      `json:"sku_name"`
+		SpuId      int64       `json:"spu_id"`
+		SpuName    string      `json:"spu_name"`
+		SpecValues interface{} `json:"spec_values"`
+		Stock      int64       `json:"stock"`
+		LockStock  int64       `json:"lock_stock"`
+		TotalStock int64       `json:"total_stock"`
+		SoldCount  int64       `json:"sold_count"`
+		SkuStatus  string      `json:"sku_status"`
+	}
+	// SpuStockReq 路径参数 :id(某个 SPU 下全部 SKU)
+	SpuStockReq {
+		Id int64 `path:"id"`
+	}
+	// SpuStockResp 对应单体 SkuInventoryListResp
+	SpuStockResp {
+		List       []SkuInventory `json:"list"`
+		TotalStock int64          `json:"total_stock"`
+		TotalLock  int64          `json:"total_lock"`
+		TotalSold  int64          `json:"total_sold"`
+	}
+	// AdjustStockReq 前端 InventoryAdjustReq 的形状
+	//
+	// **user_id 不在请求里** —— 操作人取自 JWT(落库存流水的 create_by)。
+	// remark 是必填:服务端空则拒绝(与单体口径一致)。
+	AdjustStockReq {
+		SkuId     int64  `json:"sku_id"`
+		ChangeQty int64  `json:"change_qty"`
+		Remark    string `json:"remark"`
+	}
+	// AdjustStockResp 对应单体 InventoryAdjustResp
+	//
+	// 幂等命中(同一 sku+change_qty+remark 已调整过)时前后值相等。
+	AdjustStockResp {
+		BeforeStock int64 `json:"before_stock"`
+		AfterStock  int64 `json:"after_stock"`
+	}
+	// StockLogItem 对应单体 InventoryLogList(内嵌 SysProductStockLog + 两个名称)
+	//
+	// **没有 order_no / idempotency_key** —— proto 的 StockLog 有,而单体
+	// 返回给前端的模型里没有。故 BFF 也不返回(保持前端契约不变)。
+	StockLogItem {
+		LogId       int64  `json:"log_id"`
+		SkuId       int64  `json:"sku_id"`
+		SkuName     string `json:"sku_name"`
+		SpuName     string `json:"spu_name"`
+		ChangeType  string `json:"change_type"`
+		ChangeQty   int64  `json:"change_qty"`
+		BeforeStock int64  `json:"before_stock"`
+		AfterStock  int64  `json:"after_stock"`
+		BeforeLock  int64  `json:"before_lock"`
+		AfterLock   int64  `json:"after_lock"`
+		OrderId     int64  `json:"order_id"`
+		Remark      string `json:"remark"`
+		CreatedAt   string `json:"created_at"`
+		CreateBy    int64  `json:"create_by"`
+	}
+	// StockLogReq 查询参数 snake_case(前端 InventoryLogQuery)
+	//
+	// **sku_id / spu_id 是可选数字**:proto 用 Int64Value 包装,不传即不过滤。
+	// 这里用 optional,logic 侧按"零值即不过滤"处理 —— 注意这**区分不了**
+	// "不传"与"传 0",但 id 为 0 本就不是合法业务值,故无实际影响。
+	StockLogReq {
+		Page       int    `form:"page,optional"`
+		PageSize   int    `form:"page_size,optional"`
+		SkuId      int64  `form:"sku_id,optional"`
+		SpuId      int64  `form:"spu_id,optional"`
+		ChangeType string `form:"change_type,optional"`
+		StartTime  string `form:"start_time,optional"`
+		EndTime    string `form:"end_time,optional"`
+	}
+	// StockLogResp 对应单体 InventoryLogResp(**注意这里是 page_size**)
+	StockLogResp {
+		List     []StockLogItem `json:"list"`
+		Total    int64          `json:"total"`
+		Page     int            `json:"page"`
+		PageSize int            `json:"page_size"`
+	}
+	// WarnStockReq 查询参数(前端 InventoryWarnQuery)
+	//
+	// threshold <= 0 时服务端取默认 10;spu_status 空时服务端取默认 published。
+	WarnStockReq {
+		Threshold int64  `form:"threshold,optional"`
+		SpuStatus string `form:"spu_status,optional"`
+	}
+	// WarnStockItem 对应单体 InventoryWarnResp
+	WarnStockItem {
+		SkuId     int64  `json:"sku_id"`
+		SpuName   string `json:"spu_name"`
+		SkuName   string `json:"sku_name"`
+		Stock     int64  `json:"stock"`
+		LockStock int64  `json:"lock_stock"`
+		SoldCount int64  `json:"sold_count"`
+		SkuStatus string `json:"sku_status"`
+	}
+)
+
+// ============================================================
+// 营销:优惠券
+// ============================================================
+type (
+	// CouponTemplate 对应单体 UserCouponTemplate 之外的 GetCouponList
+	//
+	// **不返回 is_deleted / updated_at**(proto 有,单体模型没有),
+	// start_time / end_time 也不返回 —— 前端类型里确实没有它们。
+	CouponTemplateItem {
+		TemplateId      int64   `json:"template_id"`
+		CouponName      string  `json:"coupon_name"`
+		CouponType      string  `json:"coupon_type"`
+		ThresholdAmount float64 `json:"threshold_amount"`
+		DiscountAmount  float64 `json:"discount_amount"`
+		TotalCount      int64   `json:"total_count"`
+		ReceivedCount   int64   `json:"received_count"`
+		PerUserLimit    int64   `json:"per_user_limit"`
+		UsableDays      int64   `json:"usable_days"`
+		StartTime       string  `json:"start_time"`
+		EndTime         string  `json:"end_time"`
+		// Status 由服务端按当前时间推导(not_started / ongoing / ended)。
+		// 单体在它上面标 gorm:"-" —— 不是数据库列。
+		Status string `json:"status"`
+	}
+	// AdminCouponListReq 查询参数 snake_case(单体 request 的 form tag)
+	AdminCouponListReq {
+		Page       int    `form:"page,optional"`
+		PageSize   int    `form:"page_size,optional"`
+		CouponName string `form:"coupon_name,optional"`
+		CouponType string `form:"coupon_type,optional"`
+	}
+	// AdminCouponListResp 对应单体 GetCouponListResp
+	//
+	// **这里是 page_size(snake_case)** —— 与 products/category 的 pageSize 相反。
+	AdminCouponListResp {
+		List     []CouponTemplateItem `json:"list"`
+		Page     int                  `json:"page"`
+		PageSize int                  `json:"page_size"`
+		Total    int64                `json:"total"`
+	}
+	// CreateCouponTemplateReq 前端 CreateCouponReq 的形状
+	CreateCouponTemplateReq {
+		CouponName      string  `json:"coupon_name"`
+		CouponType      string  `json:"coupon_type"`
+		ThresholdAmount float64 `json:"threshold_amount"`
+		DiscountAmount  float64 `json:"discount_amount"`
+		TotalCount      int64   `json:"total_count"`
+		PerUserLimit    int64   `json:"per_user_limit"`
+		UsableDays      int64   `json:"usable_days,optional"`
+		StartTime       string  `json:"start_time,optional"`
+		EndTime         string  `json:"end_time,optional"`
+	}
+	// CreateCouponTemplateResp 对应单体 CreateCouponResp —— **只有 template_id**
+	CreateCouponTemplateResp {
+		TemplateId int64 `json:"template_id"`
+	}
+	// CouponTemplateIdReq 路径参数 :id(模板)
+	CouponTemplateIdReq {
+		Id int64 `path:"id"`
+	}
+	// UserCouponTemplateItem 对应单体 UserCouponTemplate(可领取的模板)
+	//
+	// 比管理端模板多了 held_count / remaining_count(该用户视角)。
+	UserCouponTemplateItem {
+		TemplateId      int64   `json:"template_id"`
+		CouponName      string  `json:"coupon_name"`
+		CouponType      string  `json:"coupon_type"`
+		ThresholdAmount float64 `json:"threshold_amount"`
+		DiscountAmount  float64 `json:"discount_amount"`
+		PerUserLimit    int64   `json:"per_user_limit"`
+		HeldCount       int64   `json:"held_count"`
+		RemainingCount  int64   `json:"remaining_count"`
+		UsableDays      int64   `json:"usable_days"`
+		StartTime       string  `json:"start_time"`
+		EndTime         string  `json:"end_time"`
+	}
+	// UserCouponTemplateListReq 用户端模板列表查询参数
+	UserCouponTemplateListReq {
+		Page       int    `form:"page,optional"`
+		PageSize   int    `form:"page_size,optional"`
+		CouponName string `form:"coupon_name,optional"`
+		CouponType string `form:"coupon_type,optional"`
+	}
+	// UserCouponTemplateListResp 对应单体 UserCouponTemplateListResp
+	UserCouponTemplateListResp {
+		List     []UserCouponTemplateItem `json:"list"`
+		Page     int                      `json:"page"`
+		PageSize int                      `json:"page_size"`
+		Total    int64                    `json:"total"`
+	}
+	// UserCouponItem 对应单体 UserGetCouponList
+	//
+	// **不返回 user_id**(单体标 json:"-")、不返回 template_id。
+	UserCouponItem {
+		UserCouponId    int64   `json:"user_coupon_id"`
+		CouponName      string  `json:"coupon_name"`
+		CouponType      string  `json:"coupon_type"`
+		ThresholdAmount float64 `json:"threshold_amount"`
+		DiscountAmount  float64 `json:"discount_amount"`
+		Status          string  `json:"status"`
+		ExpireAt        string  `json:"expire_at"`
+		OrderNo         string  `json:"order_no"`
+		UsedAt          string  `json:"used_at"`
+	}
+	// UserCouponListReq 我的券列表查询参数
+	UserCouponListReq {
+		Page     int    `form:"page,optional"`
+		PageSize int    `form:"page_size,optional"`
+		Status   string `form:"status,optional"`
+	}
+	// UserCouponListResp 对应单体 UserGetCouponListResp
+	UserCouponListResp {
+		List     []UserCouponItem `json:"list"`
+		Page     int              `json:"page"`
+		PageSize int              `json:"page_size"`
+		Total    int64            `json:"total"`
+	}
+	// AvailableCouponReq 下单可用券查询(可带订单金额试算)
+	AvailableCouponReq {
+		OrderAmount float64 `form:"order_amount,optional"`
+	}
+	// AvailableCouponItem 对应单体 GetAvailableCouponList
+	//
+	// **PayAfter 是"用这张券之后的应付金额"** —— 服务端算好给前端展示,
+	// 前端不必再算一遍(算错会与下单金额不一致)。
+	AvailableCouponItem {
+		UserCouponId    int64   `json:"user_coupon_id"`
+		CouponName      string  `json:"coupon_name"`
+		CouponType      string  `json:"coupon_type"`
+		ThresholdAmount float64 `json:"threshold_amount"`
+		DiscountAmount  float64 `json:"discount_amount"`
+		PayAfter        float64 `json:"pay_after"`
+	}
+	// AvailableCouponResp 对应单体 GetAvailableCouponResp —— **只有 list**
+	AvailableCouponResp {
+		List []AvailableCouponItem `json:"list"`
+	}
+	// ReceiveCouponReq 路径参数 :id(模板 id)
+	ReceiveCouponReq {
+		Id int64 `path:"id"`
+	}
+	// ReceiveCouponResp 对应单体 UserReceiveCouponResp
+	//
+	// **字段名是 expire_time 而不是 expire_at** —— 单体在这里用了另一个名字,
+	// 而 UserGetCouponList 里叫 expire_at。同名概念两个名字,别统一。
+	ReceiveCouponResp {
+		UserCouponId int64  `json:"user_coupon_id"`
+		ExpireTime   string `json:"expire_time"`
+	}
+)
+
+// ============================================================
+// 路由:类目管理端
+// ============================================================
+@server (
+	prefix:     /api/v1/admin/category
+	group:      category
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler CreateCategory
+	post / (CreateCategoryReq) returns (CreateCategoryResp)
+
+	@handler ListCategories
+	get / (CategoryListReq) returns (CategoryListResp)
+
+	// 静态段 /tree 必须在 /:id 之前声明语义上更清晰;go-zero 按静态优先
+	@handler GetCategoryTree
+	get /tree (CategoryTreeReq) returns ([]CategoryTreeItem)
+
+	@handler GetCategoryChildren
+	get /children/:id (CategoryChildrenReq) returns ([]CategoryListItem)
+
+	@handler GetCategory
+	get /:id (CategoryIdReq) returns (Category)
+
+	@handler UpdateCategory
+	put /:id (UpdateCategoryReq) returns (Category)
+
+	@handler DeleteCategory
+	delete /:id (CategoryIdReq) returns (Empty)
+}
+
+// ============================================================
+// 路由:商品管理端
+// ============================================================
+@server (
+	prefix:     /api/v1/admin/products
+	group:      product
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler CreateProduct
+	post / (CreateProductReq) returns (CreateProductResp)
+
+	@handler ListProducts
+	get / (AdminProductListReq) returns (AdminProductListResp)
+
+	@handler GetProduct
+	get /:id (ProductIdReq) returns (AdminProductResp)
+
+	@handler UpdateProduct
+	put /:id (UpdateProductReq) returns (Empty)
+
+	// 整体更新:以请求为准覆盖 SKU 列表(不带的会删)
+	@handler UpdateProductFull
+	put /:id/full (UpdateProductFullReq) returns (Empty)
+
+	@handler PublishProduct
+	post /:id/publish (ProductIdReq) returns (Empty)
+
+	@handler WithdrawProduct
+	post /:id/withdraw (ProductIdReq) returns (Empty)
+
+	@handler DeleteProduct
+	delete /:id (ProductIdReq) returns (Empty)
+}
+
+// ============================================================
+// 路由:商品用户端(不判权 —— 前台下单浏览用)
+// ============================================================
+@server (
+	prefix:     /api/v1/products
+	group:      product
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler UserListProducts
+	get / (UserProductListReq) returns (UserProductListResp)
+
+	@handler UserGetProduct
+	get /:id (ProductIdReq) returns (UserProductResp)
+}
+
+// ============================================================
+// 路由:库存管理端
+// ============================================================
+@server (
+	prefix:     /api/v1/admin/inventory
+	group:      inventory
+	middleware: RequestMeta,Auth
+)
+service bff {
+	// 单个 SKU 库存(裸对象,不是 list)
+	@handler GetSkuStock
+	get /sku/:id (SkuStockReq) returns (SkuStockResp)
+
+	// 某个 SPU 下全部 SKU 库存(带聚合值)
+	@handler ListSkuStockBySpu
+	get /spu/:id (SpuStockReq) returns (SpuStockResp)
+
+	@handler AdjustStock
+	post /adjust (AdjustStockReq) returns (AdjustStockResp)
+
+	@handler ListStockLogs
+	get /log (StockLogReq) returns (StockLogResp)
+
+	@handler ListWarnStock
+	get /warning (WarnStockReq) returns ([]WarnStockItem)
+}
+
+// ============================================================
+// 路由:优惠券
+// ============================================================
+@server (
+	prefix:     /api/v1/admin/coupons
+	group:      coupon
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler CreateCouponTemplate
+	post / (CreateCouponTemplateReq) returns (CreateCouponTemplateResp)
+
+	@handler ListCouponTemplates
+	get / (AdminCouponListReq) returns (AdminCouponListResp)
+}
+
+// 用户端券接口:都要登录(券属于个人),但**不判权**(没有权限点)。
+//
+// 领券挂 PublicRateLimit —— 它是写操作且可被刷(单体也在这一条上挂了
+// PerIPRateLimit)。组里其余是读,故用**另一个 @server 块**单独挂限流,
+// 避免给读接口也加限流(那会让券列表页在快速切换时被拒)。
+@server (
+	prefix:     /api/v1/coupons
+	group:      coupon
+	middleware: RequestMeta,Auth
+)
+service bff {
+	@handler ListUserCoupons
+	get / (UserCouponListReq) returns (UserCouponListResp)
+
+	@handler ListCouponTemplatesForUser
+	get /templates (UserCouponTemplateListReq) returns (UserCouponTemplateListResp)
+
+	@handler ListAvailableCoupons
+	get /available (AvailableCouponReq) returns (AvailableCouponResp)
+}
+
+@server (
+	prefix:     /api/v1/coupons
+	group:      coupon
+	middleware: RequestMeta,Auth,PublicRateLimit
+)
+service bff {
+	@handler ReceiveCoupon
+	post /receive/:id (ReceiveCouponReq) returns (ReceiveCouponResp)
 }
 

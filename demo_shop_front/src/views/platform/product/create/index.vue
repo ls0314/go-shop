@@ -421,9 +421,23 @@ const handleSubmit = async () => {
       main_image: form.main_image,
       spec_template: specTemplate.value.map(s => ({ name: s.name, values: s.values })),
       priority: form.priority,
-      sku_list: form.sku_list.map(s => ({
+      sku_list: form.sku_list.map((s, i) => ({
         sku_id: (s as any).sku_id || 0,
-        sku_name: s.sku_name || undefined,
+        // 名称为空时用规格值拼接兜底(如 "红色 / XL"),与输入框的
+        // placeholder 提示一致(placeholder 显示的就是 autoSkuName)。
+        //
+        // 为什么必须在这里补而不是让服务端补:BFF 的 .api 把 sku_name
+        // 声明成必填,传 undefined 会被 go-zero 以
+        // `field "sku_list[0].sku_name" is not set` 挡成 400。
+        // 而 DB 该列可空、服务端也不校验 —— 从源头补上是唯一能保证
+        // "名称永不为空"的做法(名称留空在商品详情里就是一片空白)。
+        //
+        // 规格值也为空时(用户没配规格模板)autoSkuName 返回 ''。
+        // 最后用"商品名 + 序号"兜底,而**不是**直接用商品名 ——
+        // 那样多个 SKU 会同名(全靠 autoSkuName 时名字天然不同,
+        // 因为每个 SKU 的规格组合不一样),而同名 SKU 在列表里
+        // 完全分不出谁是谁。
+        sku_name: s.sku_name?.trim() || autoSkuName(i) || `${form.spu_name} #${i + 1}`,
         spec_values: s.spec_values,
         price: s.price,
         cost_price: s.cost_price || 0,

@@ -1,6 +1,8 @@
 package svc
 
 import (
+	v1_marketingv1 "demo-shop/api/gen/marketing/v1"
+	v1_productv1 "demo-shop/api/gen/product/v1"
 	v1_tradev1 "demo-shop/api/gen/trade/v1"
 	v1_userv1 "demo-shop/api/gen/user/v1"
 	"demo-shop/pkg/auth"
@@ -38,6 +40,14 @@ type ServiceContext struct {
 	CartRPC    v1_tradev1.CartServiceClient
 	OrderRPC   v1_tradev1.OrderServiceClient
 	PaymentRPC v1_tradev1.PaymentServiceClient
+
+	// CategoryRPC / ProductRPC / InventoryRPC 三个都由 product-service 提供。
+	CategoryRPC  v1_productv1.CategoryServiceClient
+	ProductRPC   v1_productv1.ProductServiceClient
+	InventoryRPC v1_productv1.InventoryServiceClient
+
+	// CouponRPC 由 marketing-service 提供。
+	CouponRPC v1_marketingv1.CouponServiceClient
 }
 
 // NewServiceContext verifier 由 main 在启动时加载 —— 验签器需要它,
@@ -55,6 +65,8 @@ func NewServiceContext(c config.Config, verifier *auth.Verifier) *ServiceContext
 	// 负载均衡。
 	userConn := rpc.Connect(c.Etcd.Hosts, c.User.EtcdKey)
 	tradeConn := rpc.Connect(c.Etcd.Hosts, c.Trade.EtcdKey)
+	productConn := rpc.Connect(c.Etcd.Hosts, c.Product.EtcdKey)
+	marketingConn := rpc.Connect(c.Etcd.Hosts, c.Marketing.EtcdKey)
 
 	return &ServiceContext{
 		Config:          c,
@@ -70,5 +82,11 @@ func NewServiceContext(c config.Config, verifier *auth.Verifier) *ServiceContext
 		CartRPC:    v1_tradev1.NewCartServiceClient(tradeConn),
 		OrderRPC:   v1_tradev1.NewOrderServiceClient(tradeConn),
 		PaymentRPC: v1_tradev1.NewPaymentServiceClient(tradeConn),
+
+		CategoryRPC:  v1_productv1.NewCategoryServiceClient(productConn),
+		ProductRPC:   v1_productv1.NewProductServiceClient(productConn),
+		InventoryRPC: v1_productv1.NewInventoryServiceClient(productConn),
+
+		CouponRPC: v1_marketingv1.NewCouponServiceClient(marketingConn),
 	}
 }

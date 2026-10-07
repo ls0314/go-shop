@@ -31,6 +31,31 @@ type AddressItem struct {
 	CreatedAt     string `json:"created_at"`
 }
 
+type AdjustStockReq struct {
+	SkuId     int64  `json:"sku_id"`
+	ChangeQty int64  `json:"change_qty"`
+	Remark    string `json:"remark"`
+}
+
+type AdjustStockResp struct {
+	BeforeStock int64 `json:"before_stock"`
+	AfterStock  int64 `json:"after_stock"`
+}
+
+type AdminCouponListReq struct {
+	Page       int    `form:"page,optional"`
+	PageSize   int    `form:"page_size,optional"`
+	CouponName string `form:"coupon_name,optional"`
+	CouponType string `form:"coupon_type,optional"`
+}
+
+type AdminCouponListResp struct {
+	List     []CouponTemplateItem `json:"list"`
+	Page     int                  `json:"page"`
+	PageSize int                  `json:"page_size"`
+	Total    int64                `json:"total"`
+}
+
 type AdminOrderListItem struct {
 	OrderId       int64   `json:"order_id"`
 	OrderNo       string  `json:"order_no"`
@@ -53,6 +78,72 @@ type AdminPaymentListItem struct {
 	PayAmount float64 `json:"pay_amount"`
 	PayStatus string  `json:"pay_status"`
 	PayTime   string  `json:"pay_time"`
+}
+
+type AdminProductListReq struct {
+	Page       int    `form:"page,optional"`
+	PageSize   int    `form:"page_size,optional"`
+	SpuName    string `form:"spu_name,optional"`
+	CategoryId int64  `form:"category_id,optional"`
+	SpuStatus  string `form:"spu_status,optional"`
+	Brand      string `form:"brand,optional"`
+	Sort       string `form:"sort,optional"`
+}
+
+type AdminProductListResp struct {
+	List     []AdminSpuListItem `json:"list"`
+	Total    int64              `json:"total"`
+	Page     int                `json:"page"`
+	PageSize int                `json:"pageSize"`
+}
+
+type AdminProductResp struct {
+	SpuId        int64              `json:"spu_id"`
+	SpuName      string             `json:"spu_name"`
+	CategoryId   int64              `json:"category_id"`
+	CategoryName string             `json:"category_name"`
+	Brand        string             `json:"brand"`
+	Description  string             `json:"description"`
+	MainImage    string             `json:"main_image"`
+	SpecTemplate []SpecTemplateItem `json:"spec_template"`
+	SpuStatus    string             `json:"spu_status"`
+	Priority     int64              `json:"priority"`
+	SkuList      []AdminSku         `json:"sku_list"`
+	ImageList    []ProductImage     `json:"image_list"`
+	CreatedAt    string             `json:"created_at"`
+	UpdatedAt    string             `json:"updated_at"`
+}
+
+type AdminSku struct {
+	SkuId      int64             `json:"sku_id"`
+	SpuId      int64             `json:"spu_id"`
+	SkuName    string            `json:"sku_name"`
+	SpecValues map[string]string `json:"spec_values"`
+	Price      float64           `json:"price"`
+	CostPrice  float64           `json:"cost_price"`
+	Stock      int64             `json:"stock"`
+	LockStock  int64             `json:"lock_stock"`
+	SoldCount  int64             `json:"sold_count"`
+	SkuCode    string            `json:"sku_code"`
+	SkuImage   string            `json:"sku_image"`
+	SkuStatus  string            `json:"sku_status"`
+}
+
+type AdminSpuListItem struct {
+	SpuId        int64  `json:"spu_id"`
+	SpuName      string `json:"spu_name"`
+	CategoryId   int64  `json:"category_id"`
+	CategoryName string `json:"category_name"`
+	Brand        string `json:"brand"`
+	MainImage    string `json:"main_image"`
+	SpuStatus    string `json:"spu_status"`
+	Priority     int64  `json:"priority"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+	MinPrice     int64  `json:"min_price"`
+	MaxPrice     int64  `json:"max_price"`
+	TotalStock   int64  `json:"total_stock"`
+	TotalSold    int64  `json:"total_sold"`
 }
 
 type AssignMenuPermsReq struct {
@@ -79,6 +170,23 @@ type AssignUserDeptsReq struct {
 type AssignUserRolesReq struct {
 	UserId  int64   `json:"user_id"`
 	RoleIds []int64 `json:"role_ids"`
+}
+
+type AvailableCouponItem struct {
+	UserCouponId    int64   `json:"user_coupon_id"`
+	CouponName      string  `json:"coupon_name"`
+	CouponType      string  `json:"coupon_type"`
+	ThresholdAmount float64 `json:"threshold_amount"`
+	DiscountAmount  float64 `json:"discount_amount"`
+	PayAfter        float64 `json:"pay_after"`
+}
+
+type AvailableCouponReq struct {
+	OrderAmount float64 `form:"order_amount,optional"`
+}
+
+type AvailableCouponResp struct {
+	List []AvailableCouponItem `json:"list"`
 }
 
 type CancelOrderResp struct {
@@ -122,10 +230,88 @@ type CartPayPreviewResp struct {
 	UnavailableItems []CartItem `json:"unavailable_items"`
 }
 
+type Category struct {
+	CategoryId    int64  `json:"category_id"`
+	ParentId      int64  `json:"parent_id"`
+	CategoryName  string `json:"category_name"`
+	CategoryLevel int64  `json:"category_level"`
+	CategoryPath  string `json:"category_path"`
+	SortOrder     int64  `json:"sort_order"`
+	IconUrl       string `json:"icon_url"`
+	IsLeaf        bool   `json:"is_leaf"`
+	IsVisible     bool   `json:"is_visible"`
+	Status        string `json:"status"`
+}
+
+type CategoryChildrenReq struct {
+	Id              int64 `path:"id"`
+	IncludeDisabled bool  `form:"include_disabled,optional"`
+}
+
+type CategoryIdReq struct {
+	Id int64 `path:"id"`
+}
+
+type CategoryListItem struct {
+	CategoryId    int64  `json:"category_id"`
+	ParentId      int64  `json:"parent_id"`
+	CategoryName  string `json:"category_name"`
+	CategoryLevel int64  `json:"category_level"`
+	SortOrder     int64  `json:"sort_order"`
+	IsLeaf        bool   `json:"is_leaf"`
+	IsVisible     bool   `json:"is_visible"`
+	Status        string `json:"status"`
+}
+
+type CategoryListReq struct {
+	Page     int `form:"page,optional"`
+	PageSize int `form:"pageSize,optional"`
+}
+
+type CategoryListResp struct {
+	List     []CategoryListItem `json:"list"`
+	Total    int64              `json:"total"`
+	Page     int                `json:"page"`
+	PageSize int                `json:"pageSize"`
+}
+
+type CategoryTreeItem struct {
+	CategoryId    int64              `json:"category_id"`
+	CategoryName  string             `json:"category_name"`
+	CategoryLevel int64              `json:"category_level"`
+	IsVisible     bool               `json:"is_visible"`
+	Status        string             `json:"status"`
+	Children      []CategoryTreeItem `json:"children"`
+}
+
+type CategoryTreeReq struct {
+	Level           int64 `form:"level,optional"`
+	IncludeDisabled bool  `form:"include_disabled,optional"`
+}
+
 type ConfirmOrderResp struct {
 	OrderId     int64  `json:"order_id"`
 	OrderNo     string `json:"order_no"`
 	OrderStatus string `json:"order_status"`
+}
+
+type CouponTemplateIdReq struct {
+	Id int64 `path:"id"`
+}
+
+type CouponTemplateItem struct {
+	TemplateId      int64   `json:"template_id"`
+	CouponName      string  `json:"coupon_name"`
+	CouponType      string  `json:"coupon_type"`
+	ThresholdAmount float64 `json:"threshold_amount"`
+	DiscountAmount  float64 `json:"discount_amount"`
+	TotalCount      int64   `json:"total_count"`
+	ReceivedCount   int64   `json:"received_count"`
+	PerUserLimit    int64   `json:"per_user_limit"`
+	UsableDays      int64   `json:"usable_days"`
+	StartTime       string  `json:"start_time"`
+	EndTime         string  `json:"end_time"`
+	Status          string  `json:"status"`
 }
 
 type CreateAddressReq struct {
@@ -138,6 +324,35 @@ type CreateAddressReq struct {
 	PostalCode    string `json:"postal_code,optional"`
 	IsDefault     bool   `json:"is_default,optional"`
 	AddressTag    string `json:"address_tag,optional"`
+}
+
+type CreateCategoryReq struct {
+	ParentId     int64  `json:"parent_id"`
+	CategoryName string `json:"category_name"`
+	SortOrder    int64  `json:"sort_order,optional"`
+	IconUrl      string `json:"icon_url,optional"`
+	IsVisible    bool   `json:"is_visible,optional"`
+}
+
+type CreateCategoryResp struct {
+	CategoryId   int64  `json:"category_id"`
+	CategoryPath string `json:"category_path"`
+}
+
+type CreateCouponTemplateReq struct {
+	CouponName      string  `json:"coupon_name"`
+	CouponType      string  `json:"coupon_type"`
+	ThresholdAmount float64 `json:"threshold_amount"`
+	DiscountAmount  float64 `json:"discount_amount"`
+	TotalCount      int64   `json:"total_count"`
+	PerUserLimit    int64   `json:"per_user_limit"`
+	UsableDays      int64   `json:"usable_days,optional"`
+	StartTime       string  `json:"start_time,optional"`
+	EndTime         string  `json:"end_time,optional"`
+}
+
+type CreateCouponTemplateResp struct {
+	TemplateId int64 `json:"template_id"`
 }
 
 type CreateDeptReq struct {
@@ -214,6 +429,23 @@ type CreatePermissionResp struct {
 	PermissionItem
 }
 
+type CreateProductReq struct {
+	SpuName      string             `json:"spu_name"`
+	CategoryId   int64              `json:"category_id"`
+	Brand        string             `json:"brand,optional"`
+	Description  string             `json:"description,optional"`
+	MainImage    string             `json:"main_image,optional"`
+	SpecTemplate []SpecTemplateItem `json:"spec_template,optional"`
+	Priority     int64              `json:"priority,optional"`
+	SkuList      []CreateSkuItem    `json:"sku_list"`
+	ImageList    []ProductImage     `json:"image_list,optional"`
+	SpuStatus    string             `json:"spu_status,optional"`
+}
+
+type CreateProductResp struct {
+	SpuId int64 `json:"spu_id"`
+}
+
 type CreateRoleReq struct {
 	RoleName    string `json:"role_name"`
 	RoleType    string `json:"role_type,optional"`
@@ -237,6 +469,17 @@ type CreateScopeReq struct {
 
 type CreateScopeResp struct {
 	ScopeItem
+}
+
+type CreateSkuItem struct {
+	SkuName    string            `json:"sku_name"`
+	SpecValues map[string]string `json:"spec_values"`
+	Price      float64           `json:"price"`
+	CostPrice  float64           `json:"cost_price,optional"`
+	Stock      int64             `json:"stock"`
+	SkuCode    string            `json:"sku_code,optional"`
+	SkuImage   string            `json:"sku_image,optional"`
+	SkuStatus  string            `json:"sku_status,optional"`
 }
 
 type CreateUserInfoReq struct {
@@ -624,6 +867,26 @@ type PermissionItem struct {
 	IsSystem       bool   `json:"is_system"`
 }
 
+type ProductIdReq struct {
+	Id int64 `path:"id"`
+}
+
+type ProductImage struct {
+	ImageId   int64  `json:"image_id"`
+	ImageUrl  string `json:"image_url"`
+	SortOrder int64  `json:"sort_order"`
+	IsMain    bool   `json:"is_main"`
+}
+
+type ReceiveCouponReq struct {
+	Id int64 `path:"id"`
+}
+
+type ReceiveCouponResp struct {
+	UserCouponId int64  `json:"user_coupon_id"`
+	ExpireTime   string `json:"expire_time"`
+}
+
 type RefreshTokenReq struct {
 	RefreshToken string `json:"refresh_token"`
 }
@@ -718,6 +981,86 @@ type ShipOrderResp struct {
 	TrackingNo     string `json:"tracking_no"`
 }
 
+type SkuInventory struct {
+	SkuId      int64       `json:"sku_id"`
+	SkuName    string      `json:"sku_name"`
+	SpuId      int64       `json:"spu_id"`
+	SpuName    string      `json:"spu_name"`
+	SpecValues interface{} `json:"spec_values"`
+	Stock      int64       `json:"stock"`
+	LockStock  int64       `json:"lock_stock"`
+	TotalStock int64       `json:"total_stock"`
+	SoldCount  int64       `json:"sold_count"`
+	SkuStatus  string      `json:"sku_status"`
+}
+
+type SkuStockReq struct {
+	Id int64 `path:"id"`
+}
+
+type SkuStockResp struct {
+	SkuId      int64       `json:"sku_id"`
+	SkuName    string      `json:"sku_name"`
+	SpuId      int64       `json:"spu_id"`
+	SpuName    string      `json:"spu_name"`
+	SpecValues interface{} `json:"spec_values"`
+	Stock      int64       `json:"stock"`
+	LockStock  int64       `json:"lock_stock"`
+	TotalStock int64       `json:"total_stock"`
+	SoldCount  int64       `json:"sold_count"`
+	SkuStatus  string      `json:"sku_status"`
+}
+
+type SpecTemplateItem struct {
+	Name   string   `json:"name"`
+	Values []string `json:"values"`
+}
+
+type SpuStockReq struct {
+	Id int64 `path:"id"`
+}
+
+type SpuStockResp struct {
+	List       []SkuInventory `json:"list"`
+	TotalStock int64          `json:"total_stock"`
+	TotalLock  int64          `json:"total_lock"`
+	TotalSold  int64          `json:"total_sold"`
+}
+
+type StockLogItem struct {
+	LogId       int64  `json:"log_id"`
+	SkuId       int64  `json:"sku_id"`
+	SkuName     string `json:"sku_name"`
+	SpuName     string `json:"spu_name"`
+	ChangeType  string `json:"change_type"`
+	ChangeQty   int64  `json:"change_qty"`
+	BeforeStock int64  `json:"before_stock"`
+	AfterStock  int64  `json:"after_stock"`
+	BeforeLock  int64  `json:"before_lock"`
+	AfterLock   int64  `json:"after_lock"`
+	OrderId     int64  `json:"order_id"`
+	Remark      string `json:"remark"`
+	CreatedAt   string `json:"created_at"`
+	CreateBy    int64  `json:"create_by"`
+}
+
+type StockLogReq struct {
+	Page       int    `form:"page,optional"`
+	PageSize   int    `form:"page_size,optional"`
+	SkuId      int64  `form:"sku_id,optional"`
+	SpuId      int64  `form:"spu_id,optional"`
+	ChangeType string `form:"change_type,optional"`
+	StartTime  string `form:"start_time,optional"`
+	EndTime    string `form:"end_time,optional"`
+}
+
+type StockLogResp struct {
+	List     []StockLogItem `json:"list"`
+	Total    int64          `json:"total"`
+	Page     int            `json:"page"`
+	PageSize int            `json:"page_size"`
+}
+
 type UpdateAddressReq struct {
 	Id            int64   `path:"id"`
 	ReceiverName  *string `json:"receiver_name,optional"`
@@ -737,8 +1080,18 @@ type UpdateAddressResp struct {
 
 type UpdateCartItemReq struct {
 	Id         int64 `path:"id"`
-	Quantity   int64 `json:"quantity,optional"`
-	IsSelected bool  `json:"is_selected,optional"`
+	Quantity   int64 `json:"quantity"`
+	IsSelected bool  `json:"is_selected"`
+}
+
+type UpdateCategoryReq struct {
+	Id           int64   `path:"id"`
+	CategoryName *string `json:"category_name,optional"`
+	SortOrder    *int64  `json:"sort_order,optional"`
+	IconUrl      *string `json:"icon_url,optional"`
+	IsVisible    *bool   `json:"is_visible,optional"`
+	Status       *string `json:"status,optional"`
+	ParentId     *int64  `json:"parent_id,optional"`
 }
 
 type UpdateDeptReq struct {
@@ -779,6 +1132,31 @@ type UpdatePermissionReq struct {
 
 type UpdatePermissionResp struct {
 	PermissionItem
+}
+
+type UpdateProductFullReq struct {
+	Id             int64              `path:"id"`
+	SpuName        string             `json:"spu_name"`
+	CategoryId     int64              `json:"category_id"`
+	Brand          string             `json:"brand,optional"`
+	Description    string             `json:"description,optional"`
+	MainImage      string             `json:"main_image,optional"`
+	SpecTemplate   []SpecTemplateItem `json:"spec_template,optional"`
+	Priority       int64              `json:"priority,optional"`
+	SkuList        []AdminSku         `json:"sku_list,optional"`
+	ImageList      []ProductImage     `json:"image_list,optional"`
+	DeleteImageIds []int64            `json:"delete_image_ids,optional"`
+}
+
+type UpdateProductReq struct {
+	Id          int64  `path:"id"`
+	SpuName     string `json:"spu_name,optional"`
+	CategoryId  int64  `json:"category_id,optional"`
+	Brand       string `json:"brand,optional"`
+	Description string `json:"description,optional"`
+	MainImage   string `json:"main_image,optional"`
+	SpuStatus   string `json:"spu_status,optional"`
+	Priority    int64  `json:"priority,optional"`
 }
 
 type UpdateRoleReq struct {
@@ -840,6 +1218,59 @@ type UpdateUserResp struct {
 	UserItem
 }
 
+type UserCouponItem struct {
+	UserCouponId    int64   `json:"user_coupon_id"`
+	CouponName      string  `json:"coupon_name"`
+	CouponType      string  `json:"coupon_type"`
+	ThresholdAmount float64 `json:"threshold_amount"`
+	DiscountAmount  float64 `json:"discount_amount"`
+	Status          string  `json:"status"`
+	ExpireAt        string  `json:"expire_at"`
+	OrderNo         string  `json:"order_no"`
+	UsedAt          string  `json:"used_at"`
+}
+
+type UserCouponListReq struct {
+	Page     int    `form:"page,optional"`
+	PageSize int    `form:"page_size,optional"`
+	Status   string `form:"status,optional"`
+}
+
+type UserCouponListResp struct {
+	List     []UserCouponItem `json:"list"`
+	Page     int              `json:"page"`
+	PageSize int              `json:"page_size"`
+	Total    int64            `json:"total"`
+}
+
+type UserCouponTemplateItem struct {
+	TemplateId      int64   `json:"template_id"`
+	CouponName      string  `json:"coupon_name"`
+	CouponType      string  `json:"coupon_type"`
+	ThresholdAmount float64 `json:"threshold_amount"`
+	DiscountAmount  float64 `json:"discount_amount"`
+	PerUserLimit    int64   `json:"per_user_limit"`
+	HeldCount       int64   `json:"held_count"`
+	RemainingCount  int64   `json:"remaining_count"`
+	UsableDays      int64   `json:"usable_days"`
+	StartTime       string  `json:"start_time"`
+	EndTime         string  `json:"end_time"`
+}
+
+type UserCouponTemplateListReq struct {
+	Page       int    `form:"page,optional"`
+	PageSize   int    `form:"page_size,optional"`
+	CouponName string `form:"coupon_name,optional"`
+	CouponType string `form:"coupon_type,optional"`
+}
+
+type UserCouponTemplateListResp struct {
+	List     []UserCouponTemplateItem `json:"list"`
+	Page     int                      `json:"page"`
+	PageSize int                      `json:"page_size"`
+	Total    int64                    `json:"total"`
+}
+
 type UserIdReq struct {
 	Id int64 `path:"id"`
 }
@@ -863,4 +1294,77 @@ type UserOrderListItem struct {
 	DetailCount int64   `json:"detail_count"`
 	FirstImage  string  `json:"first_image"`
 	CreatedAt   string  `json:"created_at"`
+}
+
+type UserProductListReq struct {
+	Page       int    `form:"page,optional"`
+	PageSize   int    `form:"page_size,optional"`
+	SpuName    string `form:"spu_name,optional"`
+	CategoryId int64  `form:"category_id,optional"`
+	Brand      string `form:"brand,optional"`
+	Sort       string `form:"sort,optional"`
+}
+
+type UserProductListResp struct {
+	List     []UserSpuListItem `json:"list"`
+	Total    int64             `json:"total"`
+	Page     int               `json:"page"`
+	PageSize int               `json:"pageSize"`
+}
+
+type UserProductResp struct {
+	SpuId        int64              `json:"spu_id"`
+	SpuName      string             `json:"spu_name"`
+	CategoryId   int64              `json:"category_id"`
+	CategoryName string             `json:"category_name"`
+	Brand        string             `json:"brand"`
+	Description  string             `json:"description"`
+	MainImage    string             `json:"main_image"`
+	SpecTemplate []SpecTemplateItem `json:"spec_template"`
+	SpuStatus    string             `json:"spu_status"`
+	Priority     int64              `json:"priority"`
+	SkuList      []UserSku          `json:"sku_list"`
+	ImageList    []ProductImage     `json:"image_list"`
+	CreatedAt    string             `json:"created_at"`
+	UpdatedAt    string             `json:"updated_at"`
+}
+
+type UserSku struct {
+	SkuId      int64       `json:"sku_id"`
+	SpuId      int64       `json:"spu_id"`
+	SkuName    string      `json:"sku_name"`
+	SpecValues interface{} `json:"spec_values"`
+	Price      float64     `json:"price"`
+	Stock      int64       `json:"stock"`
+	SoldCount  int64       `json:"sold_count"`
+	SkuCode    string      `json:"sku_code"`
+	SkuImage   string      `json:"sku_image"`
+	SkuStatus  string      `json:"sku_status"`
+}
+
+type UserSpuListItem struct {
+	SpuId        int64  `json:"spu_id"`
+	SpuName      string `json:"spu_name"`
+	CategoryName string `json:"category_name"`
+	Brand        string `json:"brand"`
+	MainImage    string `json:"main_image"`
+	MinPrice     int64  `json:"min_price"`
+	MaxPrice     int64  `json:"max_price"`
+	TotalSold    int64  `json:"total_sold"`
+	Stock        int64  `json:"stock"`
+}
+
+type WarnStockItem struct {
+	SkuId     int64  `json:"sku_id"`
+	SpuName   string `json:"spu_name"`
+	SkuName   string `json:"sku_name"`
+	Stock     int64  `json:"stock"`
+	LockStock int64  `json:"lock_stock"`
+	SoldCount int64  `json:"sold_count"`
+	SkuStatus string `json:"sku_status"`
+}
+
+type WarnStockReq struct {
+	Threshold int64  `form:"threshold,optional"`
+	SpuStatus string `form:"spu_status,optional"`
 }

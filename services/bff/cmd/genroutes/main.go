@@ -54,6 +54,7 @@ import (
 	"demo-shop/services/bff/internal/infra/rpc"
 
 	"github.com/zeromicro/go-zero/core/conf"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
@@ -134,6 +135,17 @@ func run(routesPath, configPath string, dryRun bool) error {
 	fmt.Printf("其中管理端路由 %d 条,需要判权处理\n\n", len(targets))
 
 	// ---- 查权限码 ----
+	//
+	// 连之前先探一下 etcd:zrpc.MustNewClient 在 etcd 不可达时会**直接 panic**
+	// 并打出几十行堆栈,而真正的原因只有一句"etcd 没起来"。写生成脚本的人
+	// 需要的是那句话,不是堆栈。
+	if err := pingEtcd(c.Etcd.Hosts); err != nil {
+		return fmt.Errorf("连不上 etcd(%v):%w\n"+
+			"权限码是经 user-service 的 RPC 取的,故生成前需要 etcd 与 "+
+			"user-service(etcd key %q)都在运行",
+			c.Etcd.Hosts, err, c.User.EtcdKey)
+	}
+
 	conn := rpc.Connect(c.Etcd.Hosts, c.User.EtcdKey)
 	defer conn.Close()
 	rbac := v1_userv1.NewRBACServiceClient(conn)
@@ -236,6 +248,32 @@ func listCodes(rbac v1_userv1.RBACServiceClient, apiPath, method string) (*v1_us
 		ApiPath:       apiPath,
 		RequestMethod: method,
 	})
+}
+
+// pingEtcd 探一下 etcd 是否可达。
+//
+// 为什么值得单独做一次:zrpc.MustNewClient 在 etcd 不可达时 panic,输出是
+// 几十行堆栈 + 一个 30 秒超时,而真实原因只有"etcd 没起来"。生成脚本是
+// 构建流程的一环,它的失败信息应当一句话说清要启动什么。
+//
+// 用很短的单次超时(3s):本地 etcd 可达与否是立即能判定的,等 30 秒
+// 只是让人以为卡住了。
+func pingEtcd(hosts []string) error {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   hosts,
+		DialTimeout: 3 * time.Second,
+	})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if _, err := cli.Get(ctx, "health-probe"); err != nil {
+		return err
+	}
+	return nil
 }
 
 // stripGuards 剥掉本脚本自己之前加过的包装,拿到裸处理器表达式。

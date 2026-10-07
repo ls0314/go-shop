@@ -9,12 +9,16 @@ import (
 	"demo-shop/services/bff/internal/guard"
 	address "demo-shop/services/bff/internal/handler/address"
 	cart "demo-shop/services/bff/internal/handler/cart"
+	category "demo-shop/services/bff/internal/handler/category"
+	coupon "demo-shop/services/bff/internal/handler/coupon"
 	dept "demo-shop/services/bff/internal/handler/dept"
 	health "demo-shop/services/bff/internal/handler/health"
+	inventory "demo-shop/services/bff/internal/handler/inventory"
 	menu "demo-shop/services/bff/internal/handler/menu"
 	order "demo-shop/services/bff/internal/handler/order"
 	payment "demo-shop/services/bff/internal/handler/payment"
 	permission "demo-shop/services/bff/internal/handler/permission"
+	product "demo-shop/services/bff/internal/handler/product"
 	role "demo-shop/services/bff/internal/handler/role"
 	scope "demo-shop/services/bff/internal/handler/scope"
 	user "demo-shop/services/bff/internal/handler/user"
@@ -114,6 +118,107 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				{
 					Method:  http.MethodPost,
 					Path:    "/",
+					Handler: guard.Permission([]string{"platform:category:create"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/category", category.CreateCategoryHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/",
+					Handler: guard.Permission([]string{"platform:category:view"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/category", category.ListCategoriesHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/:id",
+					Handler: guard.Permission([]string{"platform:category:view"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/category/:id", category.GetCategoryHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/:id",
+					Handler: guard.Permission([]string{"platform:category:update"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/category/:id", category.UpdateCategoryHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodDelete,
+					Path:    "/:id",
+					Handler: guard.Permission([]string{"platform:category:delete"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/category/:id", category.DeleteCategoryHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/children/:id",
+					Handler: guard.Permission([]string{"platform:category:children"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/category/children/:id", category.GetCategoryChildrenHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/tree",
+					Handler: guard.Permission([]string{"platform:category:tree"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/category/tree", category.GetCategoryTreeHandler(serverCtx))),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/admin/category"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/",
+					Handler: guard.Permission([]string{"platform:coupon:create"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/coupons", coupon.CreateCouponTemplateHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/",
+					Handler: guard.Permission([]string{"platform:coupon:view"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/coupons", coupon.ListCouponTemplatesHandler(serverCtx))),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/admin/coupons"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodGet,
+					Path:    "/",
+					Handler: coupon.ListUserCouponsHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/available",
+					Handler: coupon.ListAvailableCouponsHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/templates",
+					Handler: coupon.ListCouponTemplatesForUserHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/coupons"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth, serverCtx.PublicRateLimit},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/receive/:id",
+					Handler: coupon.ReceiveCouponHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/coupons"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/",
 					Handler: guard.Permission([]string{"system:dept:create"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/dept", dept.CreateDeptHandler(serverCtx))),
 				},
 				{
@@ -158,6 +263,40 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/api/v1"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/adjust",
+					Handler: guard.Permission([]string{"platform:inventory:adjust"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/inventory/adjust", inventory.AdjustStockHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/log",
+					Handler: guard.Permission([]string{"platform:inventory:log"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/inventory/log", inventory.ListStockLogsHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/sku/:id",
+					Handler: guard.Permission([]string{"platform:inventory:view"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/inventory/sku/:id", inventory.GetSkuStockHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/spu/:id",
+					Handler: guard.Permission([]string{"platform:inventory:view"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/inventory/spu/:id", inventory.ListSkuStockBySpuHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/warning",
+					Handler: guard.Permission([]string{"platform:product:view"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/inventory/warning", inventory.ListWarnStockHandler(serverCtx))),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/admin/inventory"),
 	)
 
 	server.AddRoutes(
@@ -356,6 +495,74 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/api/v1/admin/permissions"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/",
+					Handler: guard.Permission([]string{"platform:product:create"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/products", product.CreateProductHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/",
+					Handler: guard.Permission([]string{"platform:product:view"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/products", product.ListProductsHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/:id",
+					Handler: guard.Permission([]string{"platform:product:view"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/products/:id", product.GetProductHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/:id",
+					Handler: guard.Permission([]string{"platform:product:update"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/products/:id", product.UpdateProductHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodDelete,
+					Path:    "/:id",
+					Handler: guard.Permission([]string{"platform:product:delete"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/products/:id", product.DeleteProductHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/:id/full",
+					Handler: guard.Permission([]string{"platform:product:full-update"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/products/:id/full", product.UpdateProductFullHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/:id/publish",
+					Handler: guard.Permission([]string{"platform:product:publish"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/products/:id/publish", product.PublishProductHandler(serverCtx))),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/:id/withdraw",
+					Handler: guard.Permission([]string{"platform:product:withdraw"}, serverCtx.RBACRPC, guard.RouteTemplate("/api/v1/admin/products/:id/withdraw", product.WithdrawProductHandler(serverCtx))),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/admin/products"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.RequestMeta, serverCtx.Auth},
+			[]rest.Route{
+				{
+					Method:  http.MethodGet,
+					Path:    "/",
+					Handler: product.UserListProductsHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/:id",
+					Handler: product.UserGetProductHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/products"),
 	)
 
 	server.AddRoutes(

@@ -1218,6 +1218,19 @@ type UpdateUserResp struct {
 	UserItem
 }
 
+type UploadChunkReq struct {
+	FileMd5     string `form:"file_md5,optional"`
+	FileName    string `form:"file_name,optional"`
+	ChunkNumber int    `form:"chunk_number,optional"`
+	TotalChunks int    `form:"total_chunks,optional"`
+	FileSize    int64  `form:"file_size,optional"`
+}
+
+type UploadResp struct {
+	IsCompleted bool   `json:"is_completed"`
+	FileUrl     string `json:"file_url,omitempty"`
+}
+
 type UserCouponItem struct {
 	UserCouponId    int64   `json:"user_coupon_id"`
 	CouponName      string  `json:"coupon_name"`

@@ -70,12 +70,7 @@ services:
     networks: [ demo-shop-network ]
     restart: always
 
-  # 搜索:仅 observability profile 启动。
-  #
-  # 为什么归到可观测性里而不是默认开:光 JVM 堆就是 1G(见下方 ES_JAVA_OPTS),
-  # 而**没有它服务照样完整工作** —— product-service 的 ES.Addresses 留空即
-  # 不启用搜索(商品搜索降级为直查 DB),同时不启动 ES 对账任务。
-  # 见 services/product/etc/product.docker.yaml。
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
     profiles: ["observability"]
